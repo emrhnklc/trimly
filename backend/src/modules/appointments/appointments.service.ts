@@ -248,7 +248,16 @@ export class AppointmentsService {
           lt: day.plus({ days: 1 }).toUTC().toJSDate(),
         },
       },
-      select: { status: true, priceSnapshot: true },
+      select: {
+        status: true,
+        priceSnapshot: true,
+        businessMember: {
+          select: {
+            id: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
     });
 
     const counts = {
@@ -259,15 +268,53 @@ export class AppointmentsService {
       noShow: 0,
     };
     let completedRevenue = new Prisma.Decimal(0);
+    const memberSummaries = new Map<
+      string,
+      {
+        memberId: string;
+        name: string;
+        confirmed: number;
+        completed: number;
+        cancelled: number;
+        noShow: number;
+        completedRevenue: Prisma.Decimal;
+      }
+    >();
 
     for (const appointment of appointments) {
-      if (appointment.status === 'CONFIRMED') counts.confirmed += 1;
+      const memberId = appointment.businessMember.id;
+      const memberSummary = memberSummaries.get(memberId) ?? {
+        memberId,
+        name: `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`,
+        confirmed: 0,
+        completed: 0,
+        cancelled: 0,
+        noShow: 0,
+        completedRevenue: new Prisma.Decimal(0),
+      };
+
+      if (appointment.status === 'CONFIRMED') {
+        counts.confirmed += 1;
+        memberSummary.confirmed += 1;
+      }
       if (appointment.status === 'COMPLETED') {
         counts.completed += 1;
         completedRevenue = completedRevenue.plus(appointment.priceSnapshot);
+        memberSummary.completed += 1;
+        memberSummary.completedRevenue = memberSummary.completedRevenue.plus(
+          appointment.priceSnapshot,
+        );
       }
-      if (appointment.status === 'CANCELLED') counts.cancelled += 1;
-      if (appointment.status === 'NO_SHOW') counts.noShow += 1;
+      if (appointment.status === 'CANCELLED') {
+        counts.cancelled += 1;
+        memberSummary.cancelled += 1;
+      }
+      if (appointment.status === 'NO_SHOW') {
+        counts.noShow += 1;
+        memberSummary.noShow += 1;
+      }
+
+      memberSummaries.set(memberId, memberSummary);
     }
 
     return {
@@ -275,6 +322,10 @@ export class AppointmentsService {
       timezone: barbershop.timezone,
       ...counts,
       completedRevenue: completedRevenue.toFixed(2),
+      byMember: [...memberSummaries.values()].map((member) => ({
+        ...member,
+        completedRevenue: member.completedRevenue.toFixed(2),
+      })),
     };
   }
 

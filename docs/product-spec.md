@@ -151,7 +151,7 @@ Randevu durumları en az `CONFIRMED`, `COMPLETED`, `CANCELLED` ve `NO_SHOW` olac
 
 Müşteri gelmezse owner, manager veya o randevuya atanmış berber `PATCH /barbershops/:barbershopId/appointments/:appointmentId/no-show` ile randevuyu `NO_SHOW` durumuna geçirir. Yalnız onaylı (`CONFIRMED`) randevular işaretlenebilir.
 
-Owner/manager, `GET /barbershops/:barbershopId/appointments/daily-summary?date=YYYY-MM-DD` ile gün sonu özetini alır. Yanıt; toplam, onaylı, tamamlanmış, iptal, no-show randevu sayılarını ve yalnız tamamlanan randevuların snapshot fiyatlarından hesaplanan geliri içerir. `date` verilmezse işletmenin saat diliminde bugünün özeti döner. Push bildirim altyapısı eklendiğinde aynı özet owner'a otomatik bildirim olarak da gönderilebilir.
+Owner/manager, `GET /barbershops/:barbershopId/appointments/daily-summary?date=YYYY-MM-DD` ile gün sonu özetini alır. Yanıt; toplam, onaylı, tamamlanmış, iptal, no-show randevu sayılarını ve yalnız tamamlanan randevuların snapshot fiyatlarından hesaplanan geliri içerir. Ayrıca her çalışan için aynı kırılım ve tamamlanan gelir (`byMember`) döner. `date` verilmezse işletmenin saat diliminde bugünün özeti döner. Push bildirim altyapısı eklendiğinde aynı özet owner'a otomatik bildirim olarak da gönderilebilir.
 
 Aynı çalışana çakışan iki randevu oluşturma, sadece mobil ekranda kontrol edilmez. Backend işlem sırasında yeniden kontrol eder ve PostgreSQL tarafında da zaman aralığı çakışmasını engelleyen bir kural uygulanır. Bu, iki müşterinin aynı anda aynı slotu seçmesi durumunda yalnız birinin başarılı olmasını sağlar.
 
