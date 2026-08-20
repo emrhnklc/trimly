@@ -98,6 +98,7 @@ Owner, `PATCH /barbershops/:barbershopId/members/:memberId` ile owner olmayan bi
 - Owner/manager, hizmetleri `GET /barbershops/:barbershopId/services/management` ile aktif/pasif birlikte görür; `PATCH /barbershops/:barbershopId/services/:serviceId` ile fiyat, süre, açıklama veya aktiflik durumunu değiştirir. Mevcut randevular hizmetin o anki verisini değil, kendi fiyat/süre snapshot'ını korur.
 - Salonun genel çalışma saatleri ve çalışanın kendi vardiyası ayrı tutulur.
 - Mola ve izin, belirli tarih/saat aralığını kapatan bloklardır.
+- Owner/manager, yanlış eklenen mola/izin bloğunu `DELETE /barbershops/:barbershopId/members/:memberId/schedule-blocks/:blockId` ile silebilir.
 - Salonun `timezone` değeri vardır. Haftalık saatler bu yerel saate göre, randevu zamanları ise API katmanında güvenli biçimde UTC olarak değerlendirilir.
 
 ## Booking kuralları

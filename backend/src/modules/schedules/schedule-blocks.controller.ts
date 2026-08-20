@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -34,6 +42,20 @@ export class ScheduleBlocksController {
       barbershopId,
       memberId,
       dto,
+    );
+  }
+
+  @Delete(':blockId')
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  remove(
+    @Param('barbershopId') barbershopId: string,
+    @Param('memberId') memberId: string,
+    @Param('blockId') blockId: string,
+  ) {
+    return this.schedulesService.removeMemberScheduleBlock(
+      barbershopId,
+      memberId,
+      blockId,
     );
   }
 }

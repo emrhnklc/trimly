@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import {
   UpdateWorkingHoursDto,
@@ -117,6 +121,24 @@ export class SchedulesService {
         note: dto.note?.trim(),
       },
     });
+  }
+
+  async removeMemberScheduleBlock(
+    barbershopId: string,
+    memberId: string,
+    blockId: string,
+  ) {
+    await this.ensureMemberBelongsToBarbershop(barbershopId, memberId);
+
+    const deleted = await this.prisma.memberScheduleBlock.deleteMany({
+      where: { id: blockId, businessMemberId: memberId },
+    });
+
+    if (deleted.count === 0) {
+      throw new NotFoundException('Mola veya izin bloğu bulunamadı.');
+    }
+
+    return { success: true };
   }
 
   private validateWorkingHours(hours: WorkingHoursItemDto[]) {
