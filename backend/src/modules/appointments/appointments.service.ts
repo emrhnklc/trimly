@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { DateTime } from 'luxon';
 import { AvailabilityService } from '../availability/availability.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
@@ -16,6 +17,7 @@ export class AppointmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -79,7 +81,7 @@ export class AppointmentsService {
     }
 
     try {
-      return await this.prisma.appointment.create({
+      const appointment = await this.prisma.appointment.create({
         data: {
           barbershopId,
           customerId,
@@ -92,6 +94,10 @@ export class AppointmentsService {
           endsAt: new Date(selectedSlot.endsAt),
         },
       });
+
+      void this.notificationsService.notifyNewAppointment(appointment.id);
+
+      return appointment;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
