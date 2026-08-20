@@ -2,17 +2,20 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { AppButton } from '@/components/ui/AppButton';
+import { AppCard } from '@/components/ui/AppCard';
+import { AppText } from '@/components/ui/AppText';
+import { Screen } from '@/components/ui/Screen';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
 
 export default function DiscoverBarbershopsScreen() {
   const [barbershops, setBarbershops] = useState<PublicBarbershop[]>([]);
@@ -23,11 +26,8 @@ export default function DiscoverBarbershopsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const loadBarbershops = useCallback(async (search?: string, refresh = false) => {
-    if (refresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
+    if (refresh) setIsRefreshing(true);
+    else setIsLoading(true);
     setError(null);
 
     try {
@@ -41,10 +41,7 @@ export default function DiscoverBarbershopsScreen() {
   }, []);
 
   useEffect(() => {
-    const requestId = setTimeout(() => {
-      void loadBarbershops();
-    }, 0);
-
+    const requestId = setTimeout(() => void loadBarbershops(), 0);
     return () => clearTimeout(requestId);
   }, [loadBarbershops]);
 
@@ -55,7 +52,7 @@ export default function DiscoverBarbershopsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <Screen>
       <FlatList
         data={barbershops}
         keyExtractor={(item) => item.id}
@@ -68,85 +65,153 @@ export default function DiscoverBarbershopsScreen() {
         }
         ListHeaderComponent={
           <View>
-            <Text style={styles.eyebrow}>TRIMLY</Text>
-            <Text style={styles.title}>Yakınındaki iyi berberleri bul.</Text>
-            <Text style={styles.subtitle}>
+            <View style={styles.headerRow}>
+              <View>
+                <AppText color="primary" variant="overline">
+                  TRIMLY
+                </AppText>
+                <AppText color="textMuted" style={styles.tagline} variant="bodySmall">
+                  Tarzın. Randevun. Geçmişin.
+                </AppText>
+              </View>
+              <View style={styles.notificationPlaceholder}>
+                <AppText variant="heading">⌁</AppText>
+              </View>
+            </View>
+
+            <AppText style={styles.greeting} variant="displayLarge">
+              Tarzına uygun berberi keşfet.
+            </AppText>
+            <AppText color="textMuted" style={styles.subtitle}>
               Hizmeti, berberi ve sana uygun saati tek yerden seç.
-            </Text>
+            </AppText>
+
+            <AppCard style={styles.heroCard}>
+              <AppText color="surfaceMuted" variant="overline">
+                YENİ RANDEVU
+              </AppText>
+              <AppText color="surface" style={styles.heroTitle} variant="displayMedium">
+                Bir sonraki tarzın birkaç dokunuş uzakta.
+              </AppText>
+              <AppButton onPress={() => undefined} variant="secondary">
+                Berberleri Gör
+              </AppButton>
+            </AppCard>
+
             <View style={styles.searchRow}>
               <TextInput
                 value={searchText}
                 onChangeText={setSearchText}
                 onSubmitEditing={submitSearch}
                 placeholder="Berber ara"
-                placeholderTextColor="#8B8B93"
+                placeholderTextColor={colors.textMuted}
                 returnKeyType="search"
                 style={styles.searchInput}
               />
-              <Pressable onPress={submitSearch} style={styles.searchButton}>
-                <Text style={styles.searchButtonText}>Ara</Text>
-              </Pressable>
+              <AppButton onPress={submitSearch}>Ara</AppButton>
             </View>
-            <Text style={styles.sectionTitle}>
-              {submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'İşletmeleri keşfet'}
-            </Text>
+            <AppText style={styles.sectionTitle} variant="heading">
+              {submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'Öne çıkan berberler'}
+            </AppText>
           </View>
         }
         renderItem={({ item }) => <BarbershopCard barbershop={item} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator color="#111111" style={styles.loader} />
+            <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : (
-            <Text style={styles.emptyText}>
+            <AppText color="textMuted" style={styles.emptyText}>
               {error ?? 'Henüz gösterilecek bir işletme yok.'}
-            </Text>
+            </AppText>
           )
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 function BarbershopCard({ barbershop }: { barbershop: PublicBarbershop }) {
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
+    <AppCard style={styles.card}>
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{barbershop.name.slice(0, 1).toUpperCase()}</Text>
+        <AppText color="primary" variant="displayMedium">
+          {barbershop.name.slice(0, 1).toUpperCase()}
+        </AppText>
       </View>
       <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{barbershop.name}</Text>
-        <Text numberOfLines={2} style={styles.cardDescription}>
+        <AppText variant="label">{barbershop.name}</AppText>
+        <AppText color="textMuted" numberOfLines={2} style={styles.cardDescription} variant="bodySmall">
           {barbershop.description || 'Randevu için profili incele.'}
-        </Text>
-        {barbershop.address ? <Text style={styles.address}>{barbershop.address}</Text> : null}
+        </AppText>
+        {barbershop.address ? (
+          <AppText color="primary" style={styles.address} variant="bodySmall">
+            {barbershop.address}
+          </AppText>
+        ) : null}
       </View>
-      <Text style={styles.arrow}>›</Text>
-    </Pressable>
+      <AppText color="textMuted" variant="displayMedium">
+        ›
+      </AppText>
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8F7F4' },
-  content: { paddingHorizontal: 20, paddingBottom: 32 },
-  eyebrow: { color: '#D05B32', fontSize: 12, fontWeight: '800', letterSpacing: 1.8, marginTop: 22 },
-  title: { color: '#161616', fontSize: 34, fontWeight: '800', letterSpacing: -1.1, marginTop: 10 },
-  subtitle: { color: '#66636A', fontSize: 16, lineHeight: 23, marginTop: 10 },
-  searchRow: { flexDirection: 'row', gap: 10, marginTop: 24 },
-  searchInput: { backgroundColor: '#FFFFFF', borderColor: '#E6E2DD', borderRadius: 14, borderWidth: 1, color: '#161616', flex: 1, fontSize: 16, height: 52, paddingHorizontal: 16 },
-  searchButton: { alignItems: 'center', backgroundColor: '#161616', borderRadius: 14, justifyContent: 'center', paddingHorizontal: 18 },
-  searchButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  sectionTitle: { color: '#161616', fontSize: 19, fontWeight: '700', marginBottom: 14, marginTop: 32 },
-  card: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#EAE6E1', borderRadius: 18, borderWidth: 1, flexDirection: 'row', minHeight: 104, padding: 16 },
-  cardPressed: { opacity: 0.72 },
-  avatar: { alignItems: 'center', backgroundColor: '#F7E5DB', borderRadius: 16, height: 56, justifyContent: 'center', marginRight: 14, width: 56 },
-  avatarText: { color: '#B84B24', fontSize: 23, fontWeight: '800' },
+  content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  tagline: { marginTop: spacing.xxs },
+  notificationPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  greeting: { marginTop: spacing.xl, maxWidth: 330 },
+  subtitle: { marginTop: spacing.sm },
+  heroCard: {
+    backgroundColor: colors.darkSurface,
+    borderColor: colors.darkSurface,
+    marginTop: spacing.xl,
+  },
+  heroTitle: { marginBottom: spacing.lg, marginTop: spacing.xs },
+  searchRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xl },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    color: colors.text,
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 15,
+    height: 50,
+    paddingHorizontal: spacing.md,
+  },
+  sectionTitle: { marginBottom: spacing.sm, marginTop: spacing.xxl },
+  card: { alignItems: 'center', flexDirection: 'row', minHeight: 104 },
+  avatar: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    height: 56,
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+    width: 56,
+  },
   cardContent: { flex: 1 },
-  cardTitle: { color: '#1A1918', fontSize: 16, fontWeight: '700' },
-  cardDescription: { color: '#737078', fontSize: 13, lineHeight: 18, marginTop: 4 },
-  address: { color: '#A25D43', fontSize: 12, fontWeight: '600', marginTop: 6 },
-  arrow: { color: '#918D88', fontSize: 30, lineHeight: 30, marginLeft: 8 },
-  separator: { height: 10 },
-  loader: { marginTop: 32 },
-  emptyText: { color: '#6F6C70', fontSize: 15, lineHeight: 22, paddingTop: 12, textAlign: 'center' },
+  cardDescription: { marginTop: spacing.xxs },
+  address: { marginTop: 6 },
+  separator: { height: spacing.xs },
+  loader: { marginTop: spacing.xxl },
+  emptyText: { paddingTop: spacing.sm, textAlign: 'center' },
 });
