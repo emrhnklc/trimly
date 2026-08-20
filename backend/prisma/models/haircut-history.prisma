@@ -16,6 +16,8 @@ model HaircutPhoto {
   id              String   @id @default(cuid())
   haircutRecordId String
   storageKey      String   @unique
+  mimeType        String
+  sizeBytes       Int
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
 

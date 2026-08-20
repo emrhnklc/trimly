@@ -165,6 +165,8 @@ Fotoğraf binary verisi PostgreSQL'e konmaz. Dosya storage servisinde tutulur; v
 
 Fotoğraflar kişisel veri kabul edilir. MVP'de müşteri fotoğrafı eklenmeden önce işletmenin müşteriden izin aldığını doğrulayan bir akış ve müşterinin kaydı sildirme talebi için ürün kararı gerekir. Storage erişimi public, tahmin edilebilir URL olmamalıdır; gerektiğinde imzalı URL kullanılır.
 
+Local geliştirmede fotoğraflar backend'in gitignore'daki `uploads/haircut-photos/` klasöründe dosya olarak saklanır. Berber, tamamlanmış randevunun tıraş kaydı oluşturulduktan sonra `POST /barbershops/:barbershopId/appointments/:appointmentId/haircut-record/photos` üzerinden JPEG/PNG/WebP ve en fazla 5 MB dosya yükler. Müşteri fotoğrafı yalnız JWT ile `GET /haircut-records/:recordId/photos/:photoId` üzerinden görür; berbere fotoğraf okuma API'si verilmez. Production'da bu local storage Supabase/S3 gibi private storage ve imzalı URL yapısına taşınmalıdır.
+
 “Aynısını tekrar iste” seçeneği önceki kayıttaki işletme, çalışan ve hizmet seçimini taşır. Yeni tarih/saat yine güncel uygunluk kurallarına göre seçilir.
 
 ## Bildirimler
