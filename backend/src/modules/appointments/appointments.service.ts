@@ -222,6 +222,62 @@ export class AppointmentsService {
     });
   }
 
+  async findDailySummary(barbershopId: string, date?: string) {
+    const barbershop = await this.prisma.barbershop.findUnique({
+      where: { id: barbershopId },
+      select: { timezone: true },
+    });
+
+    if (!barbershop) {
+      throw new NotFoundException('İşletme bulunamadı.');
+    }
+
+    const day = date
+      ? DateTime.fromISO(date, { zone: barbershop.timezone }).startOf('day')
+      : DateTime.now().setZone(barbershop.timezone).startOf('day');
+
+    if (!day.isValid) {
+      throw new BadRequestException('Geçerli bir tarih gönderilmelidir.');
+    }
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        barbershopId,
+        startsAt: {
+          gte: day.toUTC().toJSDate(),
+          lt: day.plus({ days: 1 }).toUTC().toJSDate(),
+        },
+      },
+      select: { status: true, priceSnapshot: true },
+    });
+
+    const counts = {
+      total: appointments.length,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+      noShow: 0,
+    };
+    let completedRevenue = new Prisma.Decimal(0);
+
+    for (const appointment of appointments) {
+      if (appointment.status === 'CONFIRMED') counts.confirmed += 1;
+      if (appointment.status === 'COMPLETED') {
+        counts.completed += 1;
+        completedRevenue = completedRevenue.plus(appointment.priceSnapshot);
+      }
+      if (appointment.status === 'CANCELLED') counts.cancelled += 1;
+      if (appointment.status === 'NO_SHOW') counts.noShow += 1;
+    }
+
+    return {
+      date: day.toISODate(),
+      timezone: barbershop.timezone,
+      ...counts,
+      completedRevenue: completedRevenue.toFixed(2),
+    };
+  }
+
   async findNextForCurrentMember(barbershopId: string, userId: string) {
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },

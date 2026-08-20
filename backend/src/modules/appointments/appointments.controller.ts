@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { BusinessRole } from '@prisma/client';
@@ -15,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { DailySummaryQueryDto } from './dto/daily-summary-query.dto';
 
 @Controller('barbershops/:barbershopId/appointments')
 export class AppointmentsController {
@@ -25,6 +27,16 @@ export class AppointmentsController {
   @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
   findForBarbershop(@Param('barbershopId') barbershopId: string) {
     return this.appointmentsService.findForBarbershop(barbershopId);
+  }
+
+  @Get('daily-summary')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  findDailySummary(
+    @Param('barbershopId') barbershopId: string,
+    @Query() query: DailySummaryQueryDto,
+  ) {
+    return this.appointmentsService.findDailySummary(barbershopId, query.date);
   }
 
   @Get('next-for-me')
