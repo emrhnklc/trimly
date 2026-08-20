@@ -171,6 +171,8 @@ Yeni bir randevu oluşturulduğunda atanan, bookable çalışana push bildirimi 
 
 Push bildirimi altyapısı mobil cihaz token'ı, bildirim tercihleri ve Expo Push/benzeri bir servis gerektirir. Appointment oluşturma işlemi başarıyla tamamlandıktan sonra tetiklenir; bildirim hatası randevu oluşturmayı geri almamalıdır.
 
+İlk altyapı olarak Expo cihaz token'ları kullanıcıya bağlı `PushDevice` kayıtlarında tutulur. Mobil uygulama girişten sonra `PUT /notifications/push-devices`, uygulamadan çıkışta ise `DELETE /notifications/push-devices` çağrısıyla token yönetir. Token, URL'ye konmaz; silme isteğinin gövdesinde gönderilir. Bu aşama yalnız token yönetimidir; gerçek Expo push gönderimi sonraki adımdır.
+
 ## Favoriler ve deep link
 
 Favoriler, `User` ile `Barbershop` arasında ayrı bağlantı modeli olarak tutulur. Deep link/QR kod, uygulama yüklüyse ilgili işletme ekranını; değilse web yönlendirme/fallback ekranını açmalıdır.

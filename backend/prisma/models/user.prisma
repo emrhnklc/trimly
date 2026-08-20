@@ -13,4 +13,5 @@ model User {
   customerAppointments Appointment[]
   acceptedInvitations  BusinessInvitation[]
   favoriteBarbershops  FavoriteBarbershop[]
+  pushDevices          PushDevice[]
 }
