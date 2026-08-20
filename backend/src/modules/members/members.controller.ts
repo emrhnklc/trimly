@@ -1,4 +1,5 @@
 import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -9,6 +10,7 @@ import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { MembersService } from './members.service';
 
 @Controller('barbershops/:barbershopId/invitations')
+@ApiTags('Çalışan Davetleri')
 @UseGuards(JwtAuthGuard, BusinessRolesGuard)
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}

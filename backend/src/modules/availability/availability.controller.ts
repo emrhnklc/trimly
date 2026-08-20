@@ -1,8 +1,10 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AvailabilityService } from './availability.service';
 import { AvailabilityQueryDto } from './dto/availability-query.dto';
 
 @Controller('barbershops/:barbershopId/availability')
+@ApiTags('Müsaitlik')
 export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) {}
 

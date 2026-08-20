@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -19,6 +20,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { DailySummaryQueryDto } from './dto/daily-summary-query.dto';
 
 @Controller('barbershops/:barbershopId/appointments')
+@ApiTags('İşletme Randevuları')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 

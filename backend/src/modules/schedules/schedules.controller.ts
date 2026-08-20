@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -8,6 +9,7 @@ import { UpdateWorkingHoursDto } from './dto/update-working-hours.dto';
 import { SchedulesService } from './schedules.service';
 
 @Controller('barbershops/:barbershopId/working-hours')
+@ApiTags('Çalışma Saatleri')
 export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 

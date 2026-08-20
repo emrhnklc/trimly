@@ -8,6 +8,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -17,6 +18,7 @@ import { UpdateBusinessMemberDto } from './dto/update-business-member.dto';
 import { MembersService } from './members.service';
 
 @Controller('barbershops/:barbershopId/members')
+@ApiTags('Çalışan Yönetimi')
 @UseGuards(JwtAuthGuard, BusinessRolesGuard)
 export class BusinessMembersController {
   constructor(private readonly membersService: MembersService) {}

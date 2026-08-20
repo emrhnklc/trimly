@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -7,6 +8,7 @@ import { BookingSettingsService } from './booking-settings.service';
 import { UpdateBookingSettingsDto } from './dto/update-booking-settings.dto';
 
 @Controller('barbershops/:barbershopId/booking-settings')
+@ApiTags('Booking Ayarları')
 export class BookingSettingsController {
   constructor(
     private readonly bookingSettingsService: BookingSettingsService,

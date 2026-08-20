@@ -1,10 +1,12 @@
 import { Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { AppointmentsService } from './appointments.service';
 
 @Controller('appointments')
+@ApiTags('Müşteri Randevuları')
 @UseGuards(JwtAuthGuard)
 export class CustomerAppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}

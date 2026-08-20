@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -15,6 +16,7 @@ import { CreateMemberScheduleBlockDto } from './dto/create-member-schedule-block
 import { SchedulesService } from './schedules.service';
 
 @Controller('barbershops/:barbershopId/members/:memberId/schedule-blocks')
+@ApiTags('Mola ve İzinler')
 @UseGuards(JwtAuthGuard, BusinessRolesGuard)
 export class ScheduleBlocksController {
   constructor(private readonly schedulesService: SchedulesService) {}

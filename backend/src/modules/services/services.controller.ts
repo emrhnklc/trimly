@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
@@ -16,6 +17,7 @@ import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 
 @Controller('barbershops/:barbershopId/services')
+@ApiTags('Hizmetler')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
