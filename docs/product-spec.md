@@ -149,6 +149,8 @@ Bir saat grubu yalnız en az bir uygun başlangıç zamanı içeriyorsa gösteri
 
 Randevu durumları en az `CONFIRMED`, `COMPLETED`, `CANCELLED` ve `NO_SHOW` olacaktır.
 
+Müşteri gelmezse owner, manager veya o randevuya atanmış berber `PATCH /barbershops/:barbershopId/appointments/:appointmentId/no-show` ile randevuyu `NO_SHOW` durumuna geçirir. Yalnız onaylı (`CONFIRMED`) randevular işaretlenebilir.
+
 Aynı çalışana çakışan iki randevu oluşturma, sadece mobil ekranda kontrol edilmez. Backend işlem sırasında yeniden kontrol eder ve PostgreSQL tarafında da zaman aralığı çakışmasını engelleyen bir kural uygulanır. Bu, iki müşterinin aynı anda aynı slotu seçmesi durumunda yalnız birinin başarılı olmasını sağlar.
 
 ## Tıraş geçmişi ve fotoğraflar

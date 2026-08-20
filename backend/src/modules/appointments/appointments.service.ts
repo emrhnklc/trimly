@@ -315,4 +315,47 @@ export class AppointmentsService {
       },
     });
   }
+
+  async markNoShowForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+  ) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, barbershopId },
+      select: {
+        id: true,
+        status: true,
+        businessMember: { select: { userId: true } },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Randevu bulunamadı.');
+    }
+
+    const membership = await this.prisma.businessMember.findUnique({
+      where: { userId_barbershopId: { userId, barbershopId } },
+      select: { role: true },
+    });
+    const canMarkNoShow =
+      membership?.role === 'OWNER' ||
+      membership?.role === 'MANAGER' ||
+      appointment.businessMember.userId === userId;
+
+    if (!canMarkNoShow) {
+      throw new ForbiddenException(
+        'Bu randevuyu no-show işaretleme yetkin yok.',
+      );
+    }
+
+    if (appointment.status !== 'CONFIRMED') {
+      throw new BadRequestException('Bu randevu no-show işaretlenemez.');
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointment.id },
+      data: { status: 'NO_SHOW' },
+    });
+  }
 }

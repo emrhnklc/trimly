@@ -62,4 +62,18 @@ export class AppointmentsController {
       user.id,
     );
   }
+
+  @Patch(':appointmentId/no-show')
+  @UseGuards(JwtAuthGuard)
+  markNoShow(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.markNoShowForBusiness(
+      barbershopId,
+      appointmentId,
+      user.id,
+    );
+  }
 }
