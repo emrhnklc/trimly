@@ -1,0 +1,35 @@
+enum AppointmentStatus {
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id                  String            @id @default(cuid())
+  barbershopId        String
+  customerId          String
+  businessMemberId    String
+  serviceId           String
+  serviceNameSnapshot String
+  priceSnapshot       Decimal           @db.Decimal(10, 2)
+  durationMinutes     Int
+  startsAt            DateTime
+  endsAt              DateTime
+  status              AppointmentStatus @default(CONFIRMED)
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  completedAt         DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  barbershop     Barbershop     @relation(fields: [barbershopId], references: [id])
+  customer       User           @relation(fields: [customerId], references: [id])
+  businessMember BusinessMember @relation(fields: [businessMemberId], references: [id])
+  service        Service        @relation(fields: [serviceId], references: [id])
+  haircutRecord  HaircutRecord?
+
+  @@index([barbershopId, startsAt])
+  @@index([customerId, startsAt])
+  @@index([businessMemberId, startsAt])
+}

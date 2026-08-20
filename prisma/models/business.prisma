@@ -1,0 +1,95 @@
+enum BusinessRole {
+  OWNER
+  MANAGER
+  BARBER
+  APPRENTICE
+}
+
+model Barbershop {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  profileImageUrl String?
+  phone           String?
+  address         String?
+  timezone        String   @default("Europe/Istanbul")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members         BusinessMember[]
+  services        Service[]
+  workingHours    WorkingHours[]
+  bookingSettings BookingSettings?
+  appointments    Appointment[]
+  invitations     BusinessInvitation[]
+  favorites       FavoriteBarbershop[]
+}
+
+model FavoriteBarbershop {
+  userId       String
+  barbershopId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  @@id([userId, barbershopId])
+  @@index([barbershopId])
+}
+
+model BusinessMember {
+  id           String       @id @default(cuid())
+  userId       String
+  barbershopId String
+  role         BusinessRole
+  isActive     Boolean      @default(true)
+  isBookable   Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  user               User                    @relation(fields: [userId], references: [id])
+  barbershop         Barbershop              @relation(fields: [barbershopId], references: [id])
+  serviceAssignments BusinessMemberService[]
+  workingHours       MemberWorkingHours[]
+  scheduleBlocks     MemberScheduleBlock[]
+  appointments       Appointment[]
+  createdInvitations BusinessInvitation[]
+  haircutRecords     HaircutRecord[]
+
+  @@unique([userId, barbershopId])
+  @@index([barbershopId, role])
+}
+
+model BusinessInvitation {
+  id                String       @id @default(cuid())
+  barbershopId      String
+  createdByMemberId String
+  tokenHash         String       @unique
+  role              BusinessRole
+  expiresAt         DateTime
+  usedAt            DateTime?
+  acceptedByUserId  String?
+  revokedAt         DateTime?
+  createdAt         DateTime     @default(now())
+
+  barbershop      Barbershop     @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  createdByMember BusinessMember @relation(fields: [createdByMemberId], references: [id])
+  acceptedByUser  User?          @relation(fields: [acceptedByUserId], references: [id])
+
+  @@index([barbershopId, expiresAt])
+}
+
+model BookingSettings {
+  id                          String   @id @default(cuid())
+  barbershopId                String   @unique
+  minBookingNoticeMinutes     Int      @default(60)
+  maxBookingAdvanceDays       Int      @default(30)
+  slotIntervalMinutes         Int      @default(5)
+  customerCancellationEnabled Boolean  @default(true)
+  cancellationNoticeMinutes   Int      @default(120)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+}

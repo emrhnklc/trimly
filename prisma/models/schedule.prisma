@@ -1,0 +1,57 @@
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ScheduleBlockType {
+  BREAK
+  TIME_OFF
+}
+
+model WorkingHours {
+  id           String   @id @default(cuid())
+  barbershopId String
+  weekday      Weekday
+  startTime    String   @db.VarChar(5)
+  endTime      String   @db.VarChar(5)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id])
+
+  @@unique([barbershopId, weekday])
+}
+
+model MemberWorkingHours {
+  id               String   @id @default(cuid())
+  businessMemberId String
+  weekday          Weekday
+  startTime        String   @db.VarChar(5)
+  endTime          String   @db.VarChar(5)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  businessMember BusinessMember @relation(fields: [businessMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([businessMemberId, weekday])
+}
+
+model MemberScheduleBlock {
+  id               String            @id @default(cuid())
+  businessMemberId String
+  type             ScheduleBlockType
+  startsAt         DateTime
+  endsAt           DateTime
+  note             String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  businessMember BusinessMember @relation(fields: [businessMemberId], references: [id], onDelete: Cascade)
+
+  @@index([businessMemberId, startsAt, endsAt])
+}

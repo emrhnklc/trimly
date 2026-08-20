@@ -1,0 +1,16 @@
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { AvailabilityService } from './availability.service';
+import { AvailabilityQueryDto } from './dto/availability-query.dto';
+
+@Controller('barbershops/:barbershopId/availability')
+export class AvailabilityController {
+  constructor(private readonly availabilityService: AvailabilityService) {}
+
+  @Get()
+  findAvailableSlots(
+    @Param('barbershopId') barbershopId: string,
+    @Query() query: AvailabilityQueryDto,
+  ) {
+    return this.availabilityService.findAvailableSlots(barbershopId, query);
+  }
+}

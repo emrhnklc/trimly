@@ -1,0 +1,25 @@
+model HaircutRecord {
+  id                String   @id @default(cuid())
+  appointmentId     String   @unique
+  createdByMemberId String
+  styleName         String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  appointment     Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  createdByMember BusinessMember @relation(fields: [createdByMemberId], references: [id])
+  photos          HaircutPhoto[]
+}
+
+model HaircutPhoto {
+  id              String   @id @default(cuid())
+  haircutRecordId String
+  storageKey      String   @unique
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  haircutRecord HaircutRecord @relation(fields: [haircutRecordId], references: [id], onDelete: Cascade)
+
+  @@index([haircutRecordId, sortOrder])
+}

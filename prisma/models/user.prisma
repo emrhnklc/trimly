@@ -1,0 +1,16 @@
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String
+  phone           String?  @unique
+  firstName       String
+  lastName        String
+  profileImageUrl String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships          BusinessMember[]
+  customerAppointments Appointment[]
+  acceptedInvitations  BusinessInvitation[]
+  favoriteBarbershops  FavoriteBarbershop[]
+}
