@@ -22,7 +22,14 @@ const weekdays: Weekday[] = [
 export class AvailabilityService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAvailableSlots(barbershopId: string, query: AvailabilityQueryDto) {
+  async findAvailableSlots(
+    barbershopId: string,
+    query: AvailabilityQueryDto,
+    options?: {
+      excludeAppointmentId?: string;
+      ignoreBookingWindow?: boolean;
+    },
+  ) {
     const barbershop = await this.prisma.barbershop.findUnique({
       where: { id: barbershopId },
       include: {
@@ -53,7 +60,10 @@ export class AvailabilityService {
       days: settings.maxBookingAdvanceDays,
     });
 
-    if (targetDate < today || targetDate > latestBookableDate) {
+    if (
+      !options?.ignoreBookingWindow &&
+      (targetDate < today || targetDate > latestBookableDate)
+    ) {
       return this.emptyResult(query.date);
     }
 
@@ -104,10 +114,12 @@ export class AvailabilityService {
       this.atLocalTime(targetDate, shopHours.endTime),
       this.atLocalTime(targetDate, memberHours.endTime),
     );
-    const earliestStart = DateTime.max(
-      windowStart,
-      now.plus({ minutes: settings.minBookingNoticeMinutes }),
-    );
+    const earliestStart = options?.ignoreBookingWindow
+      ? windowStart
+      : DateTime.max(
+          windowStart,
+          now.plus({ minutes: settings.minBookingNoticeMinutes }),
+        );
     const firstCandidate = this.roundUpToSlot(
       earliestStart,
       settings.slotIntervalMinutes,
@@ -129,6 +141,9 @@ export class AvailabilityService {
       this.prisma.appointment.findMany({
         where: {
           businessMemberId: member.id,
+          ...(options?.excludeAppointmentId && {
+            id: { not: options.excludeAppointmentId },
+          }),
           status: {
             in: [
               AppointmentStatus.CONFIRMED,

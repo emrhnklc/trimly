@@ -11,6 +11,8 @@ import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
 @Injectable()
 export class AppointmentsService {
@@ -429,6 +431,108 @@ export class AppointmentsService {
     });
   }
 
+  async cancelForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+    dto: CancelAppointmentDto,
+  ) {
+    const appointment = await this.findManageableAppointment(
+      barbershopId,
+      appointmentId,
+      userId,
+    );
+
+    if (appointment.status !== 'CONFIRMED') {
+      throw new BadRequestException('Bu randevu iptal edilemez.');
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancellationReason: dto.reason?.trim(),
+      },
+    });
+  }
+
+  async rescheduleForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+    dto: RescheduleAppointmentDto,
+  ) {
+    const appointment = await this.findManageableAppointment(
+      barbershopId,
+      appointmentId,
+      userId,
+      {
+        serviceId: true,
+        businessMemberId: true,
+        barbershop: { select: { timezone: true } },
+      },
+    );
+
+    if (appointment.status !== 'CONFIRMED') {
+      throw new BadRequestException('Bu randevu yeniden planlanamaz.');
+    }
+
+    const requestedStart = DateTime.fromISO(dto.startsAt, { setZone: true });
+    if (!requestedStart.isValid) {
+      throw new BadRequestException(
+        'Geçerli bir başlangıç zamanı gönderilmelidir.',
+      );
+    }
+
+    const date = requestedStart
+      .setZone(appointment.barbershop.timezone)
+      .toISODate();
+    if (!date) {
+      throw new BadRequestException(
+        'Geçerli bir başlangıç zamanı gönderilmelidir.',
+      );
+    }
+
+    const memberId = dto.memberId ?? appointment.businessMemberId;
+    const availability = await this.availabilityService.findAvailableSlots(
+      barbershopId,
+      { memberId, serviceId: appointment.serviceId, date },
+      { excludeAppointmentId: appointment.id, ignoreBookingWindow: true },
+    );
+    const selectedSlot = availability.slots.find(
+      (slot) =>
+        DateTime.fromISO(slot.startsAt).toMillis() ===
+        requestedStart.toMillis(),
+    );
+
+    if (!selectedSlot) {
+      throw new ConflictException('Yeni seçilen saat uygun değil.');
+    }
+
+    try {
+      return await this.prisma.appointment.update({
+        where: { id: appointment.id },
+        data: {
+          businessMemberId: memberId,
+          startsAt: new Date(selectedSlot.startsAt),
+          endsAt: new Date(selectedSlot.endsAt),
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2039'
+      ) {
+        throw new ConflictException(
+          'Bu saat az önce başka biri tarafından alındı.',
+        );
+      }
+
+      throw error;
+    }
+  }
+
   async markNoShowForBusiness(
     barbershopId: string,
     appointmentId: string,
@@ -470,5 +574,43 @@ export class AppointmentsService {
       where: { id: appointment.id },
       data: { status: 'NO_SHOW' },
     });
+  }
+
+  private async findManageableAppointment<
+    ExtraSelect extends Prisma.AppointmentSelect,
+  >(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+    extraSelect?: ExtraSelect,
+  ) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, barbershopId },
+      select: {
+        id: true,
+        status: true,
+        businessMember: { select: { userId: true } },
+        ...extraSelect,
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Randevu bulunamadı.');
+    }
+
+    const membership = await this.prisma.businessMember.findUnique({
+      where: { userId_barbershopId: { userId, barbershopId } },
+      select: { role: true },
+    });
+    const canManage =
+      membership?.role === 'OWNER' ||
+      membership?.role === 'MANAGER' ||
+      appointment.businessMember.userId === userId;
+
+    if (!canManage) {
+      throw new ForbiddenException('Bu randevuyu yönetme yetkin yok.');
+    }
+
+    return appointment;
   }
 }

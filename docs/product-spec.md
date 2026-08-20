@@ -149,6 +149,8 @@ Bir saat grubu yalnız en az bir uygun başlangıç zamanı içeriyorsa gösteri
 
 Randevu durumları en az `CONFIRMED`, `COMPLETED`, `CANCELLED` ve `NO_SHOW` olacaktır.
 
+Owner/manager tüm randevuları, atanmış berber ise yalnız kendi randevusunu iptal edebilir veya taşıyabilir. İşletme iptali `PATCH /barbershops/:barbershopId/appointments/:appointmentId/cancel`, taşıma ise `PATCH /barbershops/:barbershopId/appointments/:appointmentId/reschedule` ile yapılır. Taşıma işleminde yeni çalışan/saat availability engine ve veritabanı çakışma kuralıyla tekrar doğrulanır; işletme bu işlemde müşteri için geçerli minimum booking notice kuralını aşabilir.
+
 Müşteri gelmezse owner, manager veya o randevuya atanmış berber `PATCH /barbershops/:barbershopId/appointments/:appointmentId/no-show` ile randevuyu `NO_SHOW` durumuna geçirir. Yalnız onaylı (`CONFIRMED`) randevular işaretlenebilir.
 
 Owner/manager, `GET /barbershops/:barbershopId/appointments/daily-summary?date=YYYY-MM-DD` ile gün sonu özetini alır. Yanıt; toplam, onaylı, tamamlanmış, iptal, no-show randevu sayılarını ve yalnız tamamlanan randevuların snapshot fiyatlarından hesaplanan geliri içerir. Ayrıca her çalışan için aynı kırılım ve tamamlanan gelir (`byMember`) döner. `date` verilmezse işletmenin saat diliminde bugünün özeti döner. Push bildirim altyapısı eklendiğinde aynı özet owner'a otomatik bildirim olarak da gönderilebilir.

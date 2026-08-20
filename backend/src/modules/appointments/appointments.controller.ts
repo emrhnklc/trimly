@@ -16,8 +16,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { AppointmentsService } from './appointments.service';
+import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { DailySummaryQueryDto } from './dto/daily-summary-query.dto';
+import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 
 @Controller('barbershops/:barbershopId/appointments')
 @ApiTags('İşletme Randevuları')
@@ -61,6 +63,38 @@ export class AppointmentsController {
     @Body() dto: CreateAppointmentDto,
   ) {
     return this.appointmentsService.create(barbershopId, user.id, dto);
+  }
+
+  @Patch(':appointmentId/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancelForBusiness(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CancelAppointmentDto,
+  ) {
+    return this.appointmentsService.cancelForBusiness(
+      barbershopId,
+      appointmentId,
+      user.id,
+      dto,
+    );
+  }
+
+  @Patch(':appointmentId/reschedule')
+  @UseGuards(JwtAuthGuard)
+  reschedule(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RescheduleAppointmentDto,
+  ) {
+    return this.appointmentsService.rescheduleForBusiness(
+      barbershopId,
+      appointmentId,
+      user.id,
+      dto,
+    );
   }
 
   @Patch(':appointmentId/complete')
