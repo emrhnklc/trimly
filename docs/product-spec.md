@@ -18,6 +18,8 @@ Kullanıcı kendi profilini JWT ile `GET /users/me` ve `PATCH /users/me` üzerin
 
 ## Müşteri deneyimi
 
+Mobil uygulamadaki ilk ekran, canlı `GET /barbershops` isteğiyle işletmeleri listeler ve isimle arar. İşletme detayına geçiş, favori ve randevu akışları sonraki mobil adımlardır.
+
 - Kayıt ve giriş yapar.
 - Kendi ad, telefon ve profil fotoğrafı bilgilerini görüntüler/günceller.
 - İşletmeleri listeler ve isimle arar.
