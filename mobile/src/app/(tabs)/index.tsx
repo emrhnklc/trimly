@@ -1,19 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
-import { BarbershopSearch } from '@/features/home/components/BarbershopSearch';
 import { BarbershopPreviewCard } from '@/features/home/components/BarbershopPreviewCard';
+import { BarbershopSearch } from '@/features/home/components/BarbershopSearch';
 import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { HomeHeroCard } from '@/features/home/components/HomeHeroCard';
 import { colors } from '@/theme/colors';
@@ -56,42 +50,10 @@ export default function DiscoverBarbershopsScreen() {
   return (
     <Screen>
       <FlatList
-        data={barbershops}
-        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={() => void loadBarbershops(submittedSearch, true)}
-          />
-        }
-        ListHeaderComponent={
-          <View>
-            <HomeHeader />
-
-            <AppText style={styles.greeting} variant="displayLarge">
-              Tarzına uygun berberi keşfet.
-            </AppText>
-            <AppText color="textMuted" style={styles.subtitle}>
-              Hizmeti, berberi ve sana uygun saati tek yerden seç.
-            </AppText>
-
-            <HomeHeroCard onExplorePress={() => undefined} />
-
-            <BarbershopSearch
-              onChangeText={setSearchText}
-              onSubmit={submitSearch}
-              value={searchText}
-            />
-            <SectionHeader
-              actionLabel={submittedSearch ? undefined : 'Tümünü gör'}
-              onActionPress={submittedSearch ? undefined : () => void loadBarbershops()}
-              title={submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'Öne çıkan berberler'}
-            />
-          </View>
-        }
-        renderItem={({ item }) => <BarbershopPreviewCard barbershop={item} />}
+        data={barbershops}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        keyExtractor={(item) => item.id}
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator color={colors.primary} style={styles.loader} />
@@ -101,6 +63,29 @@ export default function DiscoverBarbershopsScreen() {
             </AppText>
           )
         }
+        ListHeaderComponent={
+          <View>
+            <HomeHeader />
+            <AppText style={styles.greeting} variant="displayLarge">Tarzına uygun berberi keşfet.</AppText>
+            <AppText color="textMuted" style={styles.subtitle}>
+              Hizmeti, berberi ve sana uygun saati tek yerden seç.
+            </AppText>
+            <HomeHeroCard onExplorePress={() => undefined} />
+            <BarbershopSearch onChangeText={setSearchText} onSubmit={submitSearch} value={searchText} />
+            <SectionHeader
+              actionLabel={submittedSearch ? undefined : 'Tümünü gör'}
+              onActionPress={submittedSearch ? undefined : () => void loadBarbershops()}
+              title={submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'Öne çıkan berberler'}
+            />
+          </View>
+        }
+        refreshControl={
+          <RefreshControl
+            onRefresh={() => void loadBarbershops(submittedSearch, true)}
+            refreshing={isRefreshing}
+          />
+        }
+        renderItem={({ item }) => <BarbershopPreviewCard barbershop={item} />}
       />
     </Screen>
   );
