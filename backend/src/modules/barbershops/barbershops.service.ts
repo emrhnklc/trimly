@@ -75,13 +75,25 @@ export class BarbershopsService {
           where: {
             isActive: true,
             isBookable: true,
-            role: { in: [BusinessRole.OWNER, BusinessRole.MANAGER, BusinessRole.BARBER] },
+            role: {
+              in: [
+                BusinessRole.OWNER,
+                BusinessRole.MANAGER,
+                BusinessRole.BARBER,
+              ],
+            },
           },
           orderBy: { createdAt: 'asc' },
           select: {
             id: true,
             role: true,
-            user: { select: { firstName: true, lastName: true, profileImageUrl: true } },
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profileImageUrl: true,
+              },
+            },
           },
         },
       },

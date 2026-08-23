@@ -13,7 +13,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { AuthProvider } from '@/features/auth/AuthProvider';
+
+import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -27,20 +28,38 @@ export default function RootLayout() {
     PlayfairDisplay_600SemiBold,
   });
 
-  useEffect(() => {
-    if (loaded || error) {
-      void SplashScreen.hideAsync();
-    }
-  }, [error, loaded]);
-
   if (!loaded && !error) {
     return null;
   }
 
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="dark" />
-      <AuthProvider><Stack screenOptions={{ headerShown: false }} /></AuthProvider>
-    </>
+      <RootNavigator />
+    </AuthProvider>
+  );
+}
+
+function RootNavigator() {
+  const { isReady, user } = useAuth();
+
+  useEffect(() => {
+    if (isReady) void SplashScreen.hideAsync();
+  }, [isReady]);
+
+  if (!isReady) return null;
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={!user}>
+        <Stack.Screen name="auth" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(user)}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="barbers" />
+        <Stack.Screen name="appointments" />
+      </Stack.Protected>
+    </Stack>
   );
 }
