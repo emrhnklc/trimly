@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BookAppointmentScreen() {
+  const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [shop, setShop] = useState<PublicBarbershopDetail | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -23,7 +24,8 @@ export default function BookAppointmentScreen() {
   return (
     <Screen><View style={styles.content}>
       <AppText variant="displayLarge">Hizmet seç</AppText>
-      <AppText color="textMuted" style={styles.subtitle}>{slug ? (shop?.name ?? 'Yükleniyor…') : 'Önce bir dükkân ve berber seçmelisin.'}</AppText>
+    <AppText color="textMuted" style={styles.subtitle}>{slug ? (shop?.name ?? 'Yükleniyor…') : 'Randevu almak için önce bir berber dükkânı seçmelisin.'}</AppText>
+    {!slug ? <View style={styles.emptyAction}><AppButton onPress={() => router.push('/barbers')}>Berberleri Keşfet</AppButton></View> : null}
       {slug && !shop ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
       {shop?.services.map((service) => (
         <Pressable key={service.id} onPress={() => setSelectedServiceId(service.id)}>
@@ -38,4 +40,4 @@ export default function BookAppointmentScreen() {
   );
 }
 
-const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, subtitle: { marginTop: spacing.sm }, loader: { marginTop: spacing.xxl }, card: { marginTop: spacing.sm }, selected: { borderColor: colors.primary, borderWidth: 2 }, meta: { marginTop: spacing.xxs } });
+const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, subtitle: { marginTop: spacing.sm }, emptyAction: { marginTop: spacing.xl }, loader: { marginTop: spacing.xxl }, card: { marginTop: spacing.sm }, selected: { borderColor: colors.primary, borderWidth: 2 }, meta: { marginTop: spacing.xxs } });
