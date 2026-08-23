@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
@@ -16,6 +16,7 @@ export default function BarbershopProfileScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const [barbershop, setBarbershop] = useState<PublicBarbershopDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -59,12 +60,20 @@ export default function BarbershopProfileScreen() {
             )}
             <AppText style={styles.servicesTitle} variant="heading">Berberler</AppText>
             {barbershop.members.length ? barbershop.members.map((member) => (
-              <AppCard key={member.id} style={styles.serviceCard}>
-                <AppText variant="label">{member.user.firstName} {member.user.lastName}</AppText>
-                <AppText color="textMuted" style={styles.serviceMeta} variant="bodySmall">Randevuya uygun berber</AppText>
-              </AppCard>
+              <Pressable key={member.id} onPress={() => setSelectedMemberId(member.id)}>
+                <AppCard style={[styles.serviceCard, selectedMemberId === member.id && styles.selectedCard]}>
+                  <AppText variant="label">{member.user.firstName} {member.user.lastName}</AppText>
+                  <AppText color="textMuted" style={styles.serviceMeta} variant="bodySmall">
+                    {selectedMemberId === member.id ? 'Seçildi' : 'Randevuya uygun berber'}
+                  </AppText>
+                </AppCard>
+              </Pressable>
             )) : <AppText color="textMuted" style={styles.noServices}>Henüz randevuya açık berber yok.</AppText>}
-            <AppButton onPress={() => router.push('/book')}>Randevu Al</AppButton>
+            <AppButton
+              disabled={!selectedMemberId}
+              onPress={() => router.push({ pathname: '/book', params: { memberId: selectedMemberId!, slug: barbershop.slug } })}>
+              Randevu Al
+            </AppButton>
           </>
         ) : null}
       </View>
@@ -83,6 +92,7 @@ const styles = StyleSheet.create({
   message: { marginTop: spacing.xl },
   servicesTitle: { marginBottom: spacing.sm },
   serviceCard: { marginBottom: spacing.xs },
+  selectedCard: { borderColor: colors.primary, borderWidth: 2 },
   serviceRow: { alignItems: 'center', flexDirection: 'row' },
   serviceContent: { flex: 1, marginRight: spacing.sm },
   serviceMeta: { marginTop: spacing.xxs },
