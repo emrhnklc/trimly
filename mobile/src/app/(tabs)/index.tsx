@@ -10,6 +10,7 @@ import { BarbershopPreviewCard } from '@/features/home/components/BarbershopPrev
 import { BarbershopSearch } from '@/features/home/components/BarbershopSearch';
 import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { HomeHeroCard } from '@/features/home/components/HomeHeroCard';
+import { HomeIntro } from '@/features/home/components/HomeIntro';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -66,10 +67,7 @@ export default function DiscoverBarbershopsScreen() {
         ListHeaderComponent={
           <View>
             <HomeHeader />
-            <AppText style={styles.greeting} variant="displayLarge">Tarzına uygun berberi keşfet.</AppText>
-            <AppText color="textMuted" style={styles.subtitle}>
-              Hizmeti, berberi ve sana uygun saati tek yerden seç.
-            </AppText>
+            <HomeIntro />
             <HomeHeroCard onExplorePress={() => undefined} />
             <BarbershopSearch onChangeText={setSearchText} onSubmit={submitSearch} value={searchText} />
             <SectionHeader
@@ -93,8 +91,6 @@ export default function DiscoverBarbershopsScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  greeting: { marginTop: spacing.xl, maxWidth: 330 },
-  subtitle: { marginTop: spacing.sm },
   separator: { height: spacing.xs },
   loader: { marginTop: spacing.xxl },
   emptyText: { paddingTop: spacing.sm, textAlign: 'center' },
