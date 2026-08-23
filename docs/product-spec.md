@@ -246,3 +246,13 @@ Local backend çalışırken Swagger arayüzü `http://localhost:3000/api/docs` 
 - Online ödeme
 - SMS/WhatsApp hatırlatma
 - Yorum/puanlama, kampanyalar, kuponlar ve gelişmiş analytics
+
+### En ileri aşama — Trimly platform modülleri
+
+Trimly başlangıçta randevu ve müşteri geçmişi ürünü olarak odağını korur. Yeterli müşteri, işletme ve berber ağı oluştuğunda uygulama; aynı hesap ve tasarım sistemi altında farklı ihtiyaçlara ayrılan modüller sunabilir. Bu, randevu deneyimini ilk günden kalabalıklaştırmamak için en son aşama olarak değerlendirilir.
+
+- **Trimly Randevu:** müşteri keşfi, hizmet/çalışan/saat seçimi, randevu ve tıraş geçmişi.
+- **Trimly Ağ:** işletmelerin berber, kalfa veya çırak ilanı açtığı; çalışanların deneyim, konum, uzmanlık ve portföyüyle iş aradığı alan. Tam zamanlı, yarı zamanlı, çıraklık, koltuk kiralama ve misafir berber gibi ilan türleri düşünülebilir.
+- **Trimly Mağaza:** berber ve işletmelere yönelik makine, makas, bakım ürünü, sarf malzemesi gibi ürünlerin bulunduğu olası marketplace. Stok, ödeme, iade, satıcı doğrulama ve lojistik gerektirdiği için yalnız güçlü pazar/operasyon ihtiyacı oluşursa ele alınır.
+
+Bu modüller tek bir alt menüye aynı anda doldurulmaz. Kullanıcının aktif modu ve ihtiyacına göre görünür: müşteri ağırlıkla Randevu'yu, işletme sahibi ise Randevu yönetimi ve Ağ'ı görür. Mağaza gibi ticaret modülleri, ayrı bir ürün ve operasyon kararıyla açılır.
