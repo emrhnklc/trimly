@@ -1,4 +1,4 @@
-import { Image, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
 
@@ -10,13 +10,15 @@ import { radius, spacing } from '@/theme/spacing';
 
 type BarbershopPreviewCardProps = {
   barbershop: PublicBarbershop;
+  onPress: () => void;
 };
 
-export function BarbershopPreviewCard({ barbershop }: BarbershopPreviewCardProps) {
+export function BarbershopPreviewCard({ barbershop, onPress }: BarbershopPreviewCardProps) {
   const initial = barbershop.name.slice(0, 1).toUpperCase();
 
   return (
-    <AppCard style={styles.card}>
+    <Pressable accessibilityLabel={`${barbershop.name} profilini aç`} accessibilityRole="button" onPress={onPress}>
+      <AppCard style={styles.card}>
       {barbershop.profileImageUrl ? (
         <Image accessibilityLabel={`${barbershop.name} profil görseli`} source={{ uri: barbershop.profileImageUrl }} style={styles.image} />
       ) : (
@@ -46,7 +48,8 @@ export function BarbershopPreviewCard({ barbershop }: BarbershopPreviewCardProps
         size={20}
         tintColor={colors.textMuted}
       />
-    </AppCard>
+      </AppCard>
+    </Pressable>
   );
 }
 

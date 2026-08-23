@@ -6,3 +6,8 @@ export type PublicBarbershop = {
   profileImageUrl: string | null;
   address: string | null;
 };
+
+export type PublicBarbershopDetail = PublicBarbershop & {
+  phone: string | null;
+  timezone: string;
+};

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -15,6 +16,7 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function DiscoverBarbershopsScreen() {
+  const router = useRouter();
   const [barbershops, setBarbershops] = useState<PublicBarbershop[]>([]);
   const [searchText, setSearchText] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
@@ -68,7 +70,7 @@ export default function DiscoverBarbershopsScreen() {
           <View>
             <HomeHeader />
             <HomeIntro />
-            <HomeHeroCard onExplorePress={() => undefined} />
+            <HomeHeroCard onExplorePress={() => router.push('/barbers')} />
             <BarbershopSearch onChangeText={setSearchText} onSubmit={submitSearch} value={searchText} />
             <SectionHeader
               actionLabel={submittedSearch ? undefined : 'Tümünü gör'}
@@ -83,7 +85,9 @@ export default function DiscoverBarbershopsScreen() {
             refreshing={isRefreshing}
           />
         }
-        renderItem={({ item }) => <BarbershopPreviewCard barbershop={item} />}
+        renderItem={({ item }) => (
+          <BarbershopPreviewCard barbershop={item} onPress={() => router.push(`/barbers/${item.slug}`)} />
+        )}
       />
     </Screen>
   );
