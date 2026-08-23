@@ -6,20 +6,26 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { getPublicBarbershop } from '@/features/barbershops/api';
+import { getAvailability, getPublicBarbershop } from '@/features/barbershops/api';
 import type { PublicBarbershopDetail } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BookAppointmentScreen() {
   const router = useRouter();
-  const { slug } = useLocalSearchParams<{ slug?: string }>();
+  const { slug, memberId } = useLocalSearchParams<{ slug?: string; memberId?: string }>();
   const [shop, setShop] = useState<PublicBarbershopDetail | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [slots, setSlots] = useState<string[]>([]);
+  const date = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     if (slug) void getPublicBarbershop(slug).then(setShop);
   }, [slug]);
+
+  useEffect(() => {
+    if (shop && memberId && selectedServiceId) void getAvailability(shop.id, memberId, selectedServiceId, date).then((result) => setSlots(result.slots.map((slot) => slot.startTime)));
+  }, [date, memberId, selectedServiceId, shop]);
 
   return (
     <Screen><View style={styles.content}>
@@ -35,9 +41,10 @@ export default function BookAppointmentScreen() {
           </AppCard>
         </Pressable>
       ))}
+      {selectedServiceId ? <><AppText style={styles.timesTitle} variant="heading">Bugünün uygun saatleri</AppText><View style={styles.slots}>{slots.map((time) => <AppCard key={time} style={styles.slot}><AppText>{time}</AppText></AppCard>)}</View></> : null}
       {slug ? <AppButton disabled={!selectedServiceId} onPress={() => undefined}>Tarih ve Saat Seç</AppButton> : null}
     </View></Screen>
   );
 }
 
-const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, subtitle: { marginTop: spacing.sm }, emptyAction: { marginTop: spacing.xl }, loader: { marginTop: spacing.xxl }, card: { marginTop: spacing.sm }, selected: { borderColor: colors.primary, borderWidth: 2 }, meta: { marginTop: spacing.xxs } });
+const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, subtitle: { marginTop: spacing.sm }, emptyAction: { marginTop: spacing.xl }, loader: { marginTop: spacing.xxl }, card: { marginTop: spacing.sm }, selected: { borderColor: colors.primary, borderWidth: 2 }, meta: { marginTop: spacing.xxs }, timesTitle: { marginTop: spacing.xl }, slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm }, slot: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs } });
