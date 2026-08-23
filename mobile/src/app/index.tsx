@@ -14,6 +14,7 @@ import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
+import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
@@ -65,19 +66,7 @@ export default function DiscoverBarbershopsScreen() {
         }
         ListHeaderComponent={
           <View>
-            <View style={styles.headerRow}>
-              <View>
-                <AppText color="primary" variant="overline">
-                  TRIMLY
-                </AppText>
-                <AppText color="textMuted" style={styles.tagline} variant="bodySmall">
-                  Tarzın. Randevun. Geçmişin.
-                </AppText>
-              </View>
-              <View style={styles.notificationPlaceholder}>
-                <AppText variant="heading">⌁</AppText>
-              </View>
-            </View>
+            <HomeHeader />
 
             <AppText style={styles.greeting} variant="displayLarge">
               Tarzına uygun berberi keşfet.
@@ -159,23 +148,6 @@ function BarbershopCard({ barbershop }: { barbershop: PublicBarbershop }) {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  tagline: { marginTop: spacing.xxs },
-  notificationPlaceholder: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
   greeting: { marginTop: spacing.xl, maxWidth: 330 },
   subtitle: { marginTop: spacing.sm },
   heroCard: {
