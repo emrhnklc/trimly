@@ -10,6 +10,7 @@ import {
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
 import { BarbershopSearch } from '@/features/home/components/BarbershopSearch';
@@ -82,9 +83,11 @@ export default function DiscoverBarbershopsScreen() {
               onSubmit={submitSearch}
               value={searchText}
             />
-            <AppText style={styles.sectionTitle} variant="heading">
-              {submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'Öne çıkan berberler'}
-            </AppText>
+            <SectionHeader
+              actionLabel={submittedSearch ? undefined : 'Tümünü gör'}
+              onActionPress={submittedSearch ? undefined : () => void loadBarbershops()}
+              title={submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'Öne çıkan berberler'}
+            />
           </View>
         }
         renderItem={({ item }) => <BarbershopCard barbershop={item} />}
@@ -133,7 +136,6 @@ const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   greeting: { marginTop: spacing.xl, maxWidth: 330 },
   subtitle: { marginTop: spacing.sm },
-  sectionTitle: { marginBottom: spacing.sm, marginTop: spacing.xxl },
   card: { alignItems: 'center', flexDirection: 'row', minHeight: 104 },
   avatar: {
     alignItems: 'center',
