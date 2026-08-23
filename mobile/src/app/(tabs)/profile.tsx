@@ -1,40 +1,4 @@
-import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
-
-import { AppButton } from '@/components/ui/AppButton';
-import { AppCard } from '@/components/ui/AppCard';
-import { AppText } from '@/components/ui/AppText';
-import { Screen } from '@/components/ui/Screen';
-import { useAuth } from '@/features/auth/AuthProvider';
-import { spacing } from '@/theme/spacing';
-
-export default function ProfileScreen() {
-  const router = useRouter();
-  const { isReady, signOut, user } = useAuth();
-
-  if (!isReady) return null;
-
-  return (
-    <Screen><View style={styles.content}>
-      <AppText variant="displayLarge">Profilim</AppText>
-      {user ? (
-        <>
-          <AppCard style={styles.card}>
-            <AppText variant="heading">{user.firstName} {user.lastName}</AppText>
-            <AppText color="textMuted" style={styles.email}>{user.email}</AppText>
-          </AppCard>
-          <AppText color="textMuted">Favorilerin ve geçmiş tıraşların yakında burada olacak.</AppText>
-          <View style={styles.action}><AppButton onPress={() => void signOut()} variant="ghost">Çıkış Yap</AppButton></View>
-        </>
-      ) : (
-        <>
-          <AppText color="textMuted" style={styles.description}>Randevularını, favorilerini ve tıraş geçmişini görmek için giriş yap.</AppText>
-          <View style={styles.action}><AppButton onPress={() => router.push('/auth/login')}>Giriş Yap</AppButton></View>
-          <AppButton onPress={() => router.push('/auth/register')} variant="ghost">Hesap Oluştur</AppButton>
-        </>
-      )}
-    </View></Screen>
-  );
-}
-
-const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, card: { marginTop: spacing.xl }, email: { marginTop: spacing.xxs }, description: { marginTop: spacing.md }, action: { marginTop: spacing.xl } });
+import { useRouter } from 'expo-router'; import { useState } from 'react'; import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { AppButton } from '@/components/ui/AppButton'; import { AppCard } from '@/components/ui/AppCard'; import { AppText } from '@/components/ui/AppText'; import { Screen } from '@/components/ui/Screen'; import { useAuth } from '@/features/auth/AuthProvider'; import { colors } from '@/theme/colors'; import { spacing } from '@/theme/spacing';
+export default function ProfileScreen(){const router=useRouter();const {isReady,user,signOut}=useAuth();const [reminders,setReminders]=useState(true);const [campaigns,setCampaigns]=useState(false);if(!isReady)return null;if(!user)return <Screen><View style={s.content}><AppText variant="displayLarge">Profilim</AppText><AppText color="textMuted" style={s.desc}>Hesap ayarlarını görmek için giriş yap.</AppText><View style={s.action}><AppButton onPress={()=>router.push('/auth/login')}>Giriş Yap</AppButton></View><AppButton onPress={()=>router.push('/auth/register')} variant="ghost">Hesap Oluştur</AppButton></View></Screen>;return <Screen><View style={s.content}><AppText variant="displayMedium">Hesap Ayarları</AppText><Group title="Hesap Bilgilerim"><Row label="Ad Soyad" value={`${user.firstName} ${user.lastName}`}/><Row label="E-posta" value={user.email}/><Row label="Telefon" value="Eklenmedi"/><Row label="Doğum Tarihi" value="Eklenmedi"/><Row label="Cinsiyet" value="Eklenmedi"/></Group><Group title="Ödeme & Geçmiş"><Row label="Ödeme Yöntemlerim"/><Row label="İşlem Geçmişim"/><Row label="Faturalar"/></Group><Group title="Tercihler"><Toggle label="Randevu Hatırlatmaları" value={reminders} set={setReminders}/><Toggle label="Kampanya & Duyurular" value={campaigns} set={setCampaigns}/></Group><AppButton onPress={()=>void signOut()} variant="ghost">Çıkış Yap</AppButton></View></Screen>}
+function Group({title,children}:{title:string;children:React.ReactNode}){return <AppCard style={s.group}><AppText variant="heading">{title}</AppText><View style={s.rows}>{children}</View></AppCard>} function Row({label,value}:{label:string;value?:string}){return <Pressable style={s.row}><AppText>{label}</AppText><View style={s.right}><AppText color="textMuted">{value}</AppText><AppText color="textMuted">›</AppText></View></Pressable>} function Toggle({label,value,set}:{label:string;value:boolean;set:(v:boolean)=>void}){return <View style={s.row}><AppText>{label}</AppText><Switch onValueChange={set} trackColor={{false:colors.border,true:colors.primary}} value={value}/></View>};const s=StyleSheet.create({content:{flex:1,padding:spacing.lg},desc:{marginTop:spacing.md},action:{marginTop:spacing.xl},group:{marginTop:spacing.lg},rows:{marginTop:spacing.sm},row:{alignItems:'center',borderBottomColor:colors.border,borderBottomWidth:1,flexDirection:'row',justifyContent:'space-between',minHeight:45},right:{alignItems:'center',flexDirection:'row',gap:spacing.sm}});
