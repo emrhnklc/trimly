@@ -15,6 +15,7 @@ import { Screen } from '@/components/ui/Screen';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
 import { HomeHeader } from '@/features/home/components/HomeHeader';
+import { HomeHeroCard } from '@/features/home/components/HomeHeroCard';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
@@ -75,17 +76,7 @@ export default function DiscoverBarbershopsScreen() {
               Hizmeti, berberi ve sana uygun saati tek yerden seç.
             </AppText>
 
-            <AppCard style={styles.heroCard}>
-              <AppText color="surfaceMuted" variant="overline">
-                YENİ RANDEVU
-              </AppText>
-              <AppText color="surface" style={styles.heroTitle} variant="displayMedium">
-                Bir sonraki tarzın birkaç dokunuş uzakta.
-              </AppText>
-              <AppButton onPress={() => undefined} variant="secondary">
-                Berberleri Gör
-              </AppButton>
-            </AppCard>
+            <HomeHeroCard onExplorePress={() => undefined} />
 
             <View style={styles.searchRow}>
               <TextInput
@@ -150,12 +141,6 @@ const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   greeting: { marginTop: spacing.xl, maxWidth: 330 },
   subtitle: { marginTop: spacing.sm },
-  heroCard: {
-    backgroundColor: colors.darkSurface,
-    borderColor: colors.darkSurface,
-    marginTop: spacing.xl,
-  },
-  heroTitle: { marginBottom: spacing.lg, marginTop: spacing.xs },
   searchRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xl },
   searchInput: {
     backgroundColor: colors.surface,
