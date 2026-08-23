@@ -19,6 +19,7 @@ export default function BookAppointmentScreen() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const date = new Date().toISOString().slice(0, 10);
+  const selectedService = shop?.services.find((service) => service.id === selectedServiceId);
 
   useEffect(() => {
     if (slug) void getPublicBarbershop(slug).then(setShop);
@@ -43,7 +44,7 @@ export default function BookAppointmentScreen() {
         </Pressable>
       ))}
       {selectedServiceId ? <><AppText style={styles.timesTitle} variant="heading">Bugünün uygun saatleri</AppText><View style={styles.slots}>{slots.map((time) => <Pressable key={time} onPress={() => setSelectedTime(time)}><AppCard style={[styles.slot, selectedTime === time && styles.selected]}><AppText>{time}</AppText></AppCard></Pressable>)}</View></> : null}
-      {slug ? <View style={styles.continue}><AppButton disabled={!selectedTime} onPress={() => undefined}>Randevuyu Önizle</AppButton></View> : null}
+      {slug ? <View style={styles.continue}><AppButton disabled={!selectedTime || !selectedService} onPress={() => router.push({ pathname: '/appointments/preview', params: { date, serviceName: selectedService?.name ?? '', shopName: shop?.name ?? '', time: selectedTime ?? '' } })}>Randevuyu Önizle</AppButton></View> : null}
     </View></Screen>
   );
 }
