@@ -9,5 +9,14 @@ export type PublicBarbershop = {
 
 export type PublicBarbershopDetail = PublicBarbershop & {
   phone: string | null;
+  services: PublicService[];
   timezone: string;
+};
+
+export type PublicService = {
+  id: string;
+  name: string;
+  description: string | null;
+  durationMinutes: number;
+  price: string;
 };

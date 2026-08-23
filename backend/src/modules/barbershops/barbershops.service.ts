@@ -60,6 +60,17 @@ export class BarbershopsService {
         phone: true,
         address: true,
         timezone: true,
+        services: {
+          where: { isActive: true },
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            durationMinutes: true,
+            price: true,
+          },
+        },
       },
     });
 

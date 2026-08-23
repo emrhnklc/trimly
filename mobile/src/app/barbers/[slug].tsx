@@ -39,6 +39,24 @@ export default function BarbershopProfileScreen() {
               <AppText color="textMuted" variant="bodySmall">İletişim</AppText>
               <AppText style={styles.infoText}>{barbershop.phone || 'Telefon bilgisi yakında eklenecek.'}</AppText>
             </AppCard>
+            <AppText style={styles.servicesTitle} variant="heading">Hizmetler</AppText>
+            {barbershop.services.length ? (
+              barbershop.services.map((service) => (
+                <AppCard key={service.id} style={styles.serviceCard}>
+                  <View style={styles.serviceRow}>
+                    <View style={styles.serviceContent}>
+                      <AppText variant="label">{service.name}</AppText>
+                      <AppText color="textMuted" style={styles.serviceMeta} variant="bodySmall">
+                        {service.durationMinutes} dk{service.description ? ` · ${service.description}` : ''}
+                      </AppText>
+                    </View>
+                    <AppText color="primary" variant="label">₺{service.price}</AppText>
+                  </View>
+                </AppCard>
+              ))
+            ) : (
+              <AppText color="textMuted" style={styles.noServices}>Henüz aktif hizmet eklenmemiş.</AppText>
+            )}
             <AppButton onPress={() => router.push('/book')}>Randevu Al</AppButton>
           </>
         ) : null}
@@ -56,4 +74,10 @@ const styles = StyleSheet.create({
   infoCard: { marginBottom: spacing.xl, marginTop: spacing.xxl },
   infoText: { marginTop: spacing.xxs },
   message: { marginTop: spacing.xl },
+  servicesTitle: { marginBottom: spacing.sm },
+  serviceCard: { marginBottom: spacing.xs },
+  serviceRow: { alignItems: 'center', flexDirection: 'row' },
+  serviceContent: { flex: 1, marginRight: spacing.sm },
+  serviceMeta: { marginTop: spacing.xxs },
+  noServices: { marginBottom: spacing.xl },
 });
