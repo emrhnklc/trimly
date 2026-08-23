@@ -57,6 +57,13 @@ export default function BarbershopProfileScreen() {
             ) : (
               <AppText color="textMuted" style={styles.noServices}>Henüz aktif hizmet eklenmemiş.</AppText>
             )}
+            <AppText style={styles.servicesTitle} variant="heading">Berberler</AppText>
+            {barbershop.members.length ? barbershop.members.map((member) => (
+              <AppCard key={member.id} style={styles.serviceCard}>
+                <AppText variant="label">{member.user.firstName} {member.user.lastName}</AppText>
+                <AppText color="textMuted" style={styles.serviceMeta} variant="bodySmall">Randevuya uygun berber</AppText>
+              </AppCard>
+            )) : <AppText color="textMuted" style={styles.noServices}>Henüz randevuya açık berber yok.</AppText>}
             <AppButton onPress={() => router.push('/book')}>Randevu Al</AppButton>
           </>
         ) : null}

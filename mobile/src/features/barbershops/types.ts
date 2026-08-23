@@ -8,9 +8,16 @@ export type PublicBarbershop = {
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
+  members: PublicBarber[];
   phone: string | null;
   services: PublicService[];
   timezone: string;
+};
+
+export type PublicBarber = {
+  id: string;
+  role: 'OWNER' | 'MANAGER' | 'BARBER';
+  user: { firstName: string; lastName: string; profileImageUrl: string | null };
 };
 
 export type PublicService = {

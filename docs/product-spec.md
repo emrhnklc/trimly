@@ -222,6 +222,10 @@ Referral ve ödül sistemi MVP dışındadır çünkü abonelik/billing sistemi 
 
 ## MVP kapsamı
 
+### Keşif ve çalışan seçimi kararı
+
+Müşteri keşfi önce **işletme/dükkân** odaklıdır: Berberler sekmesinde Barbershop listesi görünür, müşteri işletme profiline girer, ardından o işletmede randevuya uygun çalışan berberleri seçer. Çalışanın ayrı public profili (uzmanlık etiketleri, portfolio, değerlendirmeler) MVP sonrasında zenginleştirilir; MVP'de ad, fotoğraf ve yaptığı hizmetler yeterlidir.
+
 1. Auth: e-posta/şifre ile kayıt, giriş ve JWT.
 2. İşletme oluşturma, üyelik ve sabit roller.
 3. Hizmet, çalışan-hizmet ataması ve bookable çalışanlar.
