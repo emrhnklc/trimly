@@ -4,16 +4,15 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 
-import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
+import { BarbershopSearch } from '@/features/home/components/BarbershopSearch';
 import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { HomeHeroCard } from '@/features/home/components/HomeHeroCard';
 import { colors } from '@/theme/colors';
@@ -78,18 +77,11 @@ export default function DiscoverBarbershopsScreen() {
 
             <HomeHeroCard onExplorePress={() => undefined} />
 
-            <View style={styles.searchRow}>
-              <TextInput
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={submitSearch}
-                placeholder="Berber ara"
-                placeholderTextColor={colors.textMuted}
-                returnKeyType="search"
-                style={styles.searchInput}
-              />
-              <AppButton onPress={submitSearch}>Ara</AppButton>
-            </View>
+            <BarbershopSearch
+              onChangeText={setSearchText}
+              onSubmit={submitSearch}
+              value={searchText}
+            />
             <AppText style={styles.sectionTitle} variant="heading">
               {submittedSearch ? `“${submittedSearch}” için sonuçlar` : 'Öne çıkan berberler'}
             </AppText>
@@ -141,19 +133,6 @@ const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   greeting: { marginTop: spacing.xl, maxWidth: 330 },
   subtitle: { marginTop: spacing.sm },
-  searchRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xl },
-  searchInput: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    color: colors.text,
-    flex: 1,
-    fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    height: 50,
-    paddingHorizontal: spacing.md,
-  },
   sectionTitle: { marginBottom: spacing.sm, marginTop: spacing.xxl },
   card: { alignItems: 'center', flexDirection: 'row', minHeight: 104 },
   avatar: {
