@@ -32,11 +32,38 @@ Mobil uygulamadaki ilk ekran, canlı `GET /barbershops` isteğiyle işletmeleri 
 
 ### Keşif
 
-MVP'de isimle arama ve işletme listesi yeterlidir. Konuma göre sıralama/"yakınımdakiler" ikinci aşamadır; bunun için koordinat, konum izni, mesafe sorgusu ve gizlilik kararları gerekir.
+İlk çalışan keşif sürümünde isimle arama ve işletme listesi yeterlidir. Ancak ürün kararı olarak işletme konumu zorunludur: işletme profilinde adresin yanında koordinat (`latitude`, `longitude`) tutulacaktır. Böylece sonraki keşif adımında “yakınımdakiler”, il/ilçe seçimi ve mesafeye göre sıralama eklenebilir. Müşterinin canlı konumu yalnız açık izniyle kullanılır; kullanıcı ayrıca elle konum/ilçe arayabilmelidir.
 
 Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: `trimly.app/b/ali-barber`. QR kod bu bağlantıyı içerir.
 
 İşletme keşfi için `GET /barbershops?search=...` kullanılır; ilk aşamada ad eşleşmesine göre en fazla 20 işletme döner. Herkese açık işletme profilinde ad, açıklama, profil görseli, adres ve iletişim bilgisi bulunur. Owner/manager, `PATCH /barbershops/:barbershopId` ile bu tanıtım alanlarını günceller.
+
+## Yeni ürün kararları — şimdi ve ileri aşama
+
+### Şimdi netleşen ürün kararları
+
+- Saç modeliyle berber keşfi herkes için ücretsiz olacaktır. Kullanıcı örneğin `taper fade`, `low fade` veya `sakal` aradığında bu modeli portföyünde gösteren yakın/istenen konumdaki berberleri bulabilmelidir. Bu, Trimly'nin temel keşif değeridir; Plus paywall arkasına konmaz.
+- Berber portföyü, müşterinin özel tıraş geçmişinden tamamen ayrı tutulacaktır. Berber kendi portföyüne fotoğraf, başlık ve model etiketleri ekler. Müşteri geçmişindeki fotoğraf, yalnız açık rızayla ayrı bir portföy kaydına dönüştürülebilir.
+- İşletme oluştururken konum zorunlu ürün verisidir. Adres, koordinat, il ve ilçe ile desteklenir. Önce mevcut adres alanı korunur; koordinat/mesafe sorgusu için veritabanı ve harita/geocoding altyapısı ayrı teknik adımda eklenir.
+- Yorum yalnız gerçekten tamamlanmış randevusu olan müşteri tarafından bırakılabilir. Yorumlara fotoğraf ekleme, berber yanıtı, şikâyet/moderasyon ve müşteri izni kuralları olmadan açılmaz.
+
+### İleri aşama — portföy ve keşif
+
+- `BarberPortfolioItem`: berbere bağlı, görünür portföy fotoğrafı/açıklaması.
+- `StyleTag`: `TAPER_FADE`, `LOW_FADE`, `SKIN_FADE`, `BUZZ_CUT`, `BEARD` gibi aranabilir model etiketleri. Bir portföy kaydında birden çok etiket olabilir.
+- Keşif filtreleri: model etiketi, hizmet, il/ilçe, mesafe ve müsaitlik.
+- Konum tabanlı sorgular için işletme koordinatı, mesafe hesabı ve gerektiğinde PostGIS/uygun coğrafi indeks kullanılacaktır.
+- Doğrulanmış yorum, puan, opsiyonel yorum fotoğrafı, berber yanıtı ve raporlama/moderasyon akışı portföyden sonraki aşamada ele alınacaktır.
+
+### İleri aşama — Trimly Plus
+
+Plus, temel berber/model/konum aramasını kısıtlamaz; zaman kazandıran ve otomasyon sağlayan özellikleri sunar:
+
+- Haftalık, iki haftada bir veya aylık tekrarlayan randevu tercihi.
+- Favori berberde istenen saat boşaldığında öncelikli bildirim.
+- Gelişmiş “aynısını tekrar iste” ve kişisel stil tercihleri.
+
+Tekrarlayan randevu doğrudan, sonsuza kadar slot kapatan bir yapı olmayacaktır. `RecurringBookingPlan`; işletme, çalışan, hizmet, sıklık, tercih edilen gün/saat ve aktiflik bilgisini taşır. Sistem her oluşacak randevuda güncel vardiya, izin, fiyat ve availability kurallarını kontrol eder: uygunsa randevu oluşturur/bildirim gönderir, uygun değilse alternatif saat sunar. Kullanıcı planı duraklatabilir, tek seferi atlayabilir veya iptal edebilir.
 
 ## İşletme yönetimi
 
