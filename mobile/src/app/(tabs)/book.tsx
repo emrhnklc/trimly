@@ -16,6 +16,7 @@ export default function BookAppointmentScreen() {
   const { slug, memberId } = useLocalSearchParams<{ slug?: string; memberId?: string }>();
   const [shop, setShop] = useState<PublicBarbershopDetail | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const date = new Date().toISOString().slice(0, 10);
 
@@ -24,7 +25,7 @@ export default function BookAppointmentScreen() {
   }, [slug]);
 
   useEffect(() => {
-    if (shop && memberId && selectedServiceId) void getAvailability(shop.id, memberId, selectedServiceId, date).then((result) => setSlots(result.slots.map((slot) => slot.startTime)));
+    if (shop && memberId && selectedServiceId) void getAvailability(shop.id, memberId, selectedServiceId, date).then((result) => { setSlots(result.slots.map((slot) => slot.startTime)); setSelectedTime(null); });
   }, [date, memberId, selectedServiceId, shop]);
 
   return (
@@ -41,10 +42,10 @@ export default function BookAppointmentScreen() {
           </AppCard>
         </Pressable>
       ))}
-      {selectedServiceId ? <><AppText style={styles.timesTitle} variant="heading">Bugünün uygun saatleri</AppText><View style={styles.slots}>{slots.map((time) => <AppCard key={time} style={styles.slot}><AppText>{time}</AppText></AppCard>)}</View></> : null}
-      {slug ? <AppButton disabled={!selectedServiceId} onPress={() => undefined}>Tarih ve Saat Seç</AppButton> : null}
+      {selectedServiceId ? <><AppText style={styles.timesTitle} variant="heading">Bugünün uygun saatleri</AppText><View style={styles.slots}>{slots.map((time) => <Pressable key={time} onPress={() => setSelectedTime(time)}><AppCard style={[styles.slot, selectedTime === time && styles.selected]}><AppText>{time}</AppText></AppCard></Pressable>)}</View></> : null}
+      {slug ? <View style={styles.continue}><AppButton disabled={!selectedTime} onPress={() => undefined}>Randevuyu Önizle</AppButton></View> : null}
     </View></Screen>
   );
 }
 
-const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, subtitle: { marginTop: spacing.sm }, emptyAction: { marginTop: spacing.xl }, loader: { marginTop: spacing.xxl }, card: { marginTop: spacing.sm }, selected: { borderColor: colors.primary, borderWidth: 2 }, meta: { marginTop: spacing.xxs }, timesTitle: { marginTop: spacing.xl }, slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm }, slot: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs } });
+const styles = StyleSheet.create({ content: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl }, subtitle: { marginTop: spacing.sm }, emptyAction: { marginTop: spacing.xl }, loader: { marginTop: spacing.xxl }, card: { marginTop: spacing.sm }, selected: { borderColor: colors.primary, borderWidth: 2 }, meta: { marginTop: spacing.xxs }, timesTitle: { marginTop: spacing.xl }, slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm }, slot: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }, continue: { marginTop: spacing.xl } });
