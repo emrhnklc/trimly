@@ -1,16 +1,19 @@
+import { SymbolView } from 'expo-symbols';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
+import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppButton } from '@/components/ui/AppButton';
-import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { login } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { AuthScreenLayout } from '@/features/auth/components/AuthScreenLayout';
-import { AuthTextField } from '@/features/auth/components/AuthTextField';
+import { LoginScreenLayout } from '@/features/auth/components/LoginScreenLayout';
+import { LoginTextField } from '@/features/auth/components/LoginTextField';
 import { RememberMeToggle } from '@/features/auth/components/RememberMeToggle';
-import { spacing } from '@/theme/spacing';
+import { SocialLoginButton } from '@/features/auth/components/SocialLoginButton';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -18,6 +21,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
+  const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,55 +43,143 @@ export default function LoginScreen() {
     }
   }
 
+  function showComingSoon(feature: string) {
+    Alert.alert('Yakında', `${feature} sonraki auth aşamasında aktif olacak.`);
+  }
+
   return (
-    <AuthScreenLayout
-      description="Randevularına, favorilerine ve tıraş geçmişine kaldığın yerden devam et."
-      title="Tekrar hoş geldin.">
-      <AppCard style={styles.formCard}>
-        <AuthTextField
+    <LoginScreenLayout>
+      <TrimlyLogo style={styles.logo} />
+
+      <View style={styles.intro}>
+        <AppText style={styles.title} variant="displayMedium">Tekrar hoş geldin</AppText>
+        <AppText color="textMuted" style={styles.description}>
+          Randevularına ve stil geçmişine eriş.
+        </AppText>
+      </View>
+
+      <View style={styles.form}>
+        <LoginTextField
           autoCapitalize="none"
           autoComplete="email"
           icon={{ ios: 'envelope', android: 'mail', web: 'mail' }}
           keyboardType="email-address"
-          label="E-posta"
           onChangeText={setEmail}
-          placeholder="ornek@mail.com"
+          placeholder="E-posta"
           returnKeyType="next"
           value={email}
         />
-        <AuthTextField
+        <LoginTextField
           autoComplete="current-password"
           icon={{ ios: 'lock', android: 'lock', web: 'lock' }}
-          label="Şifre"
           onChangeText={setPassword}
           onSubmitEditing={() => void submit()}
-          placeholder="Şifren"
+          onTrailingIconPress={() => setPasswordVisible((current) => !current)}
+          placeholder="Şifre"
           returnKeyType="done"
-          secureTextEntry
+          secureTextEntry={!isPasswordVisible}
+          trailingIcon={isPasswordVisible
+            ? { ios: 'eye.slash', android: 'visibility_off', web: 'visibility_off' }
+            : { ios: 'eye', android: 'visibility', web: 'visibility' }}
+          trailingIconLabel={isPasswordVisible ? 'Şifreyi gizle' : 'Şifreyi göster'}
           value={password}
         />
-        <RememberMeToggle onValueChange={setRememberMe} value={rememberMe} />
+
+        <View style={styles.optionsRow}>
+          <RememberMeToggle onValueChange={setRememberMe} value={rememberMe} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => showComingSoon('Şifre yenileme')}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <AppText color="primary" variant="bodySmall">Şifremi Unuttum</AppText>
+          </Pressable>
+        </View>
+
         {error ? <AppText color="danger" style={styles.error}>{error}</AppText> : null}
-        <View style={styles.action}>
+
+        <View style={styles.primaryAction}>
           <AppButton disabled={isSubmitting} onPress={() => void submit()}>
             {isSubmitting ? 'Giriş yapılıyor…' : 'Giriş Yap'}
           </AppButton>
         </View>
-      </AppCard>
 
-      <View style={styles.footer}>
-        <AppText color="textMuted">Trimly’de yeni misin?</AppText>
-        <AppButton disabled={isSubmitting} onPress={() => router.replace('/auth/register')} variant="ghost">
-          Hesap Oluştur
-        </AppButton>
+        <Pressable
+          accessibilityRole="button"
+          disabled={isSubmitting}
+          onPress={() => router.replace('/auth/register')}
+          style={({ pressed }) => [styles.registerAction, pressed && styles.pressed]}>
+          <AppText color="textMuted" variant="bodySmall">Hesabın yok mu? </AppText>
+          <AppText color="primary" variant="bodySmall">Kayıt Ol</AppText>
+        </Pressable>
+
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <AppText color="textMuted" variant="bodySmall">veya</AppText>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <View style={styles.socialRow}>
+          <SocialLoginButton onPress={() => showComingSoon('Apple ile giriş')} provider="apple" />
+          <SocialLoginButton onPress={() => showComingSoon('Google ile giriş')} provider="google" />
+        </View>
       </View>
-    </AuthScreenLayout>
+
+      <View style={styles.securityNote}>
+        <SymbolView
+          name={{ ios: 'checkmark.shield', android: 'verified_user', web: 'verified_user' }}
+          size={15}
+          tintColor={colors.textMuted}
+        />
+        <AppText color="textMuted" variant="bodySmall">Bilgilerin güvenle korunur.</AppText>
+      </View>
+    </LoginScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  formCard: { marginTop: spacing.xl, padding: spacing.lg },
-  error: { marginTop: spacing.md },
-  action: { marginTop: spacing.xl },
-  footer: { alignItems: 'center', marginTop: spacing.lg },
+  logo: { marginTop: spacing.lg },
+  intro: { alignItems: 'center', marginTop: spacing.xxl },
+  title: { textAlign: 'center' },
+  description: { marginTop: spacing.xs, textAlign: 'center' },
+  form: { gap: spacing.sm, marginTop: spacing.xl },
+  optionsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 32,
+  },
+  error: { textAlign: 'center' },
+  primaryAction: { marginTop: spacing.xs },
+  registerAction: {
+    alignItems: 'center',
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+  },
+  divider: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  dividerLine: { backgroundColor: colors.border, flex: 1, height: 1 },
+  socialRow: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: spacing.xxl,
+    maxWidth: 300,
+  },
+  securityNote: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    marginTop: 'auto',
+    paddingTop: spacing.xl,
+  },
+  pressed: { opacity: 0.65 },
 });

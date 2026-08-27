@@ -28,12 +28,7 @@ export function RememberMeToggle({ onValueChange, value }: RememberMeToggleProps
           />
         ) : null}
       </View>
-      <View style={styles.copy}>
-        <AppText>Beni hatırla</AppText>
-        <AppText color="textMuted" variant="bodySmall">
-          Bu cihazda oturumun açık kalsın.
-        </AppText>
-      </View>
+      <AppText variant="bodySmall">Beni hatırla</AppText>
     </Pressable>
   );
 }
@@ -42,8 +37,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
+    gap: spacing.xs,
   },
   checkbox: {
     alignItems: 'center',
@@ -58,6 +52,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  copy: { flex: 1 },
   pressed: { opacity: 0.72 },
 });
