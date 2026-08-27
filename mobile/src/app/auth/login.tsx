@@ -9,6 +9,7 @@ import { login } from '@/features/auth/api';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { AuthScreenLayout } from '@/features/auth/components/AuthScreenLayout';
 import { AuthTextField } from '@/features/auth/components/AuthTextField';
+import { RememberMeToggle } from '@/features/auth/components/RememberMeToggle';
 import { spacing } from '@/theme/spacing';
 
 export default function LoginScreen() {
@@ -16,13 +17,9 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  function goBack() {
-    if (router.canGoBack()) router.back();
-    else router.replace('/profile');
-  }
 
   async function submit() {
     if (!email.trim() || !password) {
@@ -33,8 +30,8 @@ export default function LoginScreen() {
     try {
       setIsSubmitting(true);
       setError(null);
-      await signIn(await login(email.trim(), password));
-      router.replace('/profile');
+      await signIn(await login(email.trim(), password), rememberMe);
+      router.replace('/');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Giriş yapılamadı.');
     } finally {
@@ -45,7 +42,6 @@ export default function LoginScreen() {
   return (
     <AuthScreenLayout
       description="Randevularına, favorilerine ve tıraş geçmişine kaldığın yerden devam et."
-      onBackPress={goBack}
       title="Tekrar hoş geldin.">
       <AppCard style={styles.formCard}>
         <AuthTextField
@@ -70,6 +66,7 @@ export default function LoginScreen() {
           secureTextEntry
           value={password}
         />
+        <RememberMeToggle onValueChange={setRememberMe} value={rememberMe} />
         {error ? <AppText color="danger" style={styles.error}>{error}</AppText> : null}
         <View style={styles.action}>
           <AppButton disabled={isSubmitting} onPress={() => void submit()}>

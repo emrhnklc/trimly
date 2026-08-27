@@ -10,7 +10,7 @@ import { radius, spacing } from '@/theme/spacing';
 
 type AuthScreenLayoutProps = PropsWithChildren<{
   description: string;
-  onBackPress: () => void;
+  onBackPress?: () => void;
   title: string;
 }>;
 
@@ -23,12 +23,16 @@ export function AuthScreenLayout({ children, description, onBackPress, title }: 
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <View style={styles.topBar}>
-            <AppIconButton
-              accessibilityLabel="Geri dön"
-              icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-              onPress={onBackPress}
-              variant="transparent"
-            />
+            {onBackPress ? (
+              <AppIconButton
+                accessibilityLabel="Geri dön"
+                icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+                onPress={onBackPress}
+                variant="transparent"
+              />
+            ) : (
+              <View style={styles.topBarSpacer} />
+            )}
             <AppText color="primary" variant="overline">TRIMLY</AppText>
             <View style={styles.topBarSpacer} />
           </View>

@@ -1,13 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 
+import { ApiError } from '@/lib/api/client';
+import { getCurrentUser } from './api';
 import type { AuthResponse, AuthUser } from './types';
 
 type AuthContextValue = {
   isReady: boolean;
   token: string | null;
   user: AuthUser | null;
-  signIn: (result: AuthResponse) => Promise<void>;
+  signIn: (result: AuthResponse, rememberMe?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -22,6 +24,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [isReady, setReady] = useState(false);
 
   useEffect(() => {
+    let isActive = true;
+
     async function restoreSession() {
       try {
         const savedSession = await SecureStore.getItemAsync(storageKey);
@@ -33,23 +37,51 @@ export function AuthProvider({ children }: PropsWithChildren) {
         };
 
         if (session.token && session.user) {
-          setState({ token: session.token, user: session.user });
+          if (!isActive) return;
+
+          const restoredSession = { token: session.token, user: session.user };
+          setState(restoredSession);
+          setReady(true);
+
+          try {
+            const currentUser = await getCurrentUser(session.token);
+            if (!isActive) return;
+
+            const refreshedSession = { token: session.token, user: currentUser };
+            setState(refreshedSession);
+            await SecureStore.setItemAsync(storageKey, JSON.stringify(refreshedSession));
+          } catch (reason) {
+            if (reason instanceof ApiError && reason.status === 401) {
+              await SecureStore.deleteItemAsync(storageKey);
+              if (isActive) setState({ token: null, user: null });
+            }
+          }
         } else {
           await SecureStore.deleteItemAsync(storageKey);
         }
       } catch {
         await SecureStore.deleteItemAsync(storageKey);
       } finally {
-        setReady(true);
+        if (isActive) setReady(true);
       }
     }
 
     void restoreSession();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
-  async function signIn(result: AuthResponse) {
+  async function signIn(result: AuthResponse, rememberMe = true) {
     const nextSession = { token: result.accessToken, user: result.user };
-    await SecureStore.setItemAsync(storageKey, JSON.stringify(nextSession));
+
+    if (rememberMe) {
+      await SecureStore.setItemAsync(storageKey, JSON.stringify(nextSession));
+    } else {
+      await SecureStore.deleteItemAsync(storageKey);
+    }
+
     setState(nextSession);
   }
 

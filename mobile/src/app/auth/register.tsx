@@ -25,7 +25,7 @@ export default function RegisterScreen() {
 
   function goBack() {
     if (router.canGoBack()) router.back();
-    else router.replace('/profile');
+    else router.replace('/auth/login');
   }
 
   async function submit() {
@@ -52,7 +52,7 @@ export default function RegisterScreen() {
         password,
         ...(phone.trim() ? { phone: phone.trim() } : {}),
       }));
-      router.replace('/profile');
+      router.replace('/');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Hesap oluşturulamadı.');
     } finally {
