@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { spacing } from '@/theme/spacing';
@@ -12,9 +13,7 @@ export function HomeHeader({ onNotificationsPress }: HomeHeaderProps) {
   return (
     <View style={styles.container}>
       <View>
-        <AppText color="primary" variant="overline">
-          TRIMLY
-        </AppText>
+        <TrimlyLogo size="small" style={styles.logo} />
         <AppText color="textMuted" style={styles.tagline} variant="bodySmall">
           Tarzın. Randevun. Geçmişin.
         </AppText>
@@ -35,5 +34,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.sm,
   },
+  logo: { alignSelf: 'flex-start' },
   tagline: { marginTop: spacing.xxs },
 });

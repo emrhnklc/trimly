@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
+import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
@@ -31,7 +32,7 @@ export function AuthScreenLayout({ children, description, onBackPress, title }: 
             ) : (
               <View style={styles.topBarSpacer} />
             )}
-            <AppText color="primary" variant="overline">TRIMLY</AppText>
+            <TrimlyLogo size="small" />
             <View style={styles.topBarSpacer} />
           </View>
 
