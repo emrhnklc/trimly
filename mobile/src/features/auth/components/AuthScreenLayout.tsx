@@ -39,7 +39,6 @@ export function AuthScreenLayout({ children, description, onBackPress, title }: 
 
           <View style={styles.brandCard}>
             <View style={styles.brandCopy}>
-              <AppText color="surfaceMuted" variant="overline">TARZIN SENİNLE</AppText>
               <AppText color="surface" style={styles.brandTitle} variant="displayMedium">
                 Tarzın. Randevun. Geçmişin.
               </AppText>
@@ -77,7 +76,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   brandCopy: { flex: 1 },
-  brandTitle: { marginTop: spacing.xs, maxWidth: 250 },
+  brandTitle: { maxWidth: 250 },
   scissorsBadge: {
     alignItems: 'center',
     backgroundColor: colors.primary,
