@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
 
@@ -18,7 +18,13 @@ const statusLabels: Record<AppointmentStatus, string> = {
   NO_SHOW: 'Gelinmedi',
 };
 
-export function CustomerAppointmentCard({ appointment }: { appointment: CustomerAppointment }) {
+export function CustomerAppointmentCard({
+  appointment,
+  onPress,
+}: {
+  appointment: CustomerAppointment;
+  onPress: () => void;
+}) {
   const startsAt = new Date(appointment.startsAt);
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
   const dayLabel = new Intl.DateTimeFormat('tr-TR', { weekday: 'short' })
@@ -35,53 +41,64 @@ export function CustomerAppointmentCard({ appointment }: { appointment: Customer
   const isCancelled = appointment.status === 'CANCELLED';
 
   return (
-    <AppCard style={styles.card}>
-      <View style={styles.dateBox}>
-        <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
-          {dayLabel}
-        </AppText>
-        <AppText color="onPrimary" style={styles.dayNumber} variant="displayMedium">
-          {dayNumber}
-        </AppText>
-        <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
-          {monthLabel}
-        </AppText>
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.headingRow}>
-          <AppText numberOfLines={1} style={styles.shopName} variant="label">
-            {appointment.barbershop.name}
+    <Pressable
+      accessibilityLabel={`${appointment.barbershop.name} randevu detayını aç`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}>
+      <AppCard style={styles.card}>
+        <View style={styles.dateBox}>
+          <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
+            {dayLabel}
           </AppText>
-          <View style={[styles.badge, isCancelled && styles.cancelledBadge]}>
-            <AppText color={isCancelled ? 'danger' : 'textMuted'} style={styles.badgeText} variant="bodySmall">
-              {statusLabels[appointment.status]}
+          <AppText color="onPrimary" style={styles.dayNumber} variant="displayMedium">
+            {dayNumber}
+          </AppText>
+          <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
+            {monthLabel}
+          </AppText>
+        </View>
+
+        <View style={styles.content}>
+          <View style={styles.headingRow}>
+            <AppText numberOfLines={1} style={styles.shopName} variant="label">
+              {appointment.barbershop.name}
+            </AppText>
+            <View style={[styles.badge, isCancelled && styles.cancelledBadge]}>
+              <AppText color={isCancelled ? 'danger' : 'textMuted'} style={styles.badgeText} variant="bodySmall">
+                {statusLabels[appointment.status]}
+              </AppText>
+            </View>
+          </View>
+          <AppText color="textMuted" numberOfLines={1} variant="bodySmall">
+            {barberName}
+          </AppText>
+          <View style={styles.metaRow}>
+            <SymbolView
+              name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
+              size={15}
+              tintColor={colors.textMuted}
+            />
+            <AppText color="textMuted" variant="bodySmall">{timeLabel}</AppText>
+            <View style={styles.dot} />
+            <AppText color="textMuted" numberOfLines={1} style={styles.serviceName} variant="bodySmall">
+              {appointment.serviceNameSnapshot}
             </AppText>
           </View>
         </View>
-
-        <AppText color="textMuted" numberOfLines={1} variant="bodySmall">
-          {barberName}
-        </AppText>
-        <View style={styles.metaRow}>
-          <SymbolView
-            name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
-            size={15}
-            tintColor={colors.textMuted}
-          />
-          <AppText color="textMuted" variant="bodySmall">{timeLabel}</AppText>
-          <View style={styles.dot} />
-          <AppText color="textMuted" numberOfLines={1} style={styles.serviceName} variant="bodySmall">
-            {appointment.serviceNameSnapshot}
-          </AppText>
-        </View>
-      </View>
-    </AppCard>
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={17}
+          tintColor={colors.textMuted}
+        />
+      </AppCard>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'stretch', flexDirection: 'row', marginBottom: spacing.sm, padding: spacing.sm },
+  pressed: { opacity: 0.72 },
+  card: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.sm, padding: spacing.sm },
   dateBox: {
     alignItems: 'center',
     backgroundColor: colors.darkSurface,

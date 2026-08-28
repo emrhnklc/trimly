@@ -137,11 +137,23 @@ export default function AppointmentsScreen() {
             <AppointmentSection
               appointments={upcoming}
               emptyMessage="Yaklaşan randevun bulunmuyor."
+              onAppointmentPress={(appointmentId) =>
+                router.push({
+                  pathname: '/appointments/[appointmentId]',
+                  params: { appointmentId },
+                })
+              }
               title="Yaklaşan"
             />
             <AppointmentSection
               appointments={history}
               emptyMessage="Geçmiş randevun bulunmuyor."
+              onAppointmentPress={(appointmentId) =>
+                router.push({
+                  pathname: '/appointments/[appointmentId]',
+                  params: { appointmentId },
+                })
+              }
               title="Geçmiş"
             />
           </View>
@@ -154,10 +166,12 @@ export default function AppointmentsScreen() {
 function AppointmentSection({
   appointments,
   emptyMessage,
+  onAppointmentPress,
   title,
 }: {
   appointments: CustomerAppointment[];
   emptyMessage: string;
+  onAppointmentPress: (appointmentId: string) => void;
   title: string;
 }) {
   return (
@@ -170,7 +184,11 @@ function AppointmentSection({
       </View>
       {appointments.length ? (
         appointments.map((appointment) => (
-          <CustomerAppointmentCard appointment={appointment} key={appointment.id} />
+          <CustomerAppointmentCard
+            appointment={appointment}
+            key={appointment.id}
+            onPress={() => onAppointmentPress(appointment.id)}
+          />
         ))
       ) : (
         <AppText color="textMuted">{emptyMessage}</AppText>

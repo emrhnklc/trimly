@@ -30,6 +30,10 @@ export type CustomerAppointment = {
   durationMinutes: number;
   cancelledAt: string | null;
   completedAt: string | null;
+  canCancel: boolean;
+  cancellationDeadline: string;
+  cancellationNoticeMinutes: number;
+  cancellationReason: string | null;
   barbershop: {
     id: string;
     name: string;

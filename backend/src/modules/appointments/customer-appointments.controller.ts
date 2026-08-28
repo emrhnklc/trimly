@@ -16,6 +16,14 @@ export class CustomerAppointmentsController {
     return this.appointmentsService.findForCustomer(user.id);
   }
 
+  @Get(':appointmentId')
+  findOne(
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.findOneForCustomer(appointmentId, user.id);
+  }
+
   @Patch(':appointmentId/cancel')
   cancel(
     @Param('appointmentId') appointmentId: string,

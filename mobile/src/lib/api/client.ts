@@ -56,3 +56,17 @@ export async function apiPost<T>(path: string, body: unknown, accessToken?: stri
 
   return parseResponse<T>(response);
 }
+
+export async function apiPatch<T>(path: string, body?: unknown, accessToken?: string) {
+  const hasBody = body !== undefined;
+  const response = await fetch(new URL(path, API_URL), {
+    method: 'PATCH',
+    headers: {
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: hasBody ? JSON.stringify(body) : undefined,
+  });
+
+  return parseResponse<T>(response);
+}

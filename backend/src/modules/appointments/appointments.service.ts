@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AppointmentStatus, Prisma } from '@prisma/client';
 import { DateTime } from 'luxon';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -13,6 +13,120 @@ import { PrismaService } from '../../database/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
+
+const customerAppointmentSelect = {
+  id: true,
+  startsAt: true,
+  endsAt: true,
+  status: true,
+  serviceNameSnapshot: true,
+  priceSnapshot: true,
+  durationMinutes: true,
+  cancelledAt: true,
+  completedAt: true,
+  barbershop: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      bookingSettings: {
+        select: {
+          customerCancellationEnabled: true,
+          cancellationNoticeMinutes: true,
+        },
+      },
+    },
+  },
+  businessMember: {
+    select: {
+      id: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          profileImageUrl: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.AppointmentSelect;
+
+type CustomerAppointmentRecord = Prisma.AppointmentGetPayload<{
+  select: typeof customerAppointmentSelect;
+}>;
+
+const defaultCancellationSettings = {
+  customerCancellationEnabled: true,
+  cancellationNoticeMinutes: 120,
+};
+
+function getCancellationPolicy(
+  status: AppointmentStatus,
+  startsAt: Date,
+  settings: typeof defaultCancellationSettings,
+) {
+  const cancellationDeadline = new Date(
+    startsAt.getTime() - settings.cancellationNoticeMinutes * 60 * 1000,
+  );
+
+  if (status !== AppointmentStatus.CONFIRMED) {
+    const statusReasons: Record<
+      Exclude<AppointmentStatus, 'CONFIRMED'>,
+      string
+    > = {
+      CANCELLED: 'Bu randevu iptal edilmiş.',
+      COMPLETED: 'Tamamlanan randevular iptal edilemez.',
+      NO_SHOW: 'Gelinmedi olarak işaretlenen randevular iptal edilemez.',
+    };
+
+    return {
+      canCancel: false,
+      cancellationDeadline,
+      cancellationNoticeMinutes: settings.cancellationNoticeMinutes,
+      cancellationReason: statusReasons[status],
+    };
+  }
+
+  if (!settings.customerCancellationEnabled) {
+    return {
+      canCancel: false,
+      cancellationDeadline,
+      cancellationNoticeMinutes: settings.cancellationNoticeMinutes,
+      cancellationReason: 'Bu işletme müşteri tarafından iptale izin vermiyor.',
+    };
+  }
+
+  if (new Date() >= cancellationDeadline) {
+    return {
+      canCancel: false,
+      cancellationDeadline,
+      cancellationNoticeMinutes: settings.cancellationNoticeMinutes,
+      cancellationReason: `Bu randevu en az ${settings.cancellationNoticeMinutes} dakika önceden iptal edilebilir.`,
+    };
+  }
+
+  return {
+    canCancel: true,
+    cancellationDeadline,
+    cancellationNoticeMinutes: settings.cancellationNoticeMinutes,
+    cancellationReason: null,
+  };
+}
+
+function presentCustomerAppointment(appointment: CustomerAppointmentRecord) {
+  const { bookingSettings, ...barbershop } = appointment.barbershop;
+  const cancellationSettings = bookingSettings ?? defaultCancellationSettings;
+
+  return {
+    ...appointment,
+    barbershop,
+    ...getCancellationPolicy(
+      appointment.status,
+      appointment.startsAt,
+      cancellationSettings,
+    ),
+  };
+}
 
 @Injectable()
 export class AppointmentsService {
@@ -114,37 +228,27 @@ export class AppointmentsService {
     }
   }
 
-  findForCustomer(customerId: string) {
-    return this.prisma.appointment.findMany({
+  async findForCustomer(customerId: string) {
+    const appointments = await this.prisma.appointment.findMany({
       where: { customerId },
       orderBy: { startsAt: 'desc' },
-      select: {
-        id: true,
-        startsAt: true,
-        endsAt: true,
-        status: true,
-        serviceNameSnapshot: true,
-        priceSnapshot: true,
-        durationMinutes: true,
-        cancelledAt: true,
-        completedAt: true,
-        barbershop: {
-          select: { id: true, name: true, slug: true },
-        },
-        businessMember: {
-          select: {
-            id: true,
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                profileImageUrl: true,
-              },
-            },
-          },
-        },
-      },
+      select: customerAppointmentSelect,
     });
+
+    return appointments.map(presentCustomerAppointment);
+  }
+
+  async findOneForCustomer(appointmentId: string, customerId: string) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, customerId },
+      select: customerAppointmentSelect,
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Randevu bulunamadı.');
+    }
+
+    return presentCustomerAppointment(appointment);
   }
 
   async cancelForCustomer(appointmentId: string, customerId: string) {
@@ -172,28 +276,18 @@ export class AppointmentsService {
       throw new NotFoundException('Randevu bulunamadı.');
     }
 
-    if (appointment.status !== 'CONFIRMED') {
-      throw new BadRequestException('Bu randevu iptal edilemez.');
-    }
-
     const cancellationSettings = appointment.barbershop.bookingSettings ?? {
-      customerCancellationEnabled: true,
-      cancellationNoticeMinutes: 120,
+      ...defaultCancellationSettings,
     };
-
-    if (!cancellationSettings.customerCancellationEnabled) {
-      throw new BadRequestException(
-        'Bu işletme müşteri tarafından iptale izin vermiyor.',
-      );
-    }
-
-    const cancellationDeadline = new Date(
-      appointment.startsAt.getTime() -
-        cancellationSettings.cancellationNoticeMinutes * 60 * 1000,
+    const cancellationPolicy = getCancellationPolicy(
+      appointment.status,
+      appointment.startsAt,
+      cancellationSettings,
     );
-    if (new Date() >= cancellationDeadline) {
+
+    if (!cancellationPolicy.canCancel) {
       throw new BadRequestException(
-        `Bu randevu en az ${cancellationSettings.cancellationNoticeMinutes} dakika önceden iptal edilebilir.`,
+        cancellationPolicy.cancellationReason ?? 'Bu randevu iptal edilemez.',
       );
     }
 

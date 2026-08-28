@@ -140,11 +140,13 @@ Her işletmenin booking ayarları bulunur:
 - `maxBookingAdvanceDays`: En fazla kaç gün ileriye randevu alınabilir? Örnek: `3` veya `14`.
 - `slotIntervalMinutes`: Müşteriye gösterilecek başlangıç zamanlarının aralığı. İzin verilen değerler: `5`, `10`, `15`, `30`; varsayılan `5`.
 
-Bu ayarlar işletme düzeyinde ayrı bir `BookingSettings` modelinde tutulacak. İleride iptal süresi, slot aralığı ve onay kuralı gibi ayarlar aynı modele eklenebilir.
+Bu ayarlar işletme düzeyindeki `BookingSettings` modelinde tutulur. Aynı model müşteri iptalinin açık olup olmadığını ve minimum iptal bildirim süresini de taşır.
 
 ### Müşteri iptal politikası
 
 İşletme, müşteri iptalini tamamen kapatabilir veya randevudan en az kaç dakika önce iptal yapılabileceğini belirleyebilir. Varsayılan kural: iptal açıktır ve en az `120` dakika önce yapılır. Bu ayarlar backend'de zorunlu olarak denetlenir; mobil uygulama aynı veriyi kullanarak iptal butonunu gizler veya nedenini gösterir.
+
+Müşteri `GET /appointments/me` ile listesini, `GET /appointments/:appointmentId` ile yalnız kendisine ait randevunun detayını görür. Bu cevaplarda backend tarafından hesaplanan `canCancel`, `cancellationDeadline`, `cancellationNoticeMinutes` ve `cancellationReason` alanları bulunur. İzin verilen iptal `PATCH /appointments/:appointmentId/cancel` ile yapılır; backend isteğin geldiği anda politikayı yeniden doğrular.
 
 `GET /barbershops/:barbershopId/booking-settings` ayarları okumaya, `PUT /barbershops/:barbershopId/booking-settings` ise owner/manager'ın ayarları değiştirmesine yarar.
 
