@@ -1,26 +1,24 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
 type HomeHeroCardProps = {
-  imageUrl?: string | null;
   onExplorePress: () => void;
 };
 
-export function HomeHeroCard({ imageUrl, onExplorePress }: HomeHeroCardProps) {
+export function HomeHeroCard({ onExplorePress }: HomeHeroCardProps) {
   return (
     <AppCard style={styles.card}>
-      {imageUrl ? (
-        <Image contentFit="cover" source={imageUrl} style={styles.backgroundImage} transition={200} />
-      ) : null}
+      <Image
+        contentFit="cover"
+        source={require('../../../../assets/images/home/discover-barbershop.png')}
+        style={styles.backgroundImage}
+      />
       <View pointerEvents="none" style={styles.imageOverlay} />
-      <View pointerEvents="none" style={styles.accentCircle} />
-      <View pointerEvents="none" style={styles.accentLine} />
 
       <AppText color="surfaceMuted" variant="overline">
         SİZE ÖZEL ÖNERİLER
@@ -29,9 +27,13 @@ export function HomeHeroCard({ imageUrl, onExplorePress }: HomeHeroCardProps) {
         Tarzına en uygun berberi keşfet.
       </AppText>
       <View style={styles.buttonRow}>
-        <AppButton onPress={onExplorePress} variant="secondary">
-          Berberleri Gör
-        </AppButton>
+        <Pressable
+          accessibilityLabel="Berberleri keşfet"
+          accessibilityRole="button"
+          onPress={onExplorePress}
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
+          <AppText color="onPrimary" variant="label">Keşfet</AppText>
+        </Pressable>
       </View>
     </AppCard>
   );
@@ -42,38 +44,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.darkSurface,
     borderColor: colors.darkSurface,
     marginTop: spacing.sm,
-    minHeight: 164,
+    minHeight: 146,
     overflow: 'hidden',
-    padding: spacing.lg,
+    padding: spacing.md,
   },
   backgroundImage: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   imageOverlay: {
-    backgroundColor: 'rgba(24, 17, 13, 0.68)',
+    backgroundColor: 'rgba(18, 12, 8, 0.18)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
-  title: { marginTop: spacing.xs, maxWidth: 265 },
-  buttonRow: { marginTop: 'auto', alignSelf: 'flex-start' },
-  accentCircle: {
+  title: { fontSize: 22, lineHeight: 27, marginTop: spacing.xxs, maxWidth: 220 },
+  buttonRow: { alignSelf: 'flex-start', marginTop: 'auto' },
+  button: {
+    alignItems: 'center',
     backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    height: 188,
-    opacity: 0.22,
-    position: 'absolute',
-    right: -76,
-    top: -54,
-    width: 188,
+    borderRadius: radius.sm,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: spacing.md,
   },
-  accentLine: {
-    backgroundColor: colors.surfaceMuted,
-    bottom: 31,
-    height: 1,
-    opacity: 0.36,
-    position: 'absolute',
-    right: 20,
-    width: 82,
-  },
+  buttonPressed: { opacity: 0.8 },
 });

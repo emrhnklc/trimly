@@ -5,6 +5,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { fontFamily } from '@/theme/typography';
 
 export type HomeQuickAction = {
   description: string;
@@ -33,10 +34,12 @@ export function HomeQuickActions({ actions }: { actions: HomeQuickAction[] }) {
             !action.onPress && styles.disabled,
             pressed && styles.pressed,
           ]}>
-          <View style={styles.iconBox}>
-            <SymbolView name={action.icon} size={20} tintColor={colors.primary} />
+          <View style={styles.topRow}>
+            <View style={styles.iconBox}>
+              <SymbolView name={action.icon} size={18} tintColor={colors.primary} />
+            </View>
+            <AppText numberOfLines={2} style={styles.label}>{action.label}</AppText>
           </View>
-          <AppText numberOfLines={2} style={styles.label} variant="label">{action.label}</AppText>
           <AppText color="textMuted" numberOfLines={2} style={styles.description} variant="bodySmall">
             {action.description}
           </AppText>
@@ -53,20 +56,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
-    minHeight: 118,
-    padding: spacing.sm,
-    width: 132,
+    minHeight: 94,
+    padding: 10,
+    width: 148,
   },
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.68 },
+  topRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   iconBox: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
-    height: 38,
+    height: 34,
     justifyContent: 'center',
-    width: 38,
+    width: 34,
   },
-  label: { marginTop: spacing.xs },
-  description: { fontSize: 10, lineHeight: 14, marginTop: spacing.xxs },
+  label: { flex: 1, fontFamily: fontFamily.display, fontSize: 14, lineHeight: 17 },
+  description: { fontSize: 10, lineHeight: 14, marginTop: 6 },
 });

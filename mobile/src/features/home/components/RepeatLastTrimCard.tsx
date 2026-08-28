@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
@@ -28,7 +29,12 @@ export function RepeatLastTrimCard({
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View pointerEvents="none" style={styles.glow} />
+      <Image
+        contentFit="cover"
+        source={require('../../../../assets/images/home/repeat-last-trim.png')}
+        style={styles.backgroundImage}
+      />
+      <View pointerEvents="none" style={styles.overlay} />
       <View style={styles.content}>
         <AppText color="surface" variant="heading">
           {appointment ? 'Son tıraşını tekrar ettir' : 'İlk tarzını oluşturmaya başla'}
@@ -63,15 +69,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   pressed: { opacity: 0.76 },
-  glow: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    height: 150,
-    opacity: 0.2,
+  backgroundImage: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  overlay: {
+    backgroundColor: 'rgba(16, 10, 7, 0.16)',
+    bottom: 0,
+    left: 0,
     position: 'absolute',
-    right: -44,
-    top: -54,
-    width: 150,
+    right: 0,
+    top: 0,
   },
   content: { flex: 1, paddingRight: spacing.md },
   shop: { marginBottom: 2, marginTop: spacing.xs },

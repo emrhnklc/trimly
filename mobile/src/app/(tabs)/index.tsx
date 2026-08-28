@@ -183,10 +183,7 @@ export default function HomeScreen() {
           onPress={() => openNextAppointment(nextAppointment)}
         />
 
-        <HomeHeroCard
-          imageUrl={barbershops[0]?.coverImageUrl ?? barbershops[0]?.profileImageUrl}
-          onExplorePress={() => router.push('/barbers')}
-        />
+        <HomeHeroCard onExplorePress={() => router.push('/barbers')} />
 
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
         {!isLoading && error ? (

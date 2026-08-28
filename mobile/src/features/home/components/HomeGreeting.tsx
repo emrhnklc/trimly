@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   copy: { flex: 1, paddingRight: spacing.md },
   title: { fontSize: 24, lineHeight: 29 },
   subtitle: { marginTop: spacing.xxs },
-  avatar: { borderRadius: radius.pill, height: 52, width: 52 },
+  avatar: { borderRadius: radius.pill, height: 64, width: 64 },
   avatarPlaceholder: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
@@ -52,5 +52,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
   },
-  initial: { fontSize: 23, lineHeight: 27 },
+  initial: { fontSize: 27, lineHeight: 31 },
 });
