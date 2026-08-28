@@ -242,6 +242,8 @@ Müşteri keşfi önce **işletme/dükkân** odaklıdır: Berberler sekmesinde B
 
 Local backend çalışırken Swagger arayüzü `http://localhost:3000/api/docs` adresindedir. Controller decorator'larından üretilen endpoint listesini gösterir ve geliştirme sırasında istek denemeye yarar. Üretimde gerekirse `SWAGGER_ENABLED=false` ile kapatılır.
 
+Local geliştirme verisi `backend` klasöründe `npm run prisma:seed` komutuyla oluşturulur. Seed tekrar çalıştırılabilir; Trimly'nin sabit örnek işletmelerini günceller, kopyalamaz ve diğer kullanıcı kayıtlarını silmez. Örnek owner girişi: `owner.alsancak@trimly.dev` / `Trimly123!`.
+
 ## MVP sonrası
 
 - Konuma göre keşif
