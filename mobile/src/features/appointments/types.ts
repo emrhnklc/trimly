@@ -22,6 +22,7 @@ export type CreatedAppointment = {
 
 export type CustomerAppointment = {
   id: string;
+  serviceId: string;
   startsAt: string;
   endsAt: string;
   status: AppointmentStatus;

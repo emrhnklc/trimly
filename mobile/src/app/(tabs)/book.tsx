@@ -1,32 +1,41 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
-import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { getMyAppointments } from '@/features/appointments/api';
 import { BookingBarberCard } from '@/features/appointments/components/BookingBarberCard';
 import {
   BookingDatePicker,
   type BookingDateOption,
 } from '@/features/appointments/components/BookingDatePicker';
+import { BookingFlowHeader } from '@/features/appointments/components/BookingFlowHeader';
+import type { BookingStep } from '@/features/appointments/components/BookingProgress';
 import { BookingServiceCard } from '@/features/appointments/components/BookingServiceCard';
 import { BookingShopSummary } from '@/features/appointments/components/BookingShopSummary';
+import { BookingStartScreen } from '@/features/appointments/components/BookingStartScreen';
 import { BookingTimePicker } from '@/features/appointments/components/BookingTimePicker';
+import type { CustomerAppointment } from '@/features/appointments/types';
+import { useAuth } from '@/features/auth/AuthProvider';
 import {
   getAvailability,
   getBookableBarbers,
   getBookingSettings,
   getPublicBarbershop,
+  getPublicBarbershops,
 } from '@/features/barbershops/api';
 import type {
   AvailabilitySlot,
   BookableBarber,
   BookingSettings,
+  PublicBarbershop,
   PublicBarbershopDetail,
 } from '@/features/barbershops/types';
+import { getFavoriteBarbershops } from '@/features/favorites/api';
+import type { FavoriteBarbershop } from '@/features/favorites/types';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
@@ -37,12 +46,28 @@ const defaultBookingSettings: BookingSettings = {
   slotIntervalMinutes: 5,
 };
 
+type BookParams = {
+  memberId?: string;
+  serviceId?: string;
+  slug?: string;
+};
+
 export default function BookAppointmentScreen() {
   const router = useRouter();
-  const { slug } = useLocalSearchParams<{ slug?: string }>();
+  const { token } = useAuth();
+  const { memberId: repeatedMemberId, serviceId: repeatedServiceId, slug } =
+    useLocalSearchParams<BookParams>();
+
+  const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteBarbershop[]>([]);
+  const [publicShops, setPublicShops] = useState<PublicBarbershop[]>([]);
+  const [isStartLoading, setIsStartLoading] = useState(true);
+  const [startError, setStartError] = useState<string | null>(null);
+
   const [shop, setShop] = useState<PublicBarbershopDetail | null>(null);
   const [barbers, setBarbers] = useState<BookableBarber[]>([]);
   const [settings, setSettings] = useState<BookingSettings>(defaultBookingSettings);
+  const [activeStep, setActiveStep] = useState<BookingStep>(1);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
@@ -54,6 +79,47 @@ export default function BookAppointmentScreen() {
   const [error, setError] = useState<string | null>(null);
   const [slotError, setSlotError] = useState<string | null>(null);
 
+  const loadStartData = useCallback(async () => {
+    if (!token) return;
+
+    setIsStartLoading(true);
+    setStartError(null);
+
+    try {
+      const [nextAppointments, nextFavorites, nextShops] = await Promise.all([
+        getMyAppointments(token),
+        getFavoriteBarbershops(token),
+        getPublicBarbershops(),
+      ]);
+      setAppointments(nextAppointments);
+      setFavorites(nextFavorites);
+      setPublicShops(nextShops);
+    } catch (reason: unknown) {
+      setStartError(reason instanceof Error ? reason.message : 'Randevu başlangıcı yüklenemedi.');
+    } finally {
+      setIsStartLoading(false);
+    }
+  }, [token]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!slug) void loadStartData();
+    }, [loadStartData, slug]),
+  );
+
+  const lastCompletedAppointment = useMemo(
+    () =>
+      appointments
+        .filter((appointment) => appointment.status === 'COMPLETED')
+        .sort((first, second) => second.startsAt.localeCompare(first.startsAt))[0] ?? null,
+    [appointments],
+  );
+  const lastShop = useMemo(
+    () =>
+      publicShops.find((barbershop) => barbershop.id === lastCompletedAppointment?.barbershop.id) ??
+      null,
+    [lastCompletedAppointment, publicShops],
+  );
   const dateOptions = useMemo(
     () => buildDateOptions(settings.maxBookingAdvanceDays),
     [settings.maxBookingAdvanceDays],
@@ -77,6 +143,14 @@ export default function BookAppointmentScreen() {
       void (async () => {
         setIsLoading(true);
         setError(null);
+        setShop(null);
+        setSelectedServiceId(null);
+        setSelectedMemberId(null);
+        setSelectedDate(toDateKey(new Date()));
+        setSlots([]);
+        setSelectedHour(null);
+        setSelectedSlot(null);
+        setSlotError(null);
 
         try {
           const nextShop = await getPublicBarbershop(slug);
@@ -87,6 +161,21 @@ export default function BookAppointmentScreen() {
           setShop(nextShop);
           setBarbers(nextBarbers);
           setSettings(nextSettings);
+
+          const repeatService = nextShop.services.find(({ id }) => id === repeatedServiceId);
+          const repeatBarber = nextBarbers.find(
+            (barber) =>
+              barber.id === repeatedMemberId &&
+              barber.serviceAssignments.some(({ service }) => service.id === repeatService?.id),
+          );
+
+          if (repeatService && repeatBarber) {
+            setSelectedServiceId(repeatService.id);
+            setSelectedMemberId(repeatBarber.id);
+            setActiveStep(3);
+          } else {
+            setActiveStep(1);
+          }
         } catch (loadError) {
           setError(loadError instanceof Error ? loadError.message : 'Randevu bilgileri yüklenemedi.');
         } finally {
@@ -96,7 +185,7 @@ export default function BookAppointmentScreen() {
     }, 0);
 
     return () => clearTimeout(requestId);
-  }, [slug]);
+  }, [repeatedMemberId, repeatedServiceId, slug]);
 
   useEffect(() => {
     if (!shop || !selectedServiceId || !selectedMemberId || !selectedDate) return;
@@ -117,7 +206,6 @@ export default function BookAppointmentScreen() {
             selectedDate,
           );
           setSlots(result.slots);
-          setSelectedHour(null);
         } catch (loadError) {
           setSlotError(loadError instanceof Error ? loadError.message : 'Uygun saatler yüklenemedi.');
         } finally {
@@ -128,6 +216,21 @@ export default function BookAppointmentScreen() {
 
     return () => clearTimeout(requestId);
   }, [selectedDate, selectedMemberId, selectedServiceId, shop]);
+
+  function openShop(nextSlug: string, repeatAppointment?: CustomerAppointment) {
+    router.push({
+      pathname: '/book',
+      params: {
+        slug: nextSlug,
+        ...(repeatAppointment
+          ? {
+              memberId: repeatAppointment.businessMember.id,
+              serviceId: repeatAppointment.serviceId,
+            }
+          : {}),
+      },
+    });
+  }
 
   function selectService(serviceId: string) {
     setSelectedServiceId(serviceId);
@@ -152,33 +255,81 @@ export default function BookAppointmentScreen() {
     setSlotError(null);
   }
 
+  function closeFlow() {
+    if (slug) router.replace('/book');
+    else router.replace('/');
+  }
+
+  function goBackStep() {
+    if (activeStep === 1) {
+      router.replace('/book');
+      return;
+    }
+
+    setActiveStep((activeStep - 1) as BookingStep);
+  }
+
+  function continueFlow() {
+    if (activeStep === 1 && selectedService) {
+      setActiveStep(2);
+      return;
+    }
+
+    if (activeStep === 2 && selectedBarber) {
+      setActiveStep(3);
+      return;
+    }
+
+    if (activeStep !== 3 || !shop || !selectedService || !selectedBarber || !selectedSlot) return;
+
+    router.push({
+      pathname: '/appointments/preview',
+      params: {
+        barberName: `${selectedBarber.user.firstName} ${selectedBarber.user.lastName}`,
+        barbershopId: shop.id,
+        date: selectedDate,
+        durationMinutes: String(selectedService.durationMinutes),
+        memberId: selectedBarber.id,
+        price: selectedService.price,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        shopName: shop.name,
+        startsAt: selectedSlot.startsAt,
+        time: selectedSlot.startTime,
+      },
+    });
+  }
+
   if (!slug) {
     return (
       <Screen>
-        <View style={styles.emptyState}>
-          <AppText style={styles.centerText} variant="displayMedium">Önce işletmeni seç</AppText>
-          <AppText color="textMuted" style={styles.emptyDescription}>
-            Hizmetleri ve uygun berberleri görmek için bir berber dükkânı seçmelisin.
-          </AppText>
-          <View style={styles.emptyButton}>
-            <AppButton onPress={() => router.push('/barbers')}>Berberleri Keşfet</AppButton>
-          </View>
-        </View>
+        <BookingFlowHeader onClose={closeFlow} />
+        <BookingStartScreen
+          error={startError}
+          favorites={favorites}
+          isLoading={isStartLoading}
+          lastAppointment={lastCompletedAppointment}
+          lastShop={lastShop}
+          onAllFavoritesPress={() => router.push('/favorites')}
+          onFavoritePress={(favoriteSlug) => openShop(favoriteSlug)}
+          onLastContinue={() => {
+            if (lastCompletedAppointment) openShop(lastCompletedAppointment.barbershop.slug);
+          }}
+          onRepeat={() => {
+            if (lastCompletedAppointment) {
+              openShop(lastCompletedAppointment.barbershop.slug, lastCompletedAppointment);
+            }
+          }}
+          onRetry={() => void loadStartData()}
+          onSearchPress={() => router.push('/barbers')}
+        />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <AppIconButton
-          accessibilityLabel="Geri dön"
-          icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-          onPress={() => router.back()}
-        />
-        <AppText variant="heading">Randevu Al</AppText>
-        <View style={styles.topBarSpacer} />
-      </View>
+      <BookingFlowHeader activeStep={activeStep} onClose={closeFlow} />
 
       {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
@@ -186,6 +337,11 @@ export default function BookAppointmentScreen() {
         <View style={styles.emptyState}>
           <AppText color="danger" style={styles.centerText} variant="heading">Bilgiler yüklenemedi</AppText>
           <AppText color="textMuted" style={styles.emptyDescription}>{error}</AppText>
+          <View style={styles.errorButton}>
+            <AppButton onPress={() => router.replace('/book')} variant="secondary">
+              İşletme Seçimine Dön
+            </AppButton>
+          </View>
         </View>
       ) : null}
 
@@ -193,24 +349,32 @@ export default function BookAppointmentScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <BookingShopSummary shop={shop} />
 
-          <View style={styles.section}>
-            <SectionTitle title="Hizmet Seç" />
-            <AppCard style={styles.serviceList}>
-              {shop.services.map((service, index) => (
-                <BookingServiceCard
-                  isSelected={selectedServiceId === service.id}
-                  key={service.id}
-                  onPress={() => selectService(service.id)}
-                  service={service}
-                  showDivider={index < shop.services.length - 1}
-                />
-              ))}
-            </AppCard>
-          </View>
-
-          {selectedServiceId ? (
+          {activeStep === 1 ? (
             <View style={styles.section}>
-              <SectionTitle title="Berber Seç" />
+              <SectionIntro
+                description="Randevunun süresi ve fiyatı seçtiğin hizmete göre belirlenir."
+                title="Hizmetini seç"
+              />
+              <AppCard style={styles.serviceList}>
+                {shop.services.map((service, index) => (
+                  <BookingServiceCard
+                    isSelected={selectedServiceId === service.id}
+                    key={service.id}
+                    onPress={() => selectService(service.id)}
+                    service={service}
+                    showDivider={index < shop.services.length - 1}
+                  />
+                ))}
+              </AppCard>
+            </View>
+          ) : null}
+
+          {activeStep === 2 ? (
+            <View style={styles.section}>
+              <SectionIntro
+                description={`${selectedService?.name ?? 'Bu hizmet'} için uygun çalışanlardan birini seç.`}
+                title="Çalışanını seç"
+              />
               {compatibleBarbers.length ? (
                 compatibleBarbers.map((barber) => (
                   <BookingBarberCard
@@ -221,25 +385,23 @@ export default function BookAppointmentScreen() {
                   />
                 ))
               ) : (
-                <AppText color="textMuted">Bu hizmeti veren uygun bir berber bulunamadı.</AppText>
+                <AppText color="textMuted">Bu hizmeti veren uygun bir çalışan bulunamadı.</AppText>
               )}
             </View>
           ) : null}
 
-          {selectedMemberId ? (
+          {activeStep === 3 ? (
             <View style={styles.section}>
-              <SectionTitle title="Tarih Seç" />
+              <SectionIntro
+                description="Önce günü, ardından açılan saat grubundan sana uygun zamanı seç."
+                title="Tarih ve saatini seç"
+              />
               <BookingDatePicker
                 dates={dateOptions}
                 onSelect={selectDate}
                 selectedDate={selectedDate}
               />
-            </View>
-          ) : null}
-
-          {selectedMemberId ? (
-            <View style={styles.section}>
-              <SectionTitle title="Saat Seç" />
+              <AppText style={styles.timeTitle} variant="heading">Saat Seç</AppText>
               {isLoadingSlots ? <ActivityIndicator color={colors.primary} /> : null}
               {!isLoadingSlots && slotError ? <AppText color="danger">{slotError}</AppText> : null}
               {!isLoadingSlots && !slotError ? (
@@ -257,31 +419,21 @@ export default function BookAppointmentScreen() {
             </View>
           ) : null}
 
-          <View style={styles.continueButton}>
-            <AppButton
-              disabled={!selectedService || !selectedBarber || !selectedSlot}
-              onPress={() =>
-                router.push({
-                  pathname: '/appointments/preview',
-                  params: {
-                    barberName: selectedBarber
-                      ? `${selectedBarber.user.firstName} ${selectedBarber.user.lastName}`
-                      : '',
-                    barbershopId: shop.id,
-                    date: selectedDate,
-                    durationMinutes: String(selectedService?.durationMinutes ?? ''),
-                    memberId: selectedBarber?.id ?? '',
-                    price: selectedService?.price ?? '',
-                    serviceId: selectedService?.id ?? '',
-                    serviceName: selectedService?.name ?? '',
-                    shopName: shop.name,
-                    startsAt: selectedSlot?.startsAt ?? '',
-                    time: selectedSlot?.startTime ?? '',
-                  },
-                })
-              }>
-              Randevuyu Önizle
-            </AppButton>
+          <View style={styles.navigationButtons}>
+            <View style={styles.navigationButton}>
+              <AppButton onPress={goBackStep} variant="secondary">Geri</AppButton>
+            </View>
+            <View style={styles.navigationButton}>
+              <AppButton
+                disabled={
+                  (activeStep === 1 && !selectedService) ||
+                  (activeStep === 2 && !selectedBarber) ||
+                  (activeStep === 3 && !selectedSlot)
+                }
+                onPress={continueFlow}>
+                {activeStep === 3 ? 'Randevuyu Kontrol Et' : 'Devam Et'}
+              </AppButton>
+            </View>
           </View>
         </ScrollView>
       ) : null}
@@ -289,9 +441,14 @@ export default function BookAppointmentScreen() {
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
+function SectionIntro({ description, title }: { description: string; title: string }) {
   return (
-    <AppText style={styles.sectionTitle} variant="heading">{title}</AppText>
+    <View style={styles.sectionIntro}>
+      <AppText style={styles.sectionTitle} variant="heading">{title}</AppText>
+      <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
+        {description}
+      </AppText>
+    </View>
   );
 }
 
@@ -321,27 +478,24 @@ function buildDateOptions(maxBookingAdvanceDays: number): BookingDateOption[] {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-  },
-  topBarSpacer: { width: 44 },
   loader: { marginTop: spacing.xxxl },
   emptyState: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: spacing.xl },
   centerText: { textAlign: 'center' },
   emptyDescription: { marginTop: spacing.sm, maxWidth: 320, textAlign: 'center' },
-  emptyButton: { marginTop: spacing.xl, minWidth: 220 },
-  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
+  errorButton: { marginTop: spacing.xl, minWidth: 220 },
+  content: { paddingBottom: 112, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
   section: { marginTop: spacing.xl },
-  sectionTitle: {
-    fontFamily: fontFamily.display,
-    fontSize: 20,
-    lineHeight: 26,
-    marginBottom: spacing.sm,
-  },
+  sectionIntro: { marginBottom: spacing.sm },
+  sectionTitle: { fontFamily: fontFamily.display, fontSize: 22, lineHeight: 28 },
+  sectionDescription: { lineHeight: 18, marginTop: spacing.xxs },
   serviceList: { padding: 0 },
-  continueButton: { marginTop: spacing.xl },
+  timeTitle: {
+    fontFamily: fontFamily.display,
+    fontSize: 19,
+    lineHeight: 25,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  navigationButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xl },
+  navigationButton: { flex: 1 },
 });

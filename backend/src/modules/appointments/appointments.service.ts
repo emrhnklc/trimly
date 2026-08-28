@@ -19,6 +19,7 @@ const customerAppointmentSelect = {
   startsAt: true,
   endsAt: true,
   status: true,
+  serviceId: true,
   serviceNameSnapshot: true,
   priceSnapshot: true,
   durationMinutes: true,

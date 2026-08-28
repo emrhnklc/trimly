@@ -6,10 +6,10 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
-import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { createAppointment } from '@/features/appointments/api';
+import { BookingFlowHeader } from '@/features/appointments/components/BookingFlowHeader';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -69,15 +69,7 @@ export default function AppointmentPreviewScreen() {
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <AppIconButton
-          accessibilityLabel="Geri dön"
-          icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-          onPress={() => router.back()}
-        />
-        <AppText variant="heading">Randevu Önizleme</AppText>
-        <View style={styles.topBarSpacer} />
-      </View>
+      <BookingFlowHeader activeStep={4} onClose={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.intro}>
@@ -208,14 +200,6 @@ function formatPrice(price: string) {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
-  },
-  topBarSpacer: { width: 44 },
   content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
   intro: { alignItems: 'center', marginTop: spacing.lg },
   iconCircle: {

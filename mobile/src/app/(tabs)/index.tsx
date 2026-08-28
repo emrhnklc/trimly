@@ -223,7 +223,11 @@ export default function HomeScreen() {
             lastCompletedAppointment
               ? router.push({
                   pathname: '/book',
-                  params: { slug: lastCompletedAppointment.barbershop.slug },
+                  params: {
+                    memberId: lastCompletedAppointment.businessMember.id,
+                    serviceId: lastCompletedAppointment.serviceId,
+                    slug: lastCompletedAppointment.barbershop.slug,
+                  },
                 })
               : router.push('/barbers')
           }

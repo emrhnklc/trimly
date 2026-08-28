@@ -1,0 +1,325 @@
+import { Image } from 'expo-image';
+import { SymbolView } from 'expo-symbols';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+
+import { AppButton } from '@/components/ui/AppButton';
+import { AppText } from '@/components/ui/AppText';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import type { CustomerAppointment } from '@/features/appointments/types';
+import type { PublicBarbershop } from '@/features/barbershops/types';
+import type { FavoriteBarbershop } from '@/features/favorites/types';
+import { colors } from '@/theme/colors';
+import { radius, spacing } from '@/theme/spacing';
+
+type BookingStartScreenProps = {
+  error: string | null;
+  favorites: FavoriteBarbershop[];
+  isLoading: boolean;
+  lastAppointment: CustomerAppointment | null;
+  lastShop: PublicBarbershop | null;
+  onAllFavoritesPress: () => void;
+  onFavoritePress: (slug: string) => void;
+  onLastContinue: () => void;
+  onRepeat: () => void;
+  onRetry: () => void;
+  onSearchPress: () => void;
+};
+
+export function BookingStartScreen({
+  error,
+  favorites,
+  isLoading,
+  lastAppointment,
+  lastShop,
+  onAllFavoritesPress,
+  onFavoritePress,
+  onLastContinue,
+  onRepeat,
+  onRetry,
+  onSearchPress,
+}: BookingStartScreenProps) {
+  return (
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.intro}>
+        <AppText style={styles.title} variant="displayMedium">Başlayalım</AppText>
+        <AppText color="textMuted" style={styles.subtitle}>
+          Randevuna en hızlı şekilde başlayabilirsin.
+        </AppText>
+      </View>
+
+      {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+      {!isLoading && error ? (
+        <View style={styles.errorState}>
+          <AppText color="danger" style={styles.errorText}>{error}</AppText>
+          <View style={styles.retryButton}>
+            <AppButton onPress={onRetry} variant="secondary">Tekrar Dene</AppButton>
+          </View>
+        </View>
+      ) : null}
+
+      {!isLoading && !error ? (
+        <>
+          <View style={styles.sectionTitleRow}>
+            <AppText variant="label">Son gittiğin berber</AppText>
+            {lastAppointment ? (
+              <Pressable accessibilityRole="button" onPress={onRepeat}>
+                <AppText color="primary" variant="label">Tekrar et ↻</AppText>
+              </Pressable>
+            ) : null}
+          </View>
+
+          <LastVisitCard
+            appointment={lastAppointment}
+            barbershop={lastShop}
+            onPress={lastAppointment ? onLastContinue : onSearchPress}
+          />
+
+          <SectionHeader
+            actionLabel={favorites.length ? 'Tümünü gör' : undefined}
+            onActionPress={favorites.length ? onAllFavoritesPress : undefined}
+            title="Favori berberlerin"
+          />
+          {favorites.length ? (
+            <ScrollView
+              contentContainerStyle={styles.favoriteList}
+              horizontal
+              showsHorizontalScrollIndicator={false}>
+              {favorites.map(({ barbershop }) => (
+                <FavoriteShopCard
+                  barbershop={barbershop}
+                  key={barbershop.id}
+                  onPress={() => onFavoritePress(barbershop.slug)}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <AppText color="textMuted" style={styles.emptyFavorites} variant="bodySmall">
+              Henüz favori işletmen yok. Beğendiğin dükkânları kaydettiğinde burada göreceksin.
+            </AppText>
+          )}
+
+          <AppText style={styles.searchTitle} variant="label">Başka bir berber ara</AppText>
+          <Pressable
+            accessibilityLabel="Berber ara veya konum seç"
+            accessibilityRole="button"
+            onPress={onSearchPress}
+            style={({ pressed }) => [styles.searchBox, pressed && styles.pressed]}>
+            <SymbolView
+              name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
+              size={20}
+              tintColor={colors.textMuted}
+            />
+            <AppText color="textMuted" style={styles.searchText}>Berber ara veya konum seç</AppText>
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={18}
+              tintColor={colors.textMuted}
+            />
+          </Pressable>
+
+          <View style={styles.trustNote}>
+            <View style={styles.trustIcon}>
+              <SymbolView
+                name={{ ios: 'checkmark.shield', android: 'verified_user', web: 'verified_user' }}
+                size={21}
+                tintColor={colors.primary}
+              />
+            </View>
+            <AppText color="textMuted" style={styles.trustText} variant="bodySmall">
+              Hizmet, süre ve işletme bilgileri randevu öncesinde açıkça gösterilir.
+            </AppText>
+          </View>
+        </>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function LastVisitCard({
+  appointment,
+  barbershop,
+  onPress,
+}: {
+  appointment: CustomerAppointment | null;
+  barbershop: PublicBarbershop | null;
+  onPress: () => void;
+}) {
+  const imageUrl = barbershop?.profileImageUrl ?? barbershop?.coverImageUrl;
+  const title = appointment?.barbershop.name ?? 'İlk berberini keşfet';
+  const barberName = appointment
+    ? `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`
+    : 'Trimly ile sana uygun işletmeyi bul';
+  const dateLabel = appointment
+    ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(
+        new Date(appointment.completedAt ?? appointment.startsAt),
+      )
+    : 'Henüz tamamlanan randevun yok';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.lastCard, pressed && styles.pressed]}>
+      {imageUrl ? (
+        <Image contentFit="cover" source={imageUrl} style={styles.lastImage} />
+      ) : (
+        <View style={[styles.lastImage, styles.imagePlaceholder]}>
+          <SymbolView
+            name={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
+            size={28}
+            tintColor={colors.primary}
+          />
+        </View>
+      )}
+      <View style={styles.lastContent}>
+        <AppText numberOfLines={1} variant="label">{title}</AppText>
+        <AppText color="textMuted" numberOfLines={1} style={styles.lastMeta} variant="bodySmall">
+          {barberName}
+        </AppText>
+        <View style={styles.lastDateRow}>
+          <SymbolView
+            name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }}
+            size={13}
+            tintColor={colors.textMuted}
+          />
+          <AppText color="textMuted" numberOfLines={1} style={styles.lastDate} variant="bodySmall">
+            {appointment ? `${appointment.serviceNameSnapshot} · ${dateLabel}` : dateLabel}
+          </AppText>
+        </View>
+      </View>
+      <View style={styles.continuePill}>
+        <AppText color="onPrimary" variant="bodySmall">{appointment ? 'Devam Et' : 'Keşfet'} →</AppText>
+      </View>
+    </Pressable>
+  );
+}
+
+function FavoriteShopCard({ barbershop, onPress }: { barbershop: PublicBarbershop; onPress: () => void }) {
+  const imageUrl = barbershop.profileImageUrl ?? barbershop.coverImageUrl;
+
+  return (
+    <Pressable
+      accessibilityLabel={`${barbershop.name} ile randevu oluştur`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.favoriteCard, pressed && styles.pressed]}>
+      <View style={styles.favoriteImageArea}>
+        {imageUrl ? (
+          <Image contentFit="cover" source={imageUrl} style={styles.favoriteImage} />
+        ) : (
+          <View style={[styles.favoriteImage, styles.imagePlaceholder]}>
+            <SymbolView
+              name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
+              size={30}
+              tintColor={colors.primary}
+            />
+          </View>
+        )}
+        <View style={styles.heartBadge}>
+          <SymbolView
+            name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }}
+            size={14}
+            tintColor={colors.primary}
+          />
+        </View>
+      </View>
+      <View style={styles.favoriteContent}>
+        <AppText numberOfLines={1} style={styles.favoriteName} variant="label">{barbershop.name}</AppText>
+        <AppText color="textMuted" numberOfLines={1} style={styles.favoriteAddress} variant="bodySmall">
+          {barbershop.address ?? 'Konum bilgisi yakında'}
+        </AppText>
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
+  intro: { marginTop: spacing.md },
+  title: { fontSize: 27, lineHeight: 33 },
+  subtitle: { fontSize: 13, lineHeight: 18, marginTop: spacing.xxs },
+  loader: { marginTop: spacing.xxxl },
+  errorState: { alignItems: 'center', marginTop: spacing.xxxl },
+  errorText: { textAlign: 'center' },
+  retryButton: { marginTop: spacing.md, minWidth: 180 },
+  sectionTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+    marginTop: spacing.xxl,
+  },
+  lastCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 104,
+    padding: spacing.sm,
+  },
+  lastImage: { borderRadius: radius.pill, height: 66, width: 66 },
+  imagePlaceholder: { alignItems: 'center', backgroundColor: colors.darkSurface, justifyContent: 'center' },
+  lastContent: { flex: 1, marginLeft: spacing.sm },
+  lastMeta: { fontSize: 11, lineHeight: 15, marginTop: 2 },
+  lastDateRow: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.xs },
+  lastDate: { flex: 1, fontSize: 10, lineHeight: 14, marginLeft: spacing.xxs },
+  continuePill: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    marginLeft: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  favoriteList: { gap: spacing.sm, paddingRight: spacing.lg },
+  favoriteCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: 164,
+  },
+  favoriteImageArea: { height: 104 },
+  favoriteImage: { height: '100%', width: '100%' },
+  heartBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    height: 28,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: spacing.xs,
+    top: spacing.xs,
+    width: 28,
+  },
+  favoriteContent: { padding: spacing.sm },
+  favoriteName: { fontSize: 13, lineHeight: 17 },
+  favoriteAddress: { fontSize: 10, lineHeight: 14, marginTop: spacing.xxs },
+  emptyFavorites: { lineHeight: 18 },
+  searchTitle: { marginTop: spacing.xxl },
+  searchBox: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    minHeight: 62,
+    paddingHorizontal: spacing.md,
+  },
+  searchText: { flex: 1, marginLeft: spacing.sm },
+  trustNote: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.xxxl },
+  trustIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  trustText: { flex: 1, lineHeight: 17, marginLeft: spacing.sm },
+  pressed: { opacity: 0.74 },
+});
