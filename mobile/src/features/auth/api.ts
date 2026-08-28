@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api/client';
+import { apiGet, apiPatch, apiPost } from '@/lib/api/client';
 import type { AuthResponse, AuthUser } from './types';
 
 export const getCurrentUser = (accessToken: string) =>
@@ -14,3 +14,13 @@ export const register = (data: {
   lastName: string;
   phone?: string;
 }) => apiPost<AuthResponse>('/auth/register', data);
+
+export const updateMyProfile = (
+  data: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    profileImageUrl?: string;
+  },
+  accessToken: string,
+) => apiPatch<AuthUser>('/users/me', data, accessToken);

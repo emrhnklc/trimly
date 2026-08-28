@@ -1,5 +1,9 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+export function resolveApiUrl(path: string) {
+  return new URL(path, API_URL).toString();
+}
+
 type ApiErrorResponse = { message?: string | string[] };
 
 export class ApiError extends Error {

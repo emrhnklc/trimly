@@ -41,12 +41,16 @@ export class UsersService {
         where: { id: userId },
         data: {
           ...(dto.firstName !== undefined && {
-            firstName: dto.firstName.trim(),
+            firstName: dto.firstName?.trim(),
           }),
-          ...(dto.lastName !== undefined && { lastName: dto.lastName.trim() }),
-          ...(dto.phone !== undefined && { phone: dto.phone.trim() }),
+          ...(dto.lastName !== undefined && {
+            lastName: dto.lastName?.trim(),
+          }),
+          ...(dto.phone !== undefined && {
+            phone: dto.phone?.trim() || null,
+          }),
           ...(dto.profileImageUrl !== undefined && {
-            profileImageUrl: dto.profileImageUrl.trim(),
+            profileImageUrl: dto.profileImageUrl?.trim() || null,
           }),
         },
         select: publicUserSelect,

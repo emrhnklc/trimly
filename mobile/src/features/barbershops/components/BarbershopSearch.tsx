@@ -8,11 +8,12 @@ import { radius, spacing } from '@/theme/spacing';
 
 type BarbershopSearchProps = {
   onChangeText: (text: string) => void;
+  onFilterPress: () => void;
   onSubmit: () => void;
   value: string;
 };
 
-export function BarbershopSearch({ onChangeText, onSubmit, value }: BarbershopSearchProps) {
+export function BarbershopSearch({ onChangeText, onFilterPress, onSubmit, value }: BarbershopSearchProps) {
   return (
     <View style={styles.row}>
       <View style={styles.inputContainer}>
@@ -27,7 +28,7 @@ export function BarbershopSearch({ onChangeText, onSubmit, value }: BarbershopSe
           clearButtonMode="while-editing"
           onChangeText={onChangeText}
           onSubmitEditing={onSubmit}
-          placeholder="İşletme adı ara"
+          placeholder="Berber, uzmanlık veya semt ara..."
           placeholderTextColor={colors.textMuted}
           returnKeyType="search"
           style={styles.input}
@@ -35,17 +36,17 @@ export function BarbershopSearch({ onChangeText, onSubmit, value }: BarbershopSe
         />
       </View>
       <AppIconButton
-        accessibilityLabel="Ara"
-        color="primary"
-        icon={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
-        onPress={onSubmit}
+        accessibilityLabel="Filtreleri aç"
+        icon={{ ios: 'slider.horizontal.3', android: 'tune', web: 'tune' }}
+        onPress={onFilterPress}
+        variant="surface"
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xl },
+  row: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.lg },
   inputContainer: {
     alignItems: 'center',
     backgroundColor: colors.surface,

@@ -118,10 +118,11 @@ export class BarbershopsService {
     const barbershops = await this.prisma.barbershop.findMany({
       where: term
         ? {
-            name: {
-              contains: term,
-              mode: 'insensitive',
-            },
+            OR: [
+              { name: { contains: term, mode: 'insensitive' } },
+              { description: { contains: term, mode: 'insensitive' } },
+              { address: { contains: term, mode: 'insensitive' } },
+            ],
           }
         : undefined,
       orderBy: { name: 'asc' },
@@ -134,6 +135,33 @@ export class BarbershopsService {
         profileImageUrl: true,
         coverImageUrl: true,
         address: true,
+        createdAt: true,
+        members: {
+          where: {
+            isActive: true,
+            isBookable: true,
+            role: {
+              in: [
+                BusinessRole.OWNER,
+                BusinessRole.MANAGER,
+                BusinessRole.BARBER,
+              ],
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 4,
+          select: {
+            id: true,
+            role: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profileImageUrl: true,
+              },
+            },
+          },
+        },
       },
     });
 

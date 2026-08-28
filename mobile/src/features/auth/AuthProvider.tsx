@@ -11,6 +11,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   signIn: (result: AuthResponse, rememberMe?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+  updateUser: (user: AuthUser) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -90,7 +91,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setState({ token: null, user: null });
   }
 
-  return <AuthContext.Provider value={{ ...state, isReady, signIn, signOut }}>{children}</AuthContext.Provider>;
+  async function updateUser(user: AuthUser) {
+    const nextSession = { token: state.token, user };
+    setState(nextSession);
+
+    const savedSession = await SecureStore.getItemAsync(storageKey);
+    if (savedSession && state.token) {
+      await SecureStore.setItemAsync(storageKey, JSON.stringify(nextSession));
+    }
+  }
+
+  return (
+    <AuthContext.Provider value={{ ...state, isReady, signIn, signOut, updateUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

@@ -3,16 +3,16 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
-import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
+import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
-export default function ProfileScreen() {
+export default function ProfileSettingsScreen() {
   const router = useRouter();
   const { signOut, user } = useAuth();
   const [remindersEnabled, setRemindersEnabled] = useState(true);
@@ -24,15 +24,29 @@ export default function ProfileScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <TrimlyLogo size="small" />
+        <View style={styles.topBar}>
+          <AppIconButton
+            accessibilityLabel="Profile geri dön"
+            icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+            onPress={() => router.back()}
+            variant="transparent"
+          />
           <AppText style={styles.title} variant="displayMedium">Hesap Ayarları</AppText>
+          <View style={styles.topBarSpacer} />
         </View>
 
         <SettingsGroup title="Hesap Bilgilerim">
-          <SettingsRow label="Ad Soyad" value={`${user.firstName} ${user.lastName}`} />
+          <SettingsRow
+            label="Ad Soyad"
+            onPress={() => router.push('/profile/edit')}
+            value={`${user.firstName} ${user.lastName}`}
+          />
           <SettingsRow label="E-posta" value={user.email} />
-          <SettingsRow label="Telefon" value={user.phone || 'Eklenmedi'} />
+          <SettingsRow
+            label="Telefon"
+            onPress={() => router.push('/profile/edit')}
+            value={user.phone || 'Eklenmedi'}
+          />
           <SettingsRow label="Doğum Tarihi" value="Eklenmedi" />
           <SettingsRow label="Cinsiyet" value="Eklenmedi" isLast />
         </SettingsGroup>
@@ -120,11 +134,7 @@ function SettingsRow({
     );
   }
 
-  return (
-    <View style={[styles.row, !isLast && styles.rowBorder]}>
-      {content}
-    </View>
-  );
+  return <View style={[styles.row, !isLast && styles.rowBorder]}>{content}</View>;
 }
 
 function PreferenceRow({
@@ -153,8 +163,14 @@ function PreferenceRow({
 
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  header: { alignItems: 'center', paddingTop: spacing.sm },
-  title: { marginTop: spacing.xs },
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: spacing.sm,
+  },
+  topBarSpacer: { width: 44 },
+  title: { flex: 1, fontSize: 24, lineHeight: 30, textAlign: 'center' },
   group: { marginTop: spacing.lg, padding: spacing.md },
   rows: { marginTop: spacing.sm },
   row: {

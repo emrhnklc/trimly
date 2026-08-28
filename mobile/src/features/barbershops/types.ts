@@ -8,6 +8,8 @@ export type PublicBarbershop = {
   address: string | null;
   ratingAverage: number | null;
   ratingCount: number;
+  createdAt?: string;
+  members?: PublicBarber[];
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
