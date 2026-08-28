@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 
 import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
+import { BarbershopRating } from '@/features/barbershops/components/BarbershopRating';
 import type { PublicBarbershopDetail } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -74,6 +75,12 @@ export function BarbershopHero({
             <View style={styles.statusDot} />
             <AppText color="textMuted" variant="bodySmall">Randevuya açık işletme</AppText>
           </View>
+          <View style={styles.rating}>
+            <BarbershopRating
+              ratingAverage={barbershop.ratingAverage}
+              ratingCount={barbershop.ratingCount}
+            />
+          </View>
         </View>
 
         <View style={styles.favoriteButton}>
@@ -141,4 +148,5 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, lineHeight: 29 },
   statusRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: spacing.xs },
   statusDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 7, width: 7 },
+  rating: { marginTop: spacing.xs },
 });

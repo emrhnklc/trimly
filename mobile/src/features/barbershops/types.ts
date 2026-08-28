@@ -4,11 +4,13 @@ export type PublicBarbershop = {
   slug: string;
   description: string | null;
   profileImageUrl: string | null;
+  coverImageUrl: string | null;
   address: string | null;
+  ratingAverage: number | null;
+  ratingCount: number;
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
-  coverImageUrl: string | null;
   members: PublicBarber[];
   phone: string | null;
   services: PublicService[];

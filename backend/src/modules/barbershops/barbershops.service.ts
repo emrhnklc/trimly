@@ -105,13 +105,17 @@ export class BarbershopsService {
       throw new NotFoundException('İşletme bulunamadı.');
     }
 
-    return barbershop;
+    return {
+      ...barbershop,
+      ratingAverage: null,
+      ratingCount: 0,
+    };
   }
 
-  findPublic(search?: string) {
+  async findPublic(search?: string) {
     const term = search?.trim();
 
-    return this.prisma.barbershop.findMany({
+    const barbershops = await this.prisma.barbershop.findMany({
       where: term
         ? {
             name: {
@@ -128,9 +132,16 @@ export class BarbershopsService {
         slug: true,
         description: true,
         profileImageUrl: true,
+        coverImageUrl: true,
         address: true,
       },
     });
+
+    return barbershops.map((barbershop) => ({
+      ...barbershop,
+      ratingAverage: null,
+      ratingCount: 0,
+    }));
   }
 
   async updateProfile(barbershopId: string, dto: UpdateBarbershopProfileDto) {

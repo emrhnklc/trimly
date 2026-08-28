@@ -4,6 +4,7 @@ import { SymbolView } from 'expo-symbols';
 
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
+import { BarbershopRating } from '@/features/barbershops/components/BarbershopRating';
 import type { PublicBarbershop } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -52,6 +53,13 @@ export function BarbershopPreviewCard({ barbershop, onPress }: BarbershopPreview
               </AppText>
             </View>
           ) : null}
+          <View style={styles.rating}>
+            <BarbershopRating
+              compact
+              ratingAverage={barbershop.ratingAverage}
+              ratingCount={barbershop.ratingCount}
+            />
+          </View>
         </View>
 
         <SymbolView
@@ -86,4 +94,5 @@ const styles = StyleSheet.create({
   description: { marginTop: spacing.xxs },
   addressRow: { alignItems: 'center', flexDirection: 'row', marginTop: 6 },
   address: { flex: 1, marginLeft: spacing.xxs },
+  rating: { marginTop: spacing.xxs },
 });

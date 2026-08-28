@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
+import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
@@ -24,7 +25,7 @@ export default function ProfileScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <AppText color="primary" variant="overline">TRIMLY</AppText>
+          <TrimlyLogo size="small" />
           <AppText style={styles.title} variant="displayMedium">Hesap Ayarları</AppText>
         </View>
 

@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    marginTop: spacing.xxl,
+    marginTop: spacing.xl,
   },
   title: { flex: 1 },
   pressed: { opacity: 0.68 },

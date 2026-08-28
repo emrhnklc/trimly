@@ -5,8 +5,8 @@ import { PrismaService } from '../../database/prisma.service';
 export class FavoritesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findForUser(userId: string) {
-    return this.prisma.favoriteBarbershop.findMany({
+  async findForUser(userId: string) {
+    const favorites = await this.prisma.favoriteBarbershop.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -26,6 +26,15 @@ export class FavoritesService {
         },
       },
     });
+
+    return favorites.map((favorite) => ({
+      ...favorite,
+      barbershop: {
+        ...favorite.barbershop,
+        ratingAverage: null,
+        ratingCount: 0,
+      },
+    }));
   }
 
   async add(userId: string, barbershopId: string) {

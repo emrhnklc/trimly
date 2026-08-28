@@ -4,5 +4,6 @@ export type AuthUser = {
   firstName: string;
   lastName: string;
   phone: string | null;
+  profileImageUrl: string | null;
 };
 export type AuthResponse = { accessToken: string; user: AuthUser };

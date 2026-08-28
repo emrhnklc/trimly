@@ -2,27 +2,33 @@ import { StyleSheet, View } from 'react-native';
 
 import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppIconButton } from '@/components/ui/AppIconButton';
-import { AppText } from '@/components/ui/AppText';
 import { spacing } from '@/theme/spacing';
 
 type HomeHeaderProps = {
+  onMenuPress?: () => void;
   onNotificationsPress?: () => void;
 };
 
-export function HomeHeader({ onNotificationsPress }: HomeHeaderProps) {
+export function HomeHeader({ onMenuPress, onNotificationsPress }: HomeHeaderProps) {
   return (
     <View style={styles.container}>
-      <View>
-        <TrimlyLogo size="small" style={styles.logo} />
-        <AppText color="textMuted" style={styles.tagline} variant="bodySmall">
-          Tarzın. Randevun. Geçmişin.
-        </AppText>
+      <View style={styles.leftAction}>
+        <AppIconButton
+          accessibilityLabel="Menüyü aç"
+          icon={{ ios: 'line.3.horizontal', android: 'menu', web: 'menu' }}
+          onPress={onMenuPress}
+          variant="transparent"
+        />
       </View>
-      <AppIconButton
-        accessibilityLabel="Bildirimleri aç"
-        icon={{ ios: 'bell', android: 'notifications', web: 'notifications' }}
-        onPress={onNotificationsPress}
-      />
+      <TrimlyLogo size="small" />
+      <View style={styles.rightAction}>
+        <AppIconButton
+          accessibilityLabel="Bildirimleri aç"
+          icon={{ ios: 'bell', android: 'notifications', web: 'notifications' }}
+          onPress={onNotificationsPress}
+          variant="transparent"
+        />
+      </View>
     </View>
   );
 }
@@ -30,10 +36,11 @@ export function HomeHeader({ onNotificationsPress }: HomeHeaderProps) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     marginTop: spacing.sm,
+    minHeight: 48,
+    position: 'relative',
   },
-  logo: { alignSelf: 'flex-start' },
-  tagline: { marginTop: spacing.xxs },
+  leftAction: { left: 0, position: 'absolute' },
+  rightAction: { position: 'absolute', right: 0 },
 });
