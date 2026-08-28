@@ -1,4 +1,10 @@
-import type { PublicBarbershop, PublicBarbershopDetail } from './types';
+import type {
+  AvailabilityResult,
+  BookableBarber,
+  BookingSettings,
+  PublicBarbershop,
+  PublicBarbershopDetail,
+} from './types';
 import { apiGet } from '@/lib/api/client';
 
 export async function getPublicBarbershops(search?: string): Promise<PublicBarbershop[]> {
@@ -9,7 +15,13 @@ export async function getPublicBarbershop(slug: string): Promise<PublicBarbersho
   return apiGet<PublicBarbershopDetail>(`/barbershops/${encodeURIComponent(slug)}`);
 }
 
-export type AvailabilityResult = { date: string; slots: { startTime: string; startsAt: string; endsAt: string }[] };
+export function getBookableBarbers(barbershopId: string): Promise<BookableBarber[]> {
+  return apiGet<BookableBarber[]>(`/barbershops/${barbershopId}/barbers`);
+}
+
+export function getBookingSettings(barbershopId: string): Promise<BookingSettings> {
+  return apiGet<BookingSettings>(`/barbershops/${barbershopId}/booking-settings`);
+}
 
 export function getAvailability(barbershopId: string, memberId: string, serviceId: string, date: string) {
   return apiGet<AvailabilityResult>(`/barbershops/${barbershopId}/availability`, { memberId, serviceId, date });

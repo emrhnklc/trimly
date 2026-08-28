@@ -27,3 +27,28 @@ export type PublicService = {
   durationMinutes: number;
   price: string;
 };
+
+export type BookableBarber = {
+  id: string;
+  user: { firstName: string; lastName: string; profileImageUrl: string | null };
+  serviceAssignments: {
+    service: Pick<PublicService, 'id' | 'name' | 'durationMinutes'>;
+  }[];
+};
+
+export type BookingSettings = {
+  minBookingNoticeMinutes: number;
+  maxBookingAdvanceDays: number;
+  slotIntervalMinutes: number;
+};
+
+export type AvailabilitySlot = {
+  startTime: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+export type AvailabilityResult = {
+  date: string;
+  slots: AvailabilitySlot[];
+};
