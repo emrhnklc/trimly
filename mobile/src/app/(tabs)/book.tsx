@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
+import { AppCard } from '@/components/ui/AppCard';
 import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
@@ -12,6 +13,7 @@ import {
   type BookingDateOption,
 } from '@/features/appointments/components/BookingDatePicker';
 import { BookingServiceCard } from '@/features/appointments/components/BookingServiceCard';
+import { BookingShopSummary } from '@/features/appointments/components/BookingShopSummary';
 import { BookingTimePicker } from '@/features/appointments/components/BookingTimePicker';
 import {
   getAvailability,
@@ -27,6 +29,7 @@ import type {
 } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { fontFamily } from '@/theme/typography';
 
 const defaultBookingSettings: BookingSettings = {
   minBookingNoticeMinutes: 60,
@@ -114,7 +117,7 @@ export default function BookAppointmentScreen() {
             selectedDate,
           );
           setSlots(result.slots);
-          setSelectedHour(result.slots[0]?.startTime.slice(0, 2) ?? null);
+          setSelectedHour(null);
         } catch (loadError) {
           setSlotError(loadError instanceof Error ? loadError.message : 'Uygun saatler yüklenemedi.');
         } finally {
@@ -188,26 +191,26 @@ export default function BookAppointmentScreen() {
 
       {!isLoading && shop ? (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <AppText variant="displayMedium">{shop.name}</AppText>
-          <AppText color="textMuted" style={styles.subtitle}>
-            Seçimini sırayla tamamla; yalnız gerçekten uygun saatleri göstereceğiz.
-          </AppText>
+          <BookingShopSummary shop={shop} />
 
           <View style={styles.section}>
-            <StepTitle number="1" title="Hizmet seç" />
-            {shop.services.map((service) => (
-              <BookingServiceCard
-                isSelected={selectedServiceId === service.id}
-                key={service.id}
-                onPress={() => selectService(service.id)}
-                service={service}
-              />
-            ))}
+            <SectionTitle title="Hizmet Seç" />
+            <AppCard style={styles.serviceList}>
+              {shop.services.map((service, index) => (
+                <BookingServiceCard
+                  isSelected={selectedServiceId === service.id}
+                  key={service.id}
+                  onPress={() => selectService(service.id)}
+                  service={service}
+                  showDivider={index < shop.services.length - 1}
+                />
+              ))}
+            </AppCard>
           </View>
 
           {selectedServiceId ? (
             <View style={styles.section}>
-              <StepTitle number="2" title="Berber seç" />
+              <SectionTitle title="Berber Seç" />
               {compatibleBarbers.length ? (
                 compatibleBarbers.map((barber) => (
                   <BookingBarberCard
@@ -225,7 +228,7 @@ export default function BookAppointmentScreen() {
 
           {selectedMemberId ? (
             <View style={styles.section}>
-              <StepTitle number="3" title="Tarih seç" />
+              <SectionTitle title="Tarih Seç" />
               <BookingDatePicker
                 dates={dateOptions}
                 onSelect={selectDate}
@@ -236,7 +239,7 @@ export default function BookAppointmentScreen() {
 
           {selectedMemberId ? (
             <View style={styles.section}>
-              <StepTitle number="4" title="Saat seç" />
+              <SectionTitle title="Saat Seç" />
               {isLoadingSlots ? <ActivityIndicator color={colors.primary} /> : null}
               {!isLoadingSlots && slotError ? <AppText color="danger">{slotError}</AppText> : null}
               {!isLoadingSlots && !slotError ? (
@@ -284,14 +287,9 @@ export default function BookAppointmentScreen() {
   );
 }
 
-function StepTitle({ number, title }: { number: string; title: string }) {
+function SectionTitle({ title }: { title: string }) {
   return (
-    <View style={styles.stepTitle}>
-      <View style={styles.stepNumber}>
-        <AppText color="onPrimary" variant="label">{number}</AppText>
-      </View>
-      <AppText variant="heading">{title}</AppText>
-    </View>
+    <AppText style={styles.sectionTitle} variant="heading">{title}</AppText>
   );
 }
 
@@ -334,18 +332,14 @@ const styles = StyleSheet.create({
   centerText: { textAlign: 'center' },
   emptyDescription: { marginTop: spacing.sm, maxWidth: 320, textAlign: 'center' },
   emptyButton: { marginTop: spacing.xl, minWidth: 220 },
-  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs },
-  section: { marginTop: spacing.xxl },
-  stepTitle: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.sm },
-  stepNumber: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    height: 28,
-    justifyContent: 'center',
-    marginRight: spacing.xs,
-    width: 28,
+  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg, paddingTop: spacing.xs },
+  section: { marginTop: spacing.xl },
+  sectionTitle: {
+    fontFamily: fontFamily.display,
+    fontSize: 20,
+    lineHeight: 26,
+    marginBottom: spacing.sm,
   },
-  continueButton: { marginTop: spacing.xxl },
+  serviceList: { padding: 0 },
+  continueButton: { marginTop: spacing.xl },
 });

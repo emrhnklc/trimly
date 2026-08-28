@@ -21,7 +21,9 @@ export function BookingTimePicker({
   slots,
 }: BookingTimePickerProps) {
   const hours = [...new Set(slots.map((slot) => slot.startTime.slice(0, 2)))];
-  const visibleSlots = slots.filter((slot) => slot.startTime.startsWith(`${selectedHour}:`));
+  const visibleSlots = selectedHour
+    ? slots.filter((slot) => slot.startTime.startsWith(`${selectedHour}:`))
+    : [];
 
   if (!slots.length) {
     return <AppText color="textMuted">Bu tarih için uygun saat bulunamadı.</AppText>;
@@ -46,19 +48,21 @@ export function BookingTimePicker({
         })}
       </ScrollView>
 
-      <View style={styles.slots}>
-        {visibleSlots.map((slot) => {
-          const isSelected = slot.startsAt === selectedStartsAt;
-          return (
-            <Pressable
-              key={slot.startsAt}
-              onPress={() => onSlotSelect(slot)}
-              style={[styles.slot, isSelected && styles.selectedSlot]}>
-              <AppText color={isSelected ? 'primary' : 'text'} variant="label">{slot.startTime}</AppText>
-            </Pressable>
-          );
-        })}
-      </View>
+      {selectedHour ? (
+        <View style={styles.slots}>
+          {visibleSlots.map((slot) => {
+            const isSelected = slot.startsAt === selectedStartsAt;
+            return (
+              <Pressable
+                key={slot.startsAt}
+                onPress={() => onSlotSelect(slot)}
+                style={[styles.slot, isSelected && styles.selectedSlot]}>
+                <AppText color={isSelected ? 'onPrimary' : 'text'} variant="label">{slot.startTime}</AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -68,21 +72,21 @@ const styles = StyleSheet.create({
   hour: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  selectedHour: { backgroundColor: colors.darkSurface, borderColor: colors.darkSurface },
-  slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.md },
+  selectedHour: { backgroundColor: colors.primary, borderColor: colors.primary },
+  slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
   slot: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
-    minWidth: 72,
+    minWidth: 64,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  selectedSlot: { backgroundColor: colors.surfaceMuted, borderColor: colors.primary },
+  selectedSlot: { backgroundColor: colors.primary, borderColor: colors.primary },
 });

@@ -35,7 +35,7 @@ export function BookingDatePicker({ dates, onSelect, selectedDate }: BookingDate
             <AppText color={isSelected ? 'onPrimary' : 'textMuted'} variant="bodySmall">
               {item.dayLabel}
             </AppText>
-            <AppText color={isSelected ? 'onPrimary' : 'text'} style={styles.dayNumber} variant="heading">
+            <AppText color={isSelected ? 'onPrimary' : 'text'} style={styles.dayNumber} variant="label">
               {item.dayNumber}
             </AppText>
             <AppText color={isSelected ? 'onPrimary' : 'textMuted'} variant="bodySmall">
@@ -54,12 +54,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    minWidth: 68,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    minWidth: 58,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
   },
   selectedDate: { backgroundColor: colors.darkSurface, borderColor: colors.darkSurface },
-  dayNumber: { marginVertical: 2 },
+  dayNumber: { fontSize: 17, lineHeight: 22, marginVertical: 1 },
 });

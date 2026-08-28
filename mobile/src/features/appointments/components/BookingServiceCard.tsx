@@ -2,7 +2,6 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
 
-import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import type { PublicService } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
@@ -12,19 +11,29 @@ type BookingServiceCardProps = {
   isSelected: boolean;
   onPress: () => void;
   service: PublicService;
+  showDivider: boolean;
 };
 
-export function BookingServiceCard({ isSelected, onPress, service }: BookingServiceCardProps) {
+export function BookingServiceCard({
+  isSelected,
+  onPress,
+  service,
+  showDivider,
+}: BookingServiceCardProps) {
   return (
-    <Pressable accessibilityRole="radio" accessibilityState={{ selected: isSelected }} onPress={onPress}>
-      <AppCard style={[styles.card, isSelected && styles.selectedCard]}>
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected: isSelected }}
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}>
+      <View style={styles.row}>
         <View style={styles.content}>
           <AppText variant="label">{service.name}</AppText>
           <AppText color="textMuted" style={styles.meta} variant="bodySmall">
             {service.durationMinutes} dk
           </AppText>
         </View>
-        <AppText color="primary" variant="label">₺{service.price}</AppText>
+        <AppText variant="label">₺{service.price}</AppText>
         <View style={[styles.radio, isSelected && styles.selectedRadio]}>
           {isSelected ? (
             <SymbolView
@@ -34,16 +43,23 @@ export function BookingServiceCard({ isSelected, onPress, service }: BookingServ
             />
           ) : null}
         </View>
-      </AppCard>
+      </View>
+      {showDivider ? <View style={styles.divider} /> : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.xs },
-  selectedCard: { borderColor: colors.primary, borderWidth: 2 },
+  pressed: { opacity: 0.7 },
+  row: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 60,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
   content: { flex: 1 },
-  meta: { marginTop: spacing.xxs },
+  meta: { marginTop: 2 },
   radio: {
     alignItems: 'center',
     borderColor: colors.border,
@@ -55,4 +71,5 @@ const styles = StyleSheet.create({
     width: 20,
   },
   selectedRadio: { backgroundColor: colors.primary, borderColor: colors.primary },
+  divider: { backgroundColor: colors.border, height: 1, marginHorizontal: spacing.md },
 });

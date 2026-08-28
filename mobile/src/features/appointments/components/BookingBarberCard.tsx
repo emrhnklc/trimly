@@ -39,16 +39,21 @@ export function BookingBarberCard({ barber, isSelected, onPress }: BookingBarber
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.xs },
-  selectedCard: { borderColor: colors.primary, borderWidth: 2 },
-  avatar: { borderRadius: radius.pill, height: 48, width: 48 },
+  card: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: spacing.xs,
+    padding: spacing.sm,
+  },
+  selectedCard: { borderColor: colors.primary },
+  avatar: { borderRadius: radius.pill, height: 40, width: 40 },
   placeholder: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
-    height: 48,
+    height: 40,
     justifyContent: 'center',
-    width: 48,
+    width: 40,
   },
   content: { flex: 1, marginLeft: spacing.sm },
   meta: { marginTop: 2 },
