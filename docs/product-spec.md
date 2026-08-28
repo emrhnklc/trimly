@@ -43,6 +43,8 @@ Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: 
 ### Şimdi netleşen ürün kararları
 
 - Saç modeliyle berber keşfi herkes için ücretsiz olacaktır. Kullanıcı örneğin `taper fade`, `low fade` veya `sakal` aradığında bu modeli portföyünde gösteren yakın/istenen konumdaki berberleri bulabilmelidir. Bu, Trimly'nin temel keşif değeridir; Plus paywall arkasına konmaz.
+- İşletme sahibi, müşteri erişimini `PUBLIC` veya `CODE_REQUIRED` olarak seçebilir. `PUBLIC` işletmeler genel keşifte görünür ve giriş yapmış herkes randevu akışına girebilir. `CODE_REQUIRED` işletmeler genel keşifte görünmez; müşteri işletmenin paylaştığı kod, QR veya özel link ile bir kez erişim kazanır ve sonrasında normal randevu akışını kullanır.
+- Kod, her randevuda yeniden istenen bir parola değildir. Başarılı kullanım kullanıcı-işletme erişimi olarak kaydedilir. İşletme kodunu yenileyebilir ve daha önce verilmiş müşteri erişimini kaldırabilir. Tahmin edilebilir kısa kod tek başına kalıcı yetki taşımaz; backend deneme sınırı ve güvenli doğrulama uygular.
 - Berber portföyü, müşterinin özel tıraş geçmişinden tamamen ayrı tutulacaktır. Berber kendi portföyüne fotoğraf, başlık ve model etiketleri ekler. Müşteri geçmişindeki fotoğraf, yalnız açık rızayla ayrı bir portföy kaydına dönüştürülebilir.
 - İşletme oluştururken konum zorunlu ürün verisidir. Adres, koordinat, il ve ilçe ile desteklenir. Önce mevcut adres alanı korunur; koordinat/mesafe sorgusu için veritabanı ve harita/geocoding altyapısı ayrı teknik adımda eklenir.
 - Yorum yalnız gerçekten tamamlanmış randevusu olan müşteri tarafından bırakılabilir. Yorumlara fotoğraf ekleme, berber yanıtı, şikâyet/moderasyon ve müşteri izni kuralları olmadan açılmaz.
