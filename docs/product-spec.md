@@ -36,7 +36,7 @@ Mobil uygulamadaki ilk ekran, canlı `GET /barbershops` isteğiyle işletmeleri 
 
 Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: `trimly.app/b/ali-barber`. QR kod bu bağlantıyı içerir.
 
-İşletme keşfi için `GET /barbershops?search=...` kullanılır; ilk aşamada ad eşleşmesine göre en fazla 20 işletme döner. Herkese açık işletme profilinde ad, açıklama, profil görseli, adres ve iletişim bilgisi bulunur. Owner/manager, `PATCH /barbershops/:barbershopId` ile bu tanıtım alanlarını günceller.
+İşletme keşfi için `GET /barbershops?search=...` kullanılır; ilk aşamada ad eşleşmesine göre en fazla 20 işletme döner. Herkese açık işletme profilinde ad, açıklama, yuvarlak profil görseli, LinkedIn benzeri geniş kapak görseli, adres ve iletişim bilgisi bulunur. Owner/manager, `PATCH /barbershops/:barbershopId` ile bu tanıtım alanlarını günceller.
 
 ## Yeni ürün kararları — şimdi ve ileri aşama
 
@@ -84,9 +84,9 @@ Karttan açılan müşteri/randevu detayında önceki tamamlanmış randevular v
 
 Backend, giriş yapan çalışanın yalnız kendi en yakın onaylı randevusunu `GET /barbershops/:barbershopId/appointments/next-for-me` ile sağlar. Sonuçta müşteri özeti, hizmet ve aynı işletmedeki tamamlanmış ziyaret sayısı bulunur; sırada randevu yoksa `null` döner.
 
-### Genel berber profili ve fotoğraf gizliliği
+### İşletme profili, çalışan seçimi ve fotoğraf gizliliği
 
-Müşteri, işletme ekranındaki aktif ve randevu alınabilir berberleri listeleyebilir; birine dokununca o işletmedeki genel berber profili açılır. Bu profil yalnız ad, profil fotoğrafı ve verebildiği aktif hizmetleri içerir. API'ler: `GET /barbershops/:barbershopId/barbers` ve `GET /barbershops/:barbershopId/barbers/:memberId`.
+Müşteri için herkese açık vitrin işletme profilidir; çalışanlara ayrı bir public profil ekranı açılmaz. İşletme ekranında ekip yalnız tanıtım amacıyla listelenir. Müşteri hizmeti seçtikten sonra o hizmeti verebilen çalışanı randevu akışında seçer. Randevuya uygun çalışanlar `GET /barbershops/:barbershopId/barbers` API'sinden alınır.
 
 Müşterinin tıraş fotoğrafları ve notları berberin profiline ya da başka bir müşteriye asla gösterilmez. Berber, yetkiliyse tamamlanan randevuya kayıt/fotoğraf yükler; geçmişi görüntüleme yetkisi müşterinin kendisindedir. İleride portföy özelliği istenirse, müşteri geçmişinden tamamen ayrı, açık rızaya dayalı bir berber portföy modeli oluşturulur.
 
@@ -226,7 +226,7 @@ Referral ve ödül sistemi MVP dışındadır çünkü abonelik/billing sistemi 
 
 ### Keşif ve çalışan seçimi kararı
 
-Müşteri keşfi önce **işletme/dükkân** odaklıdır: Berberler sekmesinde Barbershop listesi görünür, müşteri işletme profiline girer, ardından o işletmede randevuya uygun çalışan berberleri seçer. Çalışanın ayrı public profili (uzmanlık etiketleri, portfolio, değerlendirmeler) MVP sonrasında zenginleştirilir; MVP'de ad, fotoğraf ve yaptığı hizmetler yeterlidir.
+Müşteri keşfi **işletme/dükkân** odaklıdır: Berberler sekmesinde Barbershop listesi görünür, müşteri işletme profiline girer ve randevu akışında hizmeti verebilen çalışanlardan birini seçer. Çalışan için ayrı public profil yoktur; işletme içinde ad ve fotoğrafıyla ekip üyesi olarak görünmesi yeterlidir.
 
 1. Auth: e-posta/şifre ile kayıt, giriş ve JWT.
 2. İşletme oluşturma, üyelik ve sabit roller.

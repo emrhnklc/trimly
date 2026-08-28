@@ -8,6 +8,7 @@ export type PublicBarbershop = {
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
+  coverImageUrl: string | null;
   members: PublicBarber[];
   phone: string | null;
   services: PublicService[];
@@ -33,12 +34,6 @@ export type BookableBarber = {
   user: { firstName: string; lastName: string; profileImageUrl: string | null };
   serviceAssignments: {
     service: Pick<PublicService, 'id' | 'name' | 'durationMinutes'>;
-  }[];
-};
-
-export type PublicBarberDetail = Omit<BookableBarber, 'serviceAssignments'> & {
-  serviceAssignments: {
-    service: PublicService;
   }[];
 };
 

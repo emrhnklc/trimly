@@ -39,10 +39,7 @@ const defaultBookingSettings: BookingSettings = {
 
 export default function BookAppointmentScreen() {
   const router = useRouter();
-  const { memberId: preferredMemberId, slug } = useLocalSearchParams<{
-    memberId?: string;
-    slug?: string;
-  }>();
+  const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [shop, setShop] = useState<PublicBarbershopDetail | null>(null);
   const [barbers, setBarbers] = useState<BookableBarber[]>([]);
   const [settings, setSettings] = useState<BookingSettings>(defaultBookingSettings);
@@ -61,35 +58,15 @@ export default function BookAppointmentScreen() {
     () => buildDateOptions(settings.maxBookingAdvanceDays),
     [settings.maxBookingAdvanceDays],
   );
-  const preferredBarber = useMemo(
-    () => barbers.find((barber) => barber.id === preferredMemberId) ?? null,
-    [barbers, preferredMemberId],
-  );
-  const visibleServices = useMemo(
-    () =>
-      preferredBarber
-        ? (shop?.services.filter((service) =>
-            preferredBarber.serviceAssignments.some(
-              ({ service: assignedService }) => assignedService.id === service.id,
-            ),
-          ) ?? [])
-        : (shop?.services ?? []),
-    [preferredBarber, shop],
-  );
   const selectedService = shop?.services.find((service) => service.id === selectedServiceId) ?? null;
   const compatibleBarbers = useMemo(
-    () => {
-      if (!selectedServiceId) return [];
-
-      const eligibleBarbers = barbers.filter((barber) =>
-        barber.serviceAssignments.some(({ service }) => service.id === selectedServiceId),
-      );
-
-      return preferredBarber
-        ? eligibleBarbers.filter((barber) => barber.id === preferredBarber.id)
-        : eligibleBarbers;
-    },
-    [barbers, preferredBarber, selectedServiceId],
+    () =>
+      selectedServiceId
+        ? barbers.filter((barber) =>
+            barber.serviceAssignments.some(({ service }) => service.id === selectedServiceId),
+          )
+        : [],
+    [barbers, selectedServiceId],
   );
   const selectedBarber = barbers.find((barber) => barber.id === selectedMemberId) ?? null;
 
@@ -154,12 +131,7 @@ export default function BookAppointmentScreen() {
 
   function selectService(serviceId: string) {
     setSelectedServiceId(serviceId);
-    const preferredBarberSupportsService = preferredBarber?.serviceAssignments.some(
-      ({ service }) => service.id === serviceId,
-    );
-    setSelectedMemberId(
-      preferredBarber && preferredBarberSupportsService ? preferredBarber.id : null,
-    );
+    setSelectedMemberId(null);
     resetTimeSelection();
   }
 
@@ -224,13 +196,13 @@ export default function BookAppointmentScreen() {
           <View style={styles.section}>
             <SectionTitle title="Hizmet Seç" />
             <AppCard style={styles.serviceList}>
-              {visibleServices.map((service, index) => (
+              {shop.services.map((service, index) => (
                 <BookingServiceCard
                   isSelected={selectedServiceId === service.id}
                   key={service.id}
                   onPress={() => selectService(service.id)}
                   service={service}
-                  showDivider={index < visibleServices.length - 1}
+                  showDivider={index < shop.services.length - 1}
                 />
               ))}
             </AppCard>

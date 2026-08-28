@@ -15,22 +15,22 @@ type BarbershopInfoCardProps = {
 export function BarbershopInfoCard({ barbershop }: BarbershopInfoCardProps) {
   return (
     <AppCard style={styles.card}>
-      <InfoRow
+      <InfoCell
         icon={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }}
         label="Konum"
-        value={barbershop.address || 'Adres bilgisi eklenmemiş.'}
+        value={barbershop.address || 'Adres eklenmemiş'}
       />
       <View style={styles.divider} />
-      <InfoRow
+      <InfoCell
         icon={{ ios: 'phone', android: 'call', web: 'call' }}
-        label="Telefon"
-        value={barbershop.phone || 'Telefon bilgisi eklenmemiş.'}
+        label="İletişim"
+        value={barbershop.phone || 'Telefon eklenmemiş'}
       />
     </AppCard>
   );
 }
 
-function InfoRow({
+function InfoCell({
   icon,
   label,
   value,
@@ -40,23 +40,20 @@ function InfoRow({
   value: string;
 }) {
   return (
-    <View style={styles.row}>
-      <View style={styles.iconContainer}>
-        <SymbolView name={icon} size={18} tintColor={colors.primary} />
-      </View>
-      <View style={styles.textContainer}>
+    <View style={styles.cell}>
+      <SymbolView name={icon} size={18} tintColor={colors.primary} />
+      <View style={styles.text}>
         <AppText color="textMuted" variant="bodySmall">{label}</AppText>
-        <AppText style={styles.value} variant="label">{value}</AppText>
+        <AppText numberOfLines={2} style={styles.value} variant="label">{value}</AppText>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { paddingVertical: spacing.sm },
-  row: { alignItems: 'center', flexDirection: 'row', paddingVertical: spacing.xs },
-  iconContainer: { alignItems: 'center', justifyContent: 'center', width: 36 },
-  textContainer: { flex: 1, marginLeft: spacing.xs },
+  card: { alignItems: 'center', flexDirection: 'row', minHeight: 76, paddingVertical: spacing.sm },
+  cell: { alignItems: 'center', flex: 1, flexDirection: 'row' },
+  text: { flex: 1, marginLeft: spacing.xs },
   value: { marginTop: 2 },
-  divider: { backgroundColor: colors.border, height: 1, marginLeft: 44 },
+  divider: { backgroundColor: colors.border, height: 42, marginHorizontal: spacing.sm, width: 1 },
 });

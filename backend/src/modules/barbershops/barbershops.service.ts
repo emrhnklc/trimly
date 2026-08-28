@@ -28,6 +28,7 @@ export class BarbershopsService {
         slug,
         description: dto.description?.trim(),
         profileImageUrl: dto.profileImageUrl?.trim(),
+        coverImageUrl: dto.coverImageUrl?.trim(),
         phone: dto.phone?.trim(),
         address: dto.address?.trim(),
         timezone: dto.timezone?.trim() ?? 'Europe/Istanbul',
@@ -57,6 +58,7 @@ export class BarbershopsService {
         slug: true,
         description: true,
         profileImageUrl: true,
+        coverImageUrl: true,
         phone: true,
         address: true,
         timezone: true,
@@ -142,6 +144,9 @@ export class BarbershopsService {
           }),
           ...(dto.profileImageUrl !== undefined && {
             profileImageUrl: dto.profileImageUrl.trim(),
+          }),
+          ...(dto.coverImageUrl !== undefined && {
+            coverImageUrl: dto.coverImageUrl.trim(),
           }),
           ...(dto.phone !== undefined && { phone: dto.phone.trim() }),
           ...(dto.address !== undefined && { address: dto.address.trim() }),

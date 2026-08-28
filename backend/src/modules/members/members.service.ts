@@ -180,42 +180,6 @@ export class MembersService {
     });
   }
 
-  async findPublicBarber(barbershopId: string, memberId: string) {
-    const barber = await this.prisma.businessMember.findFirst({
-      where: { id: memberId, barbershopId, isActive: true, isBookable: true },
-      select: {
-        id: true,
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            profileImageUrl: true,
-          },
-        },
-        serviceAssignments: {
-          where: { service: { isActive: true } },
-          select: {
-            service: {
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                durationMinutes: true,
-                price: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!barber) {
-      throw new NotFoundException('Berber bulunamadı.');
-    }
-
-    return barber;
-  }
-
   async updateBookable(
     barbershopId: string,
     memberId: string,

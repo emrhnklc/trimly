@@ -11,6 +11,7 @@ model Barbershop {
   slug            String   @unique
   description     String?
   profileImageUrl String?
+  coverImageUrl   String?
   phone           String?
   address         String?
   timezone        String   @default("Europe/Istanbul")

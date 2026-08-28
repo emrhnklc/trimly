@@ -24,6 +24,11 @@ export class UpdateBarbershopProfileDto {
   profileImageUrl?: string;
 
   @IsOptional()
+  @IsUrl({ require_protocol: true })
+  @MaxLength(2048)
+  coverImageUrl?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(30)
   phone?: string;
