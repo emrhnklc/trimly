@@ -17,6 +17,7 @@ import { getMyAppointments } from '@/features/appointments/api';
 import { CustomerAppointmentCard } from '@/features/appointments/components/CustomerAppointmentCard';
 import type { CustomerAppointment } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
@@ -87,8 +88,9 @@ export default function AppointmentsScreen() {
           />
         }
         showsVerticalScrollIndicator={false}>
+        <HomeHeader />
         <View style={styles.header}>
-          <AppText variant="displayLarge">Randevularım</AppText>
+          <AppText style={styles.title} variant="displayLarge">Randevularım</AppText>
           <AppText color="textMuted" style={styles.subtitle}>
             Yaklaşan ve geçmiş randevularını tek yerden takip et.
           </AppText>
@@ -198,9 +200,10 @@ function AppointmentSection({
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  header: { marginBottom: spacing.lg },
-  subtitle: { marginTop: spacing.xs },
+  content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
+  header: { marginBottom: spacing.lg, marginTop: spacing.xl },
+  title: { fontSize: 30, lineHeight: 36 },
+  subtitle: { fontSize: 14, lineHeight: 20, marginTop: spacing.xs },
   loader: { marginTop: spacing.xxxl },
   stateBox: { alignItems: 'center', marginTop: spacing.xxxl, paddingHorizontal: spacing.lg },
   stateTitle: { marginTop: spacing.sm, textAlign: 'center' },

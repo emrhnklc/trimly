@@ -1,126 +1,87 @@
-import { useCallback, useRef, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet } from 'react-native';
 
-import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { getFavoriteBarbershops } from '@/features/favorites/api';
-import type { FavoriteBarbershop } from '@/features/favorites/types';
-import { getMyHaircutHistory } from '@/features/haircut-history/api';
-import type { CustomerHaircutRecord } from '@/features/haircut-history/types';
-import { ProfileFavoriteBarbershops } from '@/features/profile/components/ProfileFavoriteBarbershops';
-import { ProfileHeader } from '@/features/profile/components/ProfileHeader';
-import { ProfileIdentity } from '@/features/profile/components/ProfileIdentity';
-import { ProfileMembershipCard } from '@/features/profile/components/ProfileMembershipCard';
-import { ProfileQuickActions } from '@/features/profile/components/ProfileQuickActions';
-import { ProfileSavedStyles } from '@/features/profile/components/ProfileSavedStyles';
-import { colors } from '@/theme/colors';
+import {
+  ProfileMenuGroup,
+  type ProfileMenuItem,
+} from '@/features/profile/components/ProfileMenuGroup';
+import { ProfileMenuIdentity } from '@/features/profile/components/ProfileMenuIdentity';
 import { spacing } from '@/theme/spacing';
 
 export default function ProfileOverviewScreen() {
   const router = useRouter();
-  const { token, user } = useAuth();
-  const scrollRef = useRef<ScrollView>(null);
-  const [favorites, setFavorites] = useState<FavoriteBarbershop[]>([]);
-  const [haircutRecords, setHaircutRecords] = useState<CustomerHaircutRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { signOut, user } = useAuth();
 
-  const loadProfile = useCallback(async (refreshing = false) => {
-    if (!token) return;
+  if (!user) return null;
 
-    if (refreshing) setIsRefreshing(true);
-    else setIsLoading(true);
-    setError(null);
+  const quickActions: ProfileMenuItem[] = [
+    {
+      badge: 'YAKINDA',
+      icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
+      id: 'notifications',
+      label: 'Bildirimler',
+    },
+    {
+      icon: { ios: 'person.crop.circle', android: 'manage_accounts', web: 'manage_accounts' },
+      id: 'settings',
+      label: 'Hesap Ayarları',
+      onPress: () => router.push('/profile/settings'),
+    },
+    {
+      badge: 'YAKINDA',
+      icon: { ios: 'questionmark.circle', android: 'help_outline', web: 'help_outline' },
+      id: 'support',
+      label: 'Yardım & Destek',
+    },
+    {
+      icon: { ios: 'bookmark', android: 'bookmark_border', web: 'bookmark_border' },
+      id: 'styles',
+      label: 'Kaydettiğim Stiller',
+      onPress: () => router.push('/profile/history'),
+    },
+    {
+      icon: { ios: 'heart', android: 'favorite_border', web: 'favorite_border' },
+      id: 'favorites',
+      label: 'Favori Berberlerim',
+      onPress: () => router.push('/favorites'),
+    },
+    {
+      badge: 'YAKINDA',
+      icon: { ios: 'ticket', android: 'confirmation_number', web: 'confirmation_number' },
+      id: 'referral',
+      label: 'Davet Kodunu Kullan',
+    },
+  ];
 
-    try {
-      const [nextFavorites, nextHaircutRecords] = await Promise.all([
-        getFavoriteBarbershops(token),
-        getMyHaircutHistory(token),
-      ]);
-      setFavorites(nextFavorites);
-      setHaircutRecords(nextHaircutRecords);
-    } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : 'Profil bilgileri yüklenemedi.');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [token]);
-
-  useFocusEffect(
-    useCallback(() => {
-      scrollRef.current?.scrollTo({ animated: false, y: 0 });
-      void loadProfile();
-    }, [loadProfile]),
-  );
-
-  if (!user || !token) return null;
+  const otherActions: ProfileMenuItem[] = [
+    {
+      icon: { ios: 'clock.arrow.circlepath', android: 'history', web: 'history' },
+      id: 'history',
+      label: 'Geçmiş Tıraşlarım',
+      onPress: () => router.push('/profile/history'),
+    },
+    {
+      danger: true,
+      icon: { ios: 'rectangle.portrait.and.arrow.right', android: 'logout', web: 'logout' },
+      id: 'logout',
+      label: 'Çıkış Yap',
+      onPress: () => void signOut(),
+    },
+  ];
 
   return (
     <Screen>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        ref={scrollRef}
-        refreshControl={
-          <RefreshControl
-            colors={[colors.primary]}
-            onRefresh={() => void loadProfile(true)}
-            refreshing={isRefreshing}
-            tintColor={colors.primary}
-          />
-        }
-        showsVerticalScrollIndicator={false}>
-        <ProfileHeader onSettingsPress={() => router.push('/profile/settings')} />
-        <ProfileIdentity onEditPress={() => router.push('/profile/edit')} user={user} />
-        <ProfileMembershipCard />
-
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
-        {!isLoading && error ? (
-          <AppText color="danger" style={styles.error} variant="bodySmall">{error}</AppText>
-        ) : null}
-
-        <ProfileSavedStyles accessToken={token} records={haircutRecords} />
-        <ProfileFavoriteBarbershops
-          favorites={favorites}
-          onBarbershopPress={(slug) => router.push(`/barbers/${slug}`)}
-          onViewAllPress={() => router.push('/favorites')}
-        />
-        <ProfileQuickActions
-          actions={[
-            {
-              icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
-              id: 'notifications',
-              label: 'Bildirimler',
-            },
-            {
-              icon: { ios: 'gearshape', android: 'settings', web: 'settings' },
-              id: 'settings',
-              label: 'Hesap Ayarları',
-              onPress: () => router.push('/profile/settings'),
-            },
-            {
-              icon: { ios: 'heart', android: 'favorite_border', web: 'favorite_border' },
-              id: 'favorites',
-              label: 'Favorilerim',
-              onPress: () => router.push('/favorites'),
-            },
-            {
-              icon: { ios: 'questionmark.circle', android: 'help_outline', web: 'help_outline' },
-              id: 'help',
-              label: 'Yardım & Destek',
-            },
-          ]}
-        />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ProfileMenuIdentity onPress={() => router.push('/profile/edit')} user={user} />
+        <ProfileMenuGroup items={quickActions} title="Hızlı İşlemler" />
+        <ProfileMenuGroup items={otherActions} title="Diğer" />
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  loader: { marginTop: spacing.lg },
-  error: { marginTop: spacing.md, textAlign: 'center' },
+  content: { paddingBottom: 112, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 });
