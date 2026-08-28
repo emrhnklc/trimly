@@ -36,6 +36,12 @@ export type BookableBarber = {
   }[];
 };
 
+export type PublicBarberDetail = Omit<BookableBarber, 'serviceAssignments'> & {
+  serviceAssignments: {
+    service: PublicService;
+  }[];
+};
+
 export type BookingSettings = {
   minBookingNoticeMinutes: number;
   maxBookingAdvanceDays: number;

@@ -2,6 +2,7 @@ import type {
   AvailabilityResult,
   BookableBarber,
   BookingSettings,
+  PublicBarberDetail,
   PublicBarbershop,
   PublicBarbershopDetail,
 } from './types';
@@ -17,6 +18,15 @@ export async function getPublicBarbershop(slug: string): Promise<PublicBarbersho
 
 export function getBookableBarbers(barbershopId: string): Promise<BookableBarber[]> {
   return apiGet<BookableBarber[]>(`/barbershops/${barbershopId}/barbers`);
+}
+
+export function getPublicBarber(
+  barbershopId: string,
+  memberId: string,
+): Promise<PublicBarberDetail> {
+  return apiGet<PublicBarberDetail>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/barbers/${encodeURIComponent(memberId)}`,
+  );
 }
 
 export function getBookingSettings(barbershopId: string): Promise<BookingSettings> {

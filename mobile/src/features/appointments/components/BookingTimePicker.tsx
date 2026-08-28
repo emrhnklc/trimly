@@ -49,18 +49,23 @@ export function BookingTimePicker({
       </ScrollView>
 
       {selectedHour ? (
-        <View style={styles.slots}>
-          {visibleSlots.map((slot) => {
-            const isSelected = slot.startsAt === selectedStartsAt;
-            return (
-              <Pressable
-                key={slot.startsAt}
-                onPress={() => onSlotSelect(slot)}
-                style={[styles.slot, isSelected && styles.selectedSlot]}>
-                <AppText color={isSelected ? 'onPrimary' : 'text'} variant="label">{slot.startTime}</AppText>
-              </Pressable>
-            );
-          })}
+        <View style={styles.slotPanel}>
+          <AppText color="textMuted" variant="bodySmall">
+            {selectedHour}:00 saat aralığındaki uygun başlangıçlar
+          </AppText>
+          <View style={styles.slots}>
+            {visibleSlots.map((slot) => {
+              const isSelected = slot.startsAt === selectedStartsAt;
+              return (
+                <Pressable
+                  key={slot.startsAt}
+                  onPress={() => onSlotSelect(slot)}
+                  style={[styles.slot, isSelected && styles.selectedSlot]}>
+                  <AppText color={isSelected ? 'onPrimary' : 'text'} variant="label">{slot.startTime}</AppText>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       ) : null}
     </View>
@@ -78,7 +83,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   selectedHour: { backgroundColor: colors.primary, borderColor: colors.primary },
-  slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
+  slotPanel: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   slot: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

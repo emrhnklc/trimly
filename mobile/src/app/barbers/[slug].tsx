@@ -90,7 +90,16 @@ export default function BarbershopProfileScreen() {
             <AppText style={styles.sectionTitle} variant="heading">Ekibimiz</AppText>
             {barbershop.members.length ? (
               barbershop.members.map((barber) => (
-                <BarberPreviewCard barber={barber} key={barber.id} />
+                <BarberPreviewCard
+                  barber={barber}
+                  key={barber.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/barbers/[slug]/[memberId]',
+                      params: { memberId: barber.id, slug: barbershop.slug },
+                    })
+                  }
+                />
               ))
             ) : (
               <AppText color="textMuted">Henüz randevuya açık berber yok.</AppText>
