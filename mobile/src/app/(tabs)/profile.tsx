@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
@@ -11,6 +12,7 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { signOut, user } = useAuth();
   const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [campaignsEnabled, setCampaignsEnabled] = useState(false);
@@ -32,6 +34,14 @@ export default function ProfileScreen() {
           <SettingsRow label="Telefon" value={user.phone || 'Eklenmedi'} />
           <SettingsRow label="Doğum Tarihi" value="Eklenmedi" />
           <SettingsRow label="Cinsiyet" value="Eklenmedi" isLast />
+        </SettingsGroup>
+
+        <SettingsGroup title="Kaydettiklerin">
+          <SettingsRow
+            isLast
+            label="Favori Berberlerim"
+            onPress={() => router.push('/favorites')}
+          />
         </SettingsGroup>
 
         <SettingsGroup title="Ödeme & Geçmiş">
@@ -76,14 +86,42 @@ function SettingsGroup({ children, title }: { children: ReactNode; title: string
   );
 }
 
-function SettingsRow({ isLast = false, label, value }: { isLast?: boolean; label: string; value?: string }) {
-  return (
-    <View style={[styles.row, !isLast && styles.rowBorder]}>
+function SettingsRow({
+  isLast = false,
+  label,
+  onPress,
+  value,
+}: {
+  isLast?: boolean;
+  label: string;
+  onPress?: () => void;
+  value?: string;
+}) {
+  const content = (
+    <>
       <AppText>{label}</AppText>
       <View style={styles.rowValue}>
         {value ? <AppText color="textMuted" numberOfLines={1} style={styles.valueText}>{value}</AppText> : null}
         <AppText color="textMuted" variant="heading">›</AppText>
       </View>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityLabel={`${label} ekranını aç`}
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [styles.row, !isLast && styles.rowBorder, pressed && styles.rowPressed]}>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[styles.row, !isLast && styles.rowBorder]}>
+      {content}
     </View>
   );
 }
@@ -125,6 +163,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   rowBorder: { borderBottomColor: colors.border, borderBottomWidth: 1 },
+  rowPressed: { opacity: 0.62 },
   rowValue: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, maxWidth: '60%' },
   valueText: { flexShrink: 1, textAlign: 'right' },
   signOut: { marginTop: spacing.lg },

@@ -70,3 +70,26 @@ export async function apiPatch<T>(path: string, body?: unknown, accessToken?: st
 
   return parseResponse<T>(response);
 }
+
+export async function apiPut<T>(path: string, body?: unknown, accessToken?: string) {
+  const hasBody = body !== undefined;
+  const response = await fetch(new URL(path, API_URL), {
+    method: 'PUT',
+    headers: {
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: hasBody ? JSON.stringify(body) : undefined,
+  });
+
+  return parseResponse<T>(response);
+}
+
+export async function apiDelete<T>(path: string, accessToken?: string) {
+  const response = await fetch(new URL(path, API_URL), {
+    method: 'DELETE',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
+
+  return parseResponse<T>(response);
+}

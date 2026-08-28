@@ -14,16 +14,26 @@ import { BarbershopHero } from '@/features/barbershops/components/BarbershopHero
 import { BarbershopInfoCard } from '@/features/barbershops/components/BarbershopInfoCard';
 import { BarbershopServiceTags } from '@/features/barbershops/components/BarbershopServiceTags';
 import type { PublicBarbershopDetail } from '@/features/barbershops/types';
+import { useAuth } from '@/features/auth/AuthProvider';
+import {
+  addFavoriteBarbershop,
+  getFavoriteBarbershops,
+  removeFavoriteBarbershop,
+} from '@/features/favorites/api';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
 
 export default function BarbershopProfileScreen() {
   const router = useRouter();
+  const { token } = useAuth();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [barbershop, setBarbershop] = useState<PublicBarbershopDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [favoriteError, setFavoriteError] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
 
   const loadBarbershop = useCallback(async () => {
     if (!slug) {
@@ -34,15 +44,30 @@ export default function BarbershopProfileScreen() {
 
     setIsLoading(true);
     setError(null);
+    setFavoriteError(null);
 
     try {
-      setBarbershop(await getPublicBarbershop(slug));
+      const loadedBarbershop = await getPublicBarbershop(slug);
+      setBarbershop(loadedBarbershop);
+
+      if (token) {
+        setIsFavoriteLoading(true);
+
+        try {
+          const favorites = await getFavoriteBarbershops(token);
+          setIsFavorite(favorites.some(({ barbershop: favorite }) => favorite.id === loadedBarbershop.id));
+        } catch (reason: unknown) {
+          setFavoriteError(reason instanceof Error ? reason.message : 'Favori durumu alınamadı.');
+        } finally {
+          setIsFavoriteLoading(false);
+        }
+      }
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'İşletme yüklenemedi.');
     } finally {
       setIsLoading(false);
     }
-  }, [slug]);
+  }, [slug, token]);
 
   useEffect(() => {
     const requestId = setTimeout(() => void loadBarbershop(), 0);
@@ -56,6 +81,27 @@ export default function BarbershopProfileScreen() {
       message: `${barbershop.name} işletmesini Trimly'de keşfet: trimly://barbers/${barbershop.slug}`,
       title: barbershop.name,
     });
+  }
+
+  async function toggleFavorite() {
+    if (!barbershop || !token || isFavoriteLoading) return;
+
+    setIsFavoriteLoading(true);
+    setFavoriteError(null);
+
+    try {
+      if (isFavorite) {
+        await removeFavoriteBarbershop(barbershop.id, token);
+        setIsFavorite(false);
+      } else {
+        await addFavoriteBarbershop(barbershop.id, token);
+        setIsFavorite(true);
+      }
+    } catch (reason: unknown) {
+      setFavoriteError(reason instanceof Error ? reason.message : 'Favori işlemi yapılamadı.');
+    } finally {
+      setIsFavoriteLoading(false);
+    }
   }
 
   if (isLoading) {
@@ -107,7 +153,17 @@ export default function BarbershopProfileScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <BarbershopHero barbershop={barbershop} />
+          <BarbershopHero
+            barbershop={barbershop}
+            isFavorite={isFavorite}
+            isFavoriteLoading={isFavoriteLoading}
+            onFavoritePress={() => void toggleFavorite()}
+          />
+          {favoriteError ? (
+            <AppText color="danger" style={styles.favoriteError} variant="bodySmall">
+              {favoriteError}
+            </AppText>
+          ) : null}
           <BarbershopInfoCard barbershop={barbershop} />
 
           <ProfileSection title="Hizmetler">
@@ -181,6 +237,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   description: { lineHeight: 22 },
+  favoriteError: { paddingHorizontal: spacing.xs, textAlign: 'center' },
   footerSafeArea: { backgroundColor: colors.surface },
   footer: {
     backgroundColor: colors.surface,

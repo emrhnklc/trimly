@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
 
+import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import type { PublicBarbershopDetail } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
@@ -10,9 +11,17 @@ import { radius, spacing } from '@/theme/spacing';
 
 type BarbershopHeroProps = {
   barbershop: PublicBarbershopDetail;
+  isFavorite: boolean;
+  isFavoriteLoading?: boolean;
+  onFavoritePress: () => void;
 };
 
-export function BarbershopHero({ barbershop }: BarbershopHeroProps) {
+export function BarbershopHero({
+  barbershop,
+  isFavorite,
+  isFavoriteLoading = false,
+  onFavoritePress,
+}: BarbershopHeroProps) {
   const initial = barbershop.name.slice(0, 1).toUpperCase();
 
   return (
@@ -66,6 +75,21 @@ export function BarbershopHero({ barbershop }: BarbershopHeroProps) {
             <AppText color="textMuted" variant="bodySmall">Randevuya açık işletme</AppText>
           </View>
         </View>
+
+        <View style={styles.favoriteButton}>
+          <AppIconButton
+            accessibilityLabel={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+            color="primary"
+            disabled={isFavoriteLoading}
+            icon={{
+              ios: isFavorite ? 'heart.fill' : 'heart',
+              android: isFavorite ? 'favorite' : 'favorite_border',
+              web: isFavorite ? 'favorite' : 'favorite_border',
+            }}
+            onPress={onFavoritePress}
+            variant="transparent"
+          />
+        </View>
       </View>
     </View>
   );
@@ -92,7 +116,7 @@ const styles = StyleSheet.create({
     minHeight: 118,
     paddingBottom: spacing.md,
     paddingLeft: 124,
-    paddingRight: spacing.md,
+    paddingRight: 54,
     paddingTop: spacing.md,
   },
   avatarFrame: {
@@ -113,6 +137,7 @@ const styles = StyleSheet.create({
   },
   initial: { fontSize: 42, lineHeight: 48 },
   identity: { flex: 1 },
+  favoriteButton: { position: 'absolute', right: spacing.sm, top: spacing.sm },
   name: { fontSize: 24, lineHeight: 29 },
   statusRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: spacing.xs },
   statusDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 7, width: 7 },

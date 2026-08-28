@@ -60,6 +60,7 @@ function RootNavigator() {
         <Stack.Screen name="barbers/[slug]" />
         <Stack.Screen name="appointments/preview" />
         <Stack.Screen name="appointments/[appointmentId]" />
+        <Stack.Screen name="favorites" />
       </Stack.Protected>
     </Stack>
   );
