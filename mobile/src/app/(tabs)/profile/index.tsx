@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useBusiness } from '@/features/business/BusinessProvider';
 import {
   ProfileMenuGroup,
   type ProfileMenuItem,
@@ -13,6 +14,7 @@ import { spacing } from '@/theme/spacing';
 export default function ProfileOverviewScreen() {
   const router = useRouter();
   const { signOut, user } = useAuth();
+  const { activeMembership, memberships } = useBusiness();
 
   if (!user) return null;
 
@@ -72,6 +74,15 @@ export default function ProfileOverviewScreen() {
   ];
 
   const businessActions: ProfileMenuItem[] = [
+    ...(memberships.length > 0
+      ? [{
+          badge: activeMembership ? 'AKTİF' : `${memberships.length}`,
+          icon: { ios: 'building.2', android: 'business', web: 'business' },
+          id: 'select-business',
+          label: activeMembership?.barbershop.name ?? 'İşletme Seç',
+          onPress: () => router.push('/business/select'),
+        } satisfies ProfileMenuItem]
+      : []),
     {
       icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
       id: 'create-business',

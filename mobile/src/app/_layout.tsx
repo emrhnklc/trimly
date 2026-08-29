@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { BusinessProvider, useBusiness } from '@/features/business/BusinessProvider';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -34,20 +35,23 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <StatusBar style="dark" />
-      <RootNavigator />
+      <BusinessProvider>
+        <StatusBar style="dark" />
+        <RootNavigator />
+      </BusinessProvider>
     </AuthProvider>
   );
 }
 
 function RootNavigator() {
   const { isReady, user } = useAuth();
+  const { isReady: isBusinessReady } = useBusiness();
 
   useEffect(() => {
-    if (isReady) void SplashScreen.hideAsync();
-  }, [isReady]);
+    if (isReady && isBusinessReady) void SplashScreen.hideAsync();
+  }, [isBusinessReady, isReady]);
 
-  if (!isReady) return null;
+  if (!isReady || !isBusinessReady) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -57,6 +61,7 @@ function RootNavigator() {
 
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="business" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="barbers/[slug]" />
         <Stack.Screen name="appointments/preview" />
