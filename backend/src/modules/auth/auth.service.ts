@@ -8,12 +8,14 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -51,29 +53,24 @@ export class AuthService {
     return this.createAuthResponse(user);
   }
 
+  findMe(userId: string) {
+    return this.usersService.findMe(userId);
+  }
+
   private async createAuthResponse(user: {
     id: string;
     email: string;
-    firstName: string;
-    lastName: string;
-    phone: string | null;
-    profileImageUrl: string | null;
   }) {
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,
     });
 
+    const publicUser = await this.usersService.findMe(user.id);
+
     return {
       accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        profileImageUrl: user.profileImageUrl,
-      },
+      user: publicUser,
     };
   }
 }

@@ -16,7 +16,34 @@ const publicUserSelect = {
   profileImageUrl: true,
   createdAt: true,
   updatedAt: true,
+  memberships: {
+    where: { isActive: true },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true,
+      role: true,
+      isActive: true,
+      isBookable: true,
+      barbershop: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          profileImageUrl: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.UserSelect;
+
+type PublicUserRecord = Prisma.UserGetPayload<{
+  select: typeof publicUserSelect;
+}>;
+
+function presentPublicUser(user: PublicUserRecord) {
+  const { memberships, ...profile } = user;
+  return { ...profile, businessMemberships: memberships };
+}
 
 @Injectable()
 export class UsersService {
@@ -32,12 +59,12 @@ export class UsersService {
       throw new NotFoundException('Kullanıcı bulunamadı.');
     }
 
-    return user;
+    return presentPublicUser(user);
   }
 
   async updateMe(userId: string, dto: UpdateMyProfileDto) {
     try {
-      return await this.prisma.user.update({
+      const user = await this.prisma.user.update({
         where: { id: userId },
         data: {
           ...(dto.firstName !== undefined && {
@@ -55,6 +82,8 @@ export class UsersService {
         },
         select: publicUserSelect,
       });
+
+      return presentPublicUser(user);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

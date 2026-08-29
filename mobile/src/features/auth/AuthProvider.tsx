@@ -5,6 +5,10 @@ import { ApiError } from '@/lib/api/client';
 import { getCurrentUser } from './api';
 import type { AuthResponse, AuthUser } from './types';
 
+type PersistedAuthUser = Omit<AuthUser, 'businessMemberships'> & {
+  businessMemberships?: AuthUser['businessMemberships'];
+};
+
 type AuthContextValue = {
   isReady: boolean;
   token: string | null;
@@ -34,13 +38,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         const session = JSON.parse(savedSession) as {
           token?: string;
-          user?: AuthUser;
+          user?: PersistedAuthUser;
         };
 
         if (session.token && session.user) {
           if (!isActive) return;
 
-          const restoredSession = { token: session.token, user: session.user };
+          const restoredSession = { token: session.token, user: normalizeUser(session.user) };
           setState(restoredSession);
           setReady(true);
 
@@ -75,7 +79,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   async function signIn(result: AuthResponse, rememberMe = true) {
-    const nextSession = { token: result.accessToken, user: result.user };
+    const nextSession = { token: result.accessToken, user: normalizeUser(result.user) };
 
     if (rememberMe) {
       await SecureStore.setItemAsync(storageKey, JSON.stringify(nextSession));
@@ -92,7 +96,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }
 
   async function updateUser(user: AuthUser) {
-    const nextSession = { token: state.token, user };
+    const nextSession = { token: state.token, user: normalizeUser(user) };
     setState(nextSession);
 
     const savedSession = await SecureStore.getItemAsync(storageKey);
@@ -106,6 +110,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+function normalizeUser(user: PersistedAuthUser): AuthUser {
+  return { ...user, businessMemberships: user.businessMemberships ?? [] };
 }
 
 export function useAuth() {

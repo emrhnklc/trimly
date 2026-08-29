@@ -13,7 +13,21 @@ type AuthResponseBody = {
     email: string;
     firstName: string;
     lastName: string;
+    businessMemberships: BusinessMembershipBody[];
     passwordHash?: string;
+  };
+};
+
+type BusinessMembershipBody = {
+  id: string;
+  role: 'OWNER' | 'MANAGER' | 'BARBER' | 'APPRENTICE';
+  isActive: boolean;
+  isBookable: boolean;
+  barbershop: {
+    id: string;
+    name: string;
+    slug: string;
+    profileImageUrl: string | null;
   };
 };
 
@@ -22,6 +36,7 @@ type UserProfileBody = {
   firstName: string;
   lastName: string;
   phone: string | null;
+  businessMemberships: BusinessMembershipBody[];
 };
 
 type PublicBarbershopBody = {
@@ -84,6 +99,7 @@ describe('Authentication flow (e2e)', () => {
       email,
       firstName: 'Test',
       lastName: 'Customer',
+      businessMemberships: [],
     });
     expect(body.user.passwordHash).toBeUndefined();
   });
@@ -101,8 +117,11 @@ describe('Authentication flow (e2e)', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
 
-    const body: unknown = meResponse.body;
-    expect(body).toMatchObject({ email });
+    expect(asUserProfileBody(meResponse.body)).toMatchObject({
+      email,
+      firstName: 'Test',
+      businessMemberships: [],
+    });
   });
 
   it('reads and updates only its own profile', async () => {
@@ -138,6 +157,26 @@ describe('Authentication flow (e2e)', () => {
         description: 'Test işletmesi',
       })
       .expect(201);
+
+    const meResponse = await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const ownerMembership = asUserProfileBody(
+      meResponse.body,
+    ).businessMemberships.find(
+      (membership) => membership.barbershop.slug === barbershopSlug,
+    );
+
+    expect(ownerMembership).toMatchObject({
+      role: 'OWNER',
+      isActive: true,
+      isBookable: false,
+      barbershop: {
+        name: 'E2E Discovery Barber',
+        slug: barbershopSlug,
+      },
+    });
 
     const searchResponse = await request(app.getHttpServer())
       .get('/barbershops?search=discovery')
