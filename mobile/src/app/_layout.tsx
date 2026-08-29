@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { AppModeProvider, useAppMode } from '@/features/app-mode/AppModeProvider';
 import { BusinessProvider, useBusiness } from '@/features/business/BusinessProvider';
 
 void SplashScreen.preventAutoHideAsync();
@@ -36,8 +37,10 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <BusinessProvider>
-        <StatusBar style="dark" />
-        <RootNavigator />
+        <AppModeProvider>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </AppModeProvider>
       </BusinessProvider>
     </AuthProvider>
   );
@@ -45,13 +48,14 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { isReady, user } = useAuth();
+  const { isReady: isAppModeReady, mode } = useAppMode();
   const { isReady: isBusinessReady } = useBusiness();
 
   useEffect(() => {
-    if (isReady && isBusinessReady) void SplashScreen.hideAsync();
-  }, [isBusinessReady, isReady]);
+    if (isReady && isBusinessReady && isAppModeReady) void SplashScreen.hideAsync();
+  }, [isAppModeReady, isBusinessReady, isReady]);
 
-  if (!isReady || !isBusinessReady) return null;
+  if (!isReady || !isBusinessReady || !isAppModeReady) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -59,8 +63,15 @@ function RootNavigator() {
         <Stack.Screen name="auth" />
       </Stack.Protected>
 
-      <Stack.Protected guard={Boolean(user)}>
+      <Stack.Protected guard={Boolean(user) && mode === 'customer'}>
         <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(user) && mode === 'business'}>
+        <Stack.Screen name="(business)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="business" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="barbers/[slug]" />

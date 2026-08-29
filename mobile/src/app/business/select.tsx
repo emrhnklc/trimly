@@ -1,10 +1,11 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
+import { useAppMode } from '@/features/app-mode/AppModeProvider';
 import { AuthScreenLayout } from '@/features/auth/components/AuthScreenLayout';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessMembershipCard } from '@/features/business/components/BusinessMembershipCard';
@@ -12,6 +13,8 @@ import { spacing } from '@/theme/spacing';
 
 export default function BusinessSelectionScreen() {
   const router = useRouter();
+  const { continueToBusiness } = useLocalSearchParams<{ continueToBusiness?: string }>();
+  const { enterBusinessMode } = useAppMode();
   const { activeMembership, memberships, selectMembership } = useBusiness();
   const [pendingMembershipId, setPendingMembershipId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,8 +35,13 @@ export default function BusinessSelectionScreen() {
     try {
       setSaving(true);
       setError(null);
-      await selectMembership(selectedMembershipId);
-      goBack();
+      if (continueToBusiness === 'true') {
+        await enterBusinessMode(selectedMembershipId);
+        router.replace('/(business)');
+      } else {
+        await selectMembership(selectedMembershipId);
+        goBack();
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'İşletme seçilemedi.');
     } finally {

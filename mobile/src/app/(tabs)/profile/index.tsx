@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { Screen } from '@/components/ui/Screen';
+import { useAppMode } from '@/features/app-mode/AppModeProvider';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import {
@@ -13,10 +14,24 @@ import { spacing } from '@/theme/spacing';
 
 export default function ProfileOverviewScreen() {
   const router = useRouter();
+  const { enterBusinessMode } = useAppMode();
   const { signOut, user } = useAuth();
   const { activeMembership, memberships } = useBusiness();
 
   if (!user) return null;
+
+  async function openBusinessMode() {
+    if (!activeMembership) {
+      router.push({
+        pathname: '/business/select',
+        params: { continueToBusiness: 'true' },
+      });
+      return;
+    }
+
+    await enterBusinessMode();
+    router.replace('/(business)');
+  }
 
   const quickActions: ProfileMenuItem[] = [
     {
@@ -76,10 +91,19 @@ export default function ProfileOverviewScreen() {
   const businessActions: ProfileMenuItem[] = [
     ...(memberships.length > 0
       ? [{
-          badge: activeMembership ? 'AKTİF' : `${memberships.length}`,
+          badge: 'GEÇ',
+          icon: { ios: 'arrow.left.arrow.right', android: 'swap_horiz', web: 'swap_horiz' },
+          id: 'business-mode',
+          label: activeMembership ? 'İşletme Moduna Geç' : 'İşletme Seç ve Devam Et',
+          onPress: () => void openBusinessMode(),
+        } satisfies ProfileMenuItem]
+      : []),
+    ...(activeMembership
+      ? [{
+          badge: 'AKTİF',
           icon: { ios: 'building.2', android: 'business', web: 'business' },
           id: 'select-business',
-          label: activeMembership?.barbershop.name ?? 'İşletme Seç',
+          label: activeMembership.barbershop.name,
           onPress: () => router.push('/business/select'),
         } satisfies ProfileMenuItem]
       : []),
