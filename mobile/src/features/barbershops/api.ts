@@ -5,7 +5,24 @@ import type {
   PublicBarbershop,
   PublicBarbershopDetail,
 } from './types';
-import { apiGet } from '@/lib/api/client';
+import { apiGet, apiPost } from '@/lib/api/client';
+
+export type CreateBarbershopInput = {
+  name: string;
+  slug: string;
+  address?: string;
+  phone?: string;
+};
+
+export type CreatedBarbershop = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export function createBarbershop(data: CreateBarbershopInput, accessToken: string) {
+  return apiPost<CreatedBarbershop>('/barbershops', data, accessToken);
+}
 
 export async function getPublicBarbershops(search?: string): Promise<PublicBarbershop[]> {
   return apiGet<PublicBarbershop[]>('/barbershops', { search: search?.trim() ?? '' });

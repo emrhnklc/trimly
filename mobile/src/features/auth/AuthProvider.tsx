@@ -15,6 +15,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   signIn: (result: AuthResponse, rememberMe?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<AuthUser | null>;
   updateUser: (user: AuthUser) => Promise<void>;
 };
 
@@ -105,8 +106,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
+  async function refreshUser() {
+    if (!state.token) return null;
+
+    const currentUser = await getCurrentUser(state.token);
+    await updateUser(currentUser);
+    return currentUser;
+  }
+
   return (
-    <AuthContext.Provider value={{ ...state, isReady, signIn, signOut, updateUser }}>
+    <AuthContext.Provider value={{ ...state, isReady, refreshUser, signIn, signOut, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

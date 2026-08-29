@@ -51,7 +51,7 @@ export default function ProfileOverviewScreen() {
       badge: 'YAKINDA',
       icon: { ios: 'ticket', android: 'confirmation_number', web: 'confirmation_number' },
       id: 'referral',
-      label: 'Davet Kodunu Kullan',
+      label: 'Kampanya Davet Kodunu Kullan',
     },
   ];
 
@@ -71,11 +71,27 @@ export default function ProfileOverviewScreen() {
     },
   ];
 
+  const businessActions: ProfileMenuItem[] = [
+    {
+      icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
+      id: 'create-business',
+      label: 'İşletme Oluştur',
+      onPress: () => router.push('/onboarding/business'),
+    },
+    {
+      icon: { ios: 'person.badge.plus', android: 'group_add', web: 'group_add' },
+      id: 'join-business',
+      label: 'Çalışan Davetine Katıl',
+      onPress: () => router.push('/onboarding/invitation'),
+    },
+  ];
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ProfileMenuIdentity onPress={() => router.push('/profile/edit')} user={user} />
         <ProfileMenuGroup items={quickActions} title="Hızlı İşlemler" />
+        <ProfileMenuGroup items={businessActions} title="İşletme" />
         <ProfileMenuGroup items={otherActions} title="Diğer" />
       </ScrollView>
     </Screen>
