@@ -3,7 +3,16 @@ import type {
   CreateAppointmentInput,
   CreatedAppointment,
   CustomerAppointment,
+  BusinessAppointment,
 } from './types';
+
+export function getBusinessAppointments(barbershopId: string, accessToken: string) {
+  return apiGet<BusinessAppointment[]>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments`,
+    undefined,
+    accessToken,
+  );
+}
 
 export function createAppointment(
   barbershopId: string,

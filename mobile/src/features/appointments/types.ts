@@ -20,6 +20,30 @@ export type CreatedAppointment = {
   status: AppointmentStatus;
 };
 
+export type BusinessAppointment = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  status: AppointmentStatus;
+  serviceNameSnapshot: string;
+  priceSnapshot: string;
+  durationMinutes: number;
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    profileImageUrl: string | null;
+  };
+  businessMember: {
+    id: string;
+    user: {
+      firstName: string;
+      lastName: string;
+    };
+  };
+};
+
 export type CustomerAppointment = {
   id: string;
   serviceId: string;

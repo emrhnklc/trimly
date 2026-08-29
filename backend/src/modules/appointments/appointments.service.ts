@@ -312,8 +312,15 @@ export class AppointmentsService {
         status: true,
         serviceNameSnapshot: true,
         priceSnapshot: true,
+        durationMinutes: true,
         customer: {
-          select: { id: true, firstName: true, lastName: true, phone: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            profileImageUrl: true,
+          },
         },
         businessMember: {
           select: {

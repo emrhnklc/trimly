@@ -1,127 +1,193 @@
-import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import {
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 
-import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
-import { AppButton } from '@/components/ui/AppButton';
-import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { useAppMode } from '@/features/app-mode/AppModeProvider';
+import { getBusinessAppointments } from '@/features/appointments/api';
+import type { BusinessAppointment } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
+import {
+  AppointmentPeriodTabs,
+  type AppointmentPeriod,
+} from '@/features/business-appointments/components/AppointmentPeriodTabs';
+import { BusinessAppointmentCard } from '@/features/business-appointments/components/BusinessAppointmentCard';
+import { BusinessAppointmentState } from '@/features/business-appointments/components/BusinessAppointmentState';
+import { formatBusinessDate, getDateKey } from '@/features/business-appointments/date';
 import { useBusiness } from '@/features/business/BusinessProvider';
-import { businessRoleLabels } from '@/features/business/role-labels';
+import { BusinessScreenHeader } from '@/features/business/components/BusinessScreenHeader';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { spacing } from '@/theme/spacing';
 
-export default function BusinessModeHomeScreen() {
-  const router = useRouter();
-  const { enterCustomerMode } = useAppMode();
-  const { user } = useAuth();
+export default function BusinessAppointmentsScreen() {
+  const { token } = useAuth();
   const { activeMembership } = useBusiness();
+  const [appointments, setAppointments] = useState<BusinessAppointment[]>([]);
+  const [period, setPeriod] = useState<AppointmentPeriod>('today');
+  const [referenceTime, setReferenceTime] = useState(() => Date.now());
+  const [isLoading, setLoading] = useState(true);
+  const [isRefreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!user || !activeMembership) return null;
+  const loadAppointments = useCallback(
+    async (refreshing = false) => {
+      if (!token || !activeMembership) return;
 
-  async function returnToCustomerMode() {
-    await enterCustomerMode();
-    router.replace('/(tabs)');
-  }
+      if (refreshing) setRefreshing(true);
+      else setLoading(true);
+      setError(null);
+
+      try {
+        const nextAppointments = await getBusinessAppointments(
+          activeMembership.barbershop.id,
+          token,
+        );
+        setAppointments(nextAppointments);
+        setReferenceTime(Date.now());
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : 'Randevular yüklenemedi.');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [activeMembership, token],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadAppointments();
+    }, [loadAppointments]),
+  );
+
+  const groupedAppointments = useMemo(() => {
+    if (!activeMembership) return { history: [], today: [], upcoming: [] };
+
+    const timeZone = activeMembership.barbershop.timezone;
+    const todayKey = getDateKey(new Date(referenceTime), timeZone);
+    const today = appointments
+      .filter((appointment) => getDateKey(new Date(appointment.startsAt), timeZone) === todayKey)
+      .sort((first, second) => first.startsAt.localeCompare(second.startsAt));
+    const todayIds = new Set(today.map((appointment) => appointment.id));
+    const upcoming = appointments
+      .filter(
+        (appointment) =>
+          !todayIds.has(appointment.id) &&
+          appointment.status === 'CONFIRMED' &&
+          new Date(appointment.startsAt).getTime() > referenceTime,
+      )
+      .sort((first, second) => first.startsAt.localeCompare(second.startsAt));
+    const upcomingIds = new Set(upcoming.map((appointment) => appointment.id));
+    const history = appointments
+      .filter(
+        (appointment) => !todayIds.has(appointment.id) && !upcomingIds.has(appointment.id),
+      )
+      .sort((first, second) => second.startsAt.localeCompare(first.startsAt));
+
+    return { history, today, upcoming };
+  }, [activeMembership, appointments, referenceTime]);
+
+  if (!activeMembership) return null;
+
+  const selectedAppointments = groupedAppointments[period];
+  const timeZone = activeMembership.barbershop.timezone;
+  const emptyMessages: Record<AppointmentPeriod, { description: string; title: string }> = {
+    today: {
+      description: 'Bugün için planlanmış bir randevu bulunmuyor.',
+      title: 'Bugün takvim sakin',
+    },
+    upcoming: {
+      description: 'Bugünden sonraki onaylı randevular burada görünecek.',
+      title: 'Yaklaşan randevu yok',
+    },
+    history: {
+      description: 'Tamamlanan, iptal edilen ve geçmiş randevular burada birikecek.',
+      title: 'Geçmiş henüz boş',
+    },
+  };
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <View style={styles.topBarSpacer} />
-          <TrimlyLogo size="small" />
-          <View style={styles.modeBadge}>
-            <SymbolView
-              name={{ ios: 'briefcase', android: 'business_center', web: 'business_center' }}
-              size={14}
-              tintColor={colors.primary}
-            />
-          </View>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            colors={[colors.primary]}
+            onRefresh={() => void loadAppointments(true)}
+            refreshing={isRefreshing}
+            tintColor={colors.primary}
+          />
+        }
+        showsVerticalScrollIndicator={false}>
+        <BusinessScreenHeader
+          showNotification
+          subtitle={activeMembership.barbershop.name}
+          title="Randevular"
+        />
+        <AppointmentPeriodTabs onChange={setPeriod} value={period} />
 
-        <AppText color="primary" style={styles.eyebrow} variant="overline">
-          İŞLETME MODU
-        </AppText>
-        <AppText style={styles.title} variant="displayLarge">
-          Hoş geldin, {user.firstName}.
-        </AppText>
-        <AppText color="textMuted" style={styles.description}>
-          İşletme ekranlarını artık seçili salonun ve buradaki rolün belirleyecek.
-        </AppText>
-
-        <AppCard style={styles.businessCard}>
-          <View style={styles.businessIcon}>
-            <SymbolView
-              name={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
-              size={25}
-              tintColor={colors.primary}
-            />
-          </View>
-          <View style={styles.businessDetails}>
-            <AppText variant="heading">{activeMembership.barbershop.name}</AppText>
-            <AppText color="primary" style={styles.role} variant="bodySmall">
-              {businessRoleLabels[activeMembership.role]}
+        <View style={styles.dateRow}>
+          <AppText style={styles.date} variant="label">
+            {formatBusinessDate(new Date(referenceTime), timeZone)}
+          </AppText>
+          <View style={styles.countBadge}>
+            <AppText color="primary" style={styles.count} variant="label">
+              {selectedAppointments.length}
             </AppText>
           </View>
-        </AppCard>
-
-        <AppCard style={styles.nextStepCard}>
-          <AppText variant="heading">İşletme görünümü hazır</AppText>
-          <AppText color="textMuted" style={styles.nextStepDescription}>
-            Sonraki aşamada role göre ana sayfa ve alt sekmeleri bu alanın üzerine kuracağız.
-          </AppText>
-        </AppCard>
-
-        <View style={styles.actions}>
-          <AppButton onPress={() => router.push('/business/select')} variant="secondary">
-            Aktif İşletmeyi Değiştir
-          </AppButton>
-          <AppButton onPress={() => void returnToCustomerMode()} variant="ghost">
-            Müşteri Moduna Dön
-          </AppButton>
         </View>
+
+        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+
+        {!isLoading && error ? (
+          <BusinessAppointmentState
+            description={error}
+            error
+            onRetry={() => void loadAppointments()}
+            title="Randevular yüklenemedi"
+          />
+        ) : null}
+
+        {!isLoading && !error && !selectedAppointments.length ? (
+          <BusinessAppointmentState {...emptyMessages[period]} />
+        ) : null}
+
+        {!isLoading && !error && selectedAppointments.length ? (
+          <View style={styles.list}>
+            {selectedAppointments.map((appointment) => (
+              <BusinessAppointmentCard
+                appointment={appointment}
+                key={appointment.id}
+                timeZone={timeZone}
+              />
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  topBarSpacer: { height: 40, width: 40 },
-  modeBadge: {
+  content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
+  dateRow: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.lg },
+  date: { flex: 1, textTransform: 'capitalize' },
+  countBadge: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    height: 40,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 999,
+    height: 24,
     justifyContent: 'center',
-    width: 40,
+    minWidth: 24,
+    paddingHorizontal: 7,
   },
-  eyebrow: { marginTop: spacing.xxl },
-  title: { marginTop: spacing.xs },
-  description: { lineHeight: 22, marginTop: spacing.sm },
-  businessCard: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginTop: spacing.xl,
-    padding: spacing.lg,
-  },
-  businessIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    height: 54,
-    justifyContent: 'center',
-    width: 54,
-  },
-  businessDetails: { flex: 1, marginLeft: spacing.md },
-  role: { marginTop: spacing.xxs },
-  nextStepCard: { marginTop: spacing.md, padding: spacing.lg },
-  nextStepDescription: { lineHeight: 21, marginTop: spacing.sm },
-  actions: { gap: spacing.xs, marginTop: spacing.xl },
+  count: { fontSize: 11, lineHeight: 15 },
+  loader: { marginTop: spacing.xxxl },
+  list: { marginTop: spacing.md },
 });

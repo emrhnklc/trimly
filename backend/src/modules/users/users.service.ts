@@ -30,6 +30,7 @@ const publicUserSelect = {
           name: true,
           slug: true,
           profileImageUrl: true,
+          timezone: true,
         },
       },
     },

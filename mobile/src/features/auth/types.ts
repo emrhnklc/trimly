@@ -10,6 +10,7 @@ export type BusinessMembership = {
     name: string;
     slug: string;
     profileImageUrl: string | null;
+    timezone: string;
   };
 };
 
