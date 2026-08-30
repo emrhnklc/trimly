@@ -20,6 +20,7 @@ import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { DailySummaryQueryDto } from './dto/daily-summary-query.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
+import { RevenueSummaryQueryDto } from './dto/revenue-summary-query.dto';
 
 @Controller('barbershops/:barbershopId/appointments')
 @ApiTags('İşletme Randevuları')
@@ -41,6 +42,20 @@ export class AppointmentsController {
     @Query() query: DailySummaryQueryDto,
   ) {
     return this.appointmentsService.findDailySummary(barbershopId, query.date);
+  }
+
+  @Get('revenue-summary')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  findRevenueSummary(
+    @Param('barbershopId') barbershopId: string,
+    @Query() query: RevenueSummaryQueryDto,
+  ) {
+    return this.appointmentsService.findRevenueSummary(
+      barbershopId,
+      query.period,
+      query.anchor,
+    );
   }
 
   @Get('next-for-me')

@@ -13,6 +13,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
+import { RevenuePeriod } from './dto/revenue-summary-query.dto';
 
 const customerAppointmentSelect = {
   id: true,
@@ -437,6 +438,231 @@ export class AppointmentsService {
         completedRevenue: member.completedRevenue.toFixed(2),
       })),
     };
+  }
+
+  async findRevenueSummary(
+    barbershopId: string,
+    period = RevenuePeriod.WEEK,
+    anchor?: string,
+  ) {
+    const barbershop = await this.prisma.barbershop.findUnique({
+      where: { id: barbershopId },
+      select: { timezone: true },
+    });
+
+    if (!barbershop) {
+      throw new NotFoundException('İşletme bulunamadı.');
+    }
+
+    const anchorDate = anchor
+      ? DateTime.fromISO(anchor, { zone: barbershop.timezone }).startOf('day')
+      : DateTime.now().setZone(barbershop.timezone).startOf('day');
+
+    if (!anchorDate.isValid) {
+      throw new BadRequestException('Geçerli bir tarih gönderilmelidir.');
+    }
+
+    const { end, previousStart, start } = this.getRevenuePeriodRange(
+      anchorDate,
+      period,
+    );
+    const buckets = this.createRevenueBuckets(start, end, period);
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        barbershopId,
+        startsAt: {
+          gte: previousStart.toUTC().toJSDate(),
+          lt: end.toUTC().toJSDate(),
+        },
+      },
+      select: {
+        startsAt: true,
+        status: true,
+        priceSnapshot: true,
+        businessMember: {
+          select: {
+            id: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    });
+
+    const counts = {
+      total: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+      noShow: 0,
+    };
+    let totalRevenue = new Prisma.Decimal(0);
+    let previousRevenue = new Prisma.Decimal(0);
+    const memberSummaries = new Map<
+      string,
+      {
+        memberId: string;
+        name: string;
+        completed: number;
+        completedRevenue: Prisma.Decimal;
+      }
+    >();
+
+    for (const appointment of appointments) {
+      const startsAt = DateTime.fromJSDate(appointment.startsAt).setZone(
+        barbershop.timezone,
+      );
+      const inCurrentPeriod = startsAt >= start && startsAt < end;
+
+      if (!inCurrentPeriod) {
+        if (appointment.status === 'COMPLETED') {
+          previousRevenue = previousRevenue.plus(appointment.priceSnapshot);
+        }
+        continue;
+      }
+
+      counts.total += 1;
+      if (appointment.status === 'CONFIRMED') counts.confirmed += 1;
+      if (appointment.status === 'CANCELLED') counts.cancelled += 1;
+      if (appointment.status === 'NO_SHOW') counts.noShow += 1;
+
+      if (appointment.status !== 'COMPLETED') continue;
+
+      counts.completed += 1;
+      totalRevenue = totalRevenue.plus(appointment.priceSnapshot);
+
+      const bucket = buckets.find(
+        (item) => startsAt >= item.start && startsAt < item.end,
+      );
+      if (bucket) {
+        bucket.completed += 1;
+        bucket.revenue = bucket.revenue.plus(appointment.priceSnapshot);
+      }
+
+      const memberId = appointment.businessMember.id;
+      const memberSummary = memberSummaries.get(memberId) ?? {
+        memberId,
+        name: `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`,
+        completed: 0,
+        completedRevenue: new Prisma.Decimal(0),
+      };
+      memberSummary.completed += 1;
+      memberSummary.completedRevenue = memberSummary.completedRevenue.plus(
+        appointment.priceSnapshot,
+      );
+      memberSummaries.set(memberId, memberSummary);
+    }
+
+    const averageTicket = counts.completed
+      ? totalRevenue.dividedBy(counts.completed)
+      : new Prisma.Decimal(0);
+    const previousRevenueNumber = previousRevenue.toNumber();
+    const changePercentage = previousRevenueNumber
+      ? Number(
+          totalRevenue
+            .minus(previousRevenue)
+            .dividedBy(previousRevenue)
+            .times(100)
+            .toFixed(1),
+        )
+      : null;
+
+    return {
+      period,
+      timezone: barbershop.timezone,
+      rangeStart: start.toISODate(),
+      rangeEnd: end.minus({ days: 1 }).toISODate(),
+      ...counts,
+      totalRevenue: totalRevenue.toFixed(2),
+      previousRevenue: previousRevenue.toFixed(2),
+      changePercentage,
+      averageTicket: averageTicket.toFixed(2),
+      points: buckets.map((bucket) => ({
+        key: bucket.key,
+        label: bucket.label,
+        completed: bucket.completed,
+        revenue: bucket.revenue.toFixed(2),
+      })),
+      byMember: [...memberSummaries.values()]
+        .sort((first, second) =>
+          second.completedRevenue.comparedTo(first.completedRevenue),
+        )
+        .map((member) => ({
+          ...member,
+          completedRevenue: member.completedRevenue.toFixed(2),
+        })),
+    };
+  }
+
+  private getRevenuePeriodRange(anchor: DateTime, period: RevenuePeriod) {
+    if (period === RevenuePeriod.MONTH) {
+      const start = anchor.startOf('month');
+      return {
+        start,
+        end: start.plus({ months: 1 }),
+        previousStart: start.minus({ months: 1 }),
+      };
+    }
+
+    if (period === RevenuePeriod.YEAR) {
+      const start = anchor.startOf('year');
+      return {
+        start,
+        end: start.plus({ years: 1 }),
+        previousStart: start.minus({ years: 1 }),
+      };
+    }
+
+    const start = anchor.startOf('week');
+    return {
+      start,
+      end: start.plus({ weeks: 1 }),
+      previousStart: start.minus({ weeks: 1 }),
+    };
+  }
+
+  private createRevenueBuckets(
+    start: DateTime,
+    end: DateTime,
+    period: RevenuePeriod,
+  ) {
+    const buckets: Array<{
+      key: string;
+      label: string;
+      start: DateTime;
+      end: DateTime;
+      completed: number;
+      revenue: Prisma.Decimal;
+    }> = [];
+    let cursor = start;
+
+    while (cursor < end) {
+      const bucketEnd = DateTime.min(
+        period === RevenuePeriod.WEEK
+          ? cursor.plus({ days: 1 })
+          : period === RevenuePeriod.MONTH
+            ? cursor.plus({ days: 7 })
+            : cursor.plus({ months: 1 }),
+        end,
+      );
+      const label =
+        period === RevenuePeriod.WEEK
+          ? cursor.setLocale('tr').toFormat('ccc').replace('.', '')
+          : period === RevenuePeriod.MONTH
+            ? `${cursor.day}–${bucketEnd.minus({ days: 1 }).day}`
+            : cursor.setLocale('tr').toFormat('LLL').replace('.', '');
+
+      buckets.push({
+        key: cursor.toISODate()!,
+        label,
+        start: cursor,
+        end: bucketEnd,
+        completed: 0,
+        revenue: new Prisma.Decimal(0),
+      });
+      cursor = bucketEnd;
+    }
+
+    return buckets;
   }
 
   async findNextForCurrentMember(barbershopId: string, userId: string) {

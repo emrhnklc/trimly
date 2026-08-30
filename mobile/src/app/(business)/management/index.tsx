@@ -144,6 +144,7 @@ export default function BusinessManagementScreen() {
         description: 'Ciroyu ve çalışan performansını incele',
         icon: { ios: 'chart.bar', android: 'bar_chart', web: 'bar_chart' },
         id: 'revenue',
+        onPress: () => router.push('/management/revenue'),
         title: 'Gelirler',
         value: formatTurkishPrice(data.summary.completedRevenue),
       },

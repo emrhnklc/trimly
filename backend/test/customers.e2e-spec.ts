@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
+import { DateTime } from 'luxon';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { PrismaService } from '../src/database/prisma.service';
@@ -121,6 +122,59 @@ describe('Business customers (e2e)', () => {
       ],
     });
 
+    const revenueAnchor = DateTime.fromJSDate(completedStart)
+      .setZone('Europe/Istanbul')
+      .toISODate();
+    const revenueResponse = await request(app.getHttpServer())
+      .get(
+        `/barbershops/${barbershopId}/appointments/revenue-summary?period=WEEK&anchor=${revenueAnchor}`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+
+    expect(revenueResponse.body).toMatchObject({
+      period: 'WEEK',
+      completed: 1,
+      totalRevenue: '450.00',
+      averageTicket: '450.00',
+    });
+    expect(
+      (revenueResponse.body as { points: { revenue: string }[] }).points.reduce(
+        (total, point) => total + Number(point.revenue),
+        0,
+      ),
+    ).toBe(450);
+
+    const monthlyRevenueResponse = await request(app.getHttpServer())
+      .get(
+        `/barbershops/${barbershopId}/appointments/revenue-summary?period=MONTH&anchor=${revenueAnchor}`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(monthlyRevenueResponse.body).toMatchObject({
+      period: 'MONTH',
+      completed: 1,
+      totalRevenue: '450.00',
+    });
+    expect(
+      (monthlyRevenueResponse.body as { points: unknown[] }).points.length,
+    ).toBeGreaterThanOrEqual(4);
+
+    const yearlyRevenueResponse = await request(app.getHttpServer())
+      .get(
+        `/barbershops/${barbershopId}/appointments/revenue-summary?period=YEAR&anchor=${revenueAnchor}`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(yearlyRevenueResponse.body).toMatchObject({
+      period: 'YEAR',
+      completed: 1,
+      totalRevenue: '450.00',
+    });
+    expect(
+      (yearlyRevenueResponse.body as { points: unknown[] }).points,
+    ).toHaveLength(12);
+
     const response = await request(app.getHttpServer())
       .get(`/barbershops/${barbershopId}/customers`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
@@ -138,6 +192,12 @@ describe('Business customers (e2e)', () => {
 
     await request(app.getHttpServer())
       .get(`/barbershops/${barbershopId}/customers`)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .get(
+        `/barbershops/${barbershopId}/appointments/revenue-summary?period=MONTH`,
+      )
       .expect(401);
   });
 
