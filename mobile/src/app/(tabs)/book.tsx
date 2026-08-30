@@ -44,6 +44,8 @@ const defaultBookingSettings: BookingSettings = {
   minBookingNoticeMinutes: 60,
   maxBookingAdvanceDays: 14,
   slotIntervalMinutes: 5,
+  customerCancellationEnabled: true,
+  cancellationNoticeMinutes: 120,
 };
 
 type BookParams = {

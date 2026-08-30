@@ -45,6 +45,8 @@ export type BookingSettings = {
   minBookingNoticeMinutes: number;
   maxBookingAdvanceDays: number;
   slotIntervalMinutes: number;
+  customerCancellationEnabled: boolean;
+  cancellationNoticeMinutes: number;
 };
 
 export type AvailabilitySlot = {
