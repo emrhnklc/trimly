@@ -45,6 +45,18 @@ export class ServicesService {
     });
   }
 
+  async findOneForManagement(barbershopId: string, serviceId: string) {
+    const service = await this.prisma.service.findFirst({
+      where: { id: serviceId, barbershopId },
+    });
+
+    if (!service) {
+      throw new NotFoundException('Hizmet bu işletmeye ait değil.');
+    }
+
+    return service;
+  }
+
   async update(barbershopId: string, serviceId: string, dto: UpdateServiceDto) {
     const service = await this.prisma.service.findFirst({
       where: { id: serviceId, barbershopId },

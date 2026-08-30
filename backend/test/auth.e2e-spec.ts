@@ -178,6 +178,52 @@ describe('Authentication flow (e2e)', () => {
       },
     });
 
+    if (!ownerMembership) throw new Error('Test owner üyeliği oluşturulamadı.');
+
+    const createServiceResponse = await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/services`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        name: 'E2E Saç Kesimi',
+        description: 'Hizmet yönetimi testi',
+        durationMinutes: 30,
+        price: '450,50',
+      })
+      .expect(201);
+    const createdService = createServiceResponse.body as {
+      id: string;
+      durationMinutes: number;
+      isActive: boolean;
+      price: string;
+    };
+
+    expect(createdService).toMatchObject({ durationMinutes: 30, isActive: true });
+    expect(Number(createdService.price)).toBe(450.5);
+
+    await request(app.getHttpServer())
+      .get(
+        `/barbershops/${ownerMembership.barbershop.id}/services/management/${createdService.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect(({ body }: { body: { id: string } }) => {
+        expect(body.id).toBe(createdService.id);
+      });
+
+    const updateServiceResponse = await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${ownerMembership.barbershop.id}/services/${createdService.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ durationMinutes: 45, isActive: false, price: '500.25' })
+      .expect(200);
+
+    expect(updateServiceResponse.body).toMatchObject({
+      durationMinutes: 45,
+      isActive: false,
+    });
+    expect(Number((updateServiceResponse.body as { price: string }).price)).toBe(500.25);
+
     const searchResponse = await request(app.getHttpServer())
       .get('/barbershops?search=discovery')
       .expect(200);
@@ -200,6 +246,9 @@ describe('Authentication flow (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prisma.service.deleteMany({
+      where: { barbershop: { slug: barbershopSlug } },
+    });
     await prisma.businessMember.deleteMany({
       where: { barbershop: { slug: barbershopSlug } },
     });

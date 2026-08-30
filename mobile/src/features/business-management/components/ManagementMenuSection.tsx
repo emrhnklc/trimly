@@ -1,5 +1,5 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
@@ -9,6 +9,7 @@ export type ManagementMenuItem = {
   description: string;
   icon: SymbolViewProps['name'];
   id: string;
+  onPress?: () => void;
   title: string;
   value: string;
 };
@@ -16,10 +17,18 @@ export type ManagementMenuItem = {
 export function ManagementMenuSection({ items }: { items: ManagementMenuItem[] }) {
   return (
     <View style={styles.container}>
-      {items.map((item, index) => (
-        <View
+      {items.map((item, index) => {
+        return (
+        <Pressable
+          accessibilityRole={item.onPress ? 'button' : undefined}
+          disabled={!item.onPress}
           key={item.id}
-          style={[styles.row, index < items.length - 1 && styles.rowBorder]}>
+          onPress={item.onPress}
+          style={({ pressed }) => [
+            styles.row,
+            index < items.length - 1 && styles.rowBorder,
+            pressed && styles.pressed,
+          ]}>
           <View style={styles.iconShell}>
             <SymbolView name={item.icon} size={19} tintColor={colors.primary} />
           </View>
@@ -34,8 +43,16 @@ export function ManagementMenuSection({ items }: { items: ManagementMenuItem[] }
               {item.description}
             </AppText>
           </View>
-        </View>
-      ))}
+          {item.onPress ? (
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={16}
+              tintColor={colors.textMuted}
+            />
+          ) : null}
+        </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -63,4 +80,5 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 13, lineHeight: 18 },
   value: { fontSize: 10, lineHeight: 14, marginLeft: spacing.xs, maxWidth: 130 },
   description: { fontSize: 10, lineHeight: 14, marginTop: 2 },
+  pressed: { opacity: 0.68 },
 });

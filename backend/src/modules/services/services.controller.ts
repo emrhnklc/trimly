@@ -33,6 +33,16 @@ export class ServicesController {
     return this.servicesService.findAllForManagement(barbershopId);
   }
 
+  @Get('management/:serviceId')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  findOneForManagement(
+    @Param('barbershopId') barbershopId: string,
+    @Param('serviceId') serviceId: string,
+  ) {
+    return this.servicesService.findOneForManagement(barbershopId, serviceId);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, BusinessRolesGuard)
   @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)

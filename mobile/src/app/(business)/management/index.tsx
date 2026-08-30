@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -54,6 +54,7 @@ function formatNotice(minutes: number) {
 }
 
 export default function BusinessManagementScreen() {
+  const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
   const [data, setData] = useState<ManagementData | null>(null);
@@ -111,6 +112,7 @@ export default function BusinessManagementScreen() {
         description: 'Fiyat, süre ve aktiflik durumlarını yönet',
         icon: { ios: 'scissors', android: 'content_cut', web: 'content_cut' },
         id: 'services',
+        onPress: () => router.push('/management/services'),
         title: 'Hizmetler',
         value: `${activeServices.length} aktif`,
       },
@@ -152,7 +154,7 @@ export default function BusinessManagementScreen() {
     ];
 
     return { activeMembers, activeServices, menuItems };
-  }, [data]);
+  }, [data, router]);
 
   if (!activeMembership) return null;
 

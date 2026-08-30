@@ -9,6 +9,17 @@ export type ManagementService = {
   updatedAt: string;
 };
 
+export type CreateManagementServiceInput = {
+  name: string;
+  description?: string;
+  durationMinutes: number;
+  price: string;
+};
+
+export type UpdateManagementServiceInput = Partial<CreateManagementServiceInput> & {
+  isActive?: boolean;
+};
+
 export type DailyBusinessSummary = {
   date: string;
   timezone: string;
