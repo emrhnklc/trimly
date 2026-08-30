@@ -40,7 +40,7 @@ export default function NewManagementServiceScreen() {
         },
         token,
       );
-      router.back();
+      router.dismissTo('/management/services');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Hizmet oluşturulamadı.');
     } finally {
@@ -58,7 +58,7 @@ export default function NewManagementServiceScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <BusinessDetailHeader
-            onBack={() => router.back()}
+            onBack={() => router.dismissTo('/management/services')}
             title="Yeni Hizmet"
           />
           <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">

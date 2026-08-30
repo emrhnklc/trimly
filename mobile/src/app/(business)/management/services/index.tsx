@@ -79,7 +79,7 @@ export default function ManagementServicesScreen() {
               actionIcon={{ ios: 'plus', android: 'add', web: 'add' }}
               actionLabel="Yeni hizmet ekle"
               onAction={() => router.push('/management/services/new')}
-              onBack={() => router.back()}
+              onBack={() => router.dismissTo('/management')}
               title="Hizmetler"
             />
             <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">

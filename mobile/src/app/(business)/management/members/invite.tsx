@@ -58,7 +58,10 @@ export default function InviteBusinessMemberScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <BusinessDetailHeader onBack={() => router.back()} title="Çalışan Daveti" />
+        <BusinessDetailHeader
+          onBack={() => router.dismissTo('/management/members')}
+          title="Çalışan Daveti"
+        />
         <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
           Tek kullanımlık bağlantı oluştur ve çalışanınla güvenli biçimde paylaş.
         </AppText>

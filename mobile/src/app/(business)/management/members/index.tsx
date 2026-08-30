@@ -79,7 +79,7 @@ export default function ManagementMembersScreen() {
               actionIcon={{ ios: 'person.badge.plus', android: 'person_add', web: 'person_add' }}
               actionLabel="Çalışan davet et"
               onAction={() => router.push('/management/members/invite')}
-              onBack={() => router.back()}
+              onBack={() => router.dismissTo('/management')}
               title="Çalışanlar"
             />
             <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">

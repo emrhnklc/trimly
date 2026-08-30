@@ -109,7 +109,7 @@ export default function EditBusinessMemberScreen() {
           ),
       ];
       await Promise.all(serviceUpdates);
-      router.back();
+      router.dismissTo('/management/members');
     } catch (reason) {
       setSubmitError(reason instanceof Error ? reason.message : 'Çalışan güncellenemedi.');
     } finally {
@@ -120,7 +120,10 @@ export default function EditBusinessMemberScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <BusinessDetailHeader onBack={() => router.back()} title="Çalışanı Düzenle" />
+        <BusinessDetailHeader
+          onBack={() => router.dismissTo('/management/members')}
+          title="Çalışanı Düzenle"
+        />
         <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
           Rol, erişim ve hizmet yetkinliklerini güvenli biçimde güncelle.
         </AppText>

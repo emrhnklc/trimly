@@ -79,7 +79,7 @@ export default function EditManagementServiceScreen() {
         },
         token,
       );
-      router.back();
+      router.dismissTo('/management/services');
     } catch (reason) {
       setSubmitError(reason instanceof Error ? reason.message : 'Hizmet güncellenemedi.');
     } finally {
@@ -96,7 +96,10 @@ export default function EditManagementServiceScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
-          <BusinessDetailHeader onBack={() => router.back()} title="Hizmeti Düzenle" />
+          <BusinessDetailHeader
+            onBack={() => router.dismissTo('/management/services')}
+            title="Hizmeti Düzenle"
+          />
           <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
             Değişiklikler yeni randevulara uygulanır; geçmiş kayıtlar korunur.
           </AppText>
