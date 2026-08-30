@@ -1,48 +1,83 @@
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
-export function EmployeeSchedulesCard({ onPress }: { onPress: () => void }) {
+function ScheduleShortcut({
+  description,
+  icon,
+  onPress,
+  title,
+}: {
+  description: string;
+  icon: SymbolViewProps['name'];
+  onPress: () => void;
+  title: string;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
       <View style={styles.iconShell}>
-        <SymbolView
-          name={{ ios: 'person.2', android: 'groups', web: 'groups' }}
-          size={22}
-          tintColor={colors.primary}
-        />
+        <SymbolView name={icon} size={22} tintColor={colors.primary} />
       </View>
       <View style={styles.copy}>
-        <AppText variant="label">Çalışan vardiyaları</AppText>
+        <AppText style={styles.title} variant="label">{title}</AppText>
         <AppText color="textMuted" style={styles.description} variant="bodySmall">
-          Her çalışanın gün ve saatlerini ayrı düzenle
+          {description}
         </AppText>
       </View>
-      <SymbolView
-        name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-        size={18}
-        tintColor={colors.textMuted}
-      />
+      <View style={styles.chevron}>
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={16}
+          tintColor={colors.textMuted}
+        />
+      </View>
     </Pressable>
   );
 }
 
+export function EmployeeSchedulesCard({
+  onPress,
+  onTimeOffPress,
+}: {
+  onPress: () => void;
+  onTimeOffPress: () => void;
+}) {
+  return (
+    <View style={styles.row}>
+      <ScheduleShortcut
+        description="Haftalık çalışma planları"
+        icon={{ ios: 'person.2', android: 'groups', web: 'groups' }}
+        onPress={onPress}
+        title="Çalışan vardiyaları"
+      />
+      <ScheduleShortcut
+        description="Mola, izin ve tatil günleri"
+        icon={{ ios: 'calendar.badge.minus', android: 'event_busy', web: 'event_busy' }}
+        onPress={onTimeOffPress}
+        title="İzinler"
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   card: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
-    flexDirection: 'row',
-    marginTop: spacing.sm,
+    flex: 1,
+    minHeight: 166,
     padding: spacing.md,
+    position: 'relative',
   },
   iconShell: {
     alignItems: 'center',
@@ -52,7 +87,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
-  copy: { flex: 1, marginHorizontal: spacing.sm },
-  description: { marginTop: 2 },
+  copy: { flex: 1, marginTop: spacing.sm, paddingRight: spacing.sm },
+  title: { fontSize: 14, lineHeight: 19 },
+  description: { marginTop: spacing.xxs },
+  chevron: { position: 'absolute', right: spacing.md, top: spacing.md },
   pressed: { opacity: 0.68 },
 });

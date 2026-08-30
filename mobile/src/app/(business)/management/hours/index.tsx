@@ -191,6 +191,7 @@ export default function BusinessWorkingHoursScreen() {
             />
             <EmployeeSchedulesCard
               onPress={() => router.push('/management/hours/members')}
+              onTimeOffPress={() => router.push('/management/hours/blocks')}
             />
 
             <View style={styles.sectionHeading}>

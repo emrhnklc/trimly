@@ -70,7 +70,7 @@ function DateTimeField({
 
 export default function NewEmployeeScheduleBlockScreen() {
   const router = useRouter();
-  const { memberId } = useLocalSearchParams<{ memberId: string }>();
+  const { memberId, source } = useLocalSearchParams<{ memberId: string; source?: string }>();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
   const timeZone = activeMembership?.barbershop.timezone ?? 'Europe/Istanbul';
@@ -107,7 +107,7 @@ export default function NewEmployeeScheduleBlockScreen() {
   function goBack() {
     router.dismissTo({
       pathname: '/management/hours/blocks/[memberId]',
-      params: { memberId },
+      params: { memberId, ...(source === 'team' ? { source } : {}) },
     });
   }
 

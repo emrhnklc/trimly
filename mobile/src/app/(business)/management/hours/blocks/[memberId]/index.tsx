@@ -30,7 +30,7 @@ import { radius, spacing } from '@/theme/spacing';
 
 export default function EmployeeScheduleBlocksScreen() {
   const router = useRouter();
-  const { memberId } = useLocalSearchParams<{ memberId: string }>();
+  const { memberId, source } = useLocalSearchParams<{ memberId: string; source?: string }>();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
   const [member, setMember] = useState<BusinessMember | null>(null);
@@ -140,15 +140,19 @@ export default function EmployeeScheduleBlocksScreen() {
           onAction={() =>
             router.push({
               pathname: '/management/hours/blocks/[memberId]/new',
-              params: { memberId },
+              params: { memberId, ...(source === 'team' ? { source } : {}) },
             })
           }
-          onBack={() =>
+          onBack={() => {
+            if (source === 'team') {
+              router.dismissTo('/management/hours/blocks');
+              return;
+            }
             router.dismissTo({
               pathname: '/management/hours/members/[memberId]',
               params: { memberId },
-            })
-          }
+            });
+          }}
           title="Mola ve İzinler"
         />
         <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
