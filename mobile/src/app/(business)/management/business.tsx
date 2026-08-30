@@ -212,9 +212,6 @@ export default function BusinessSettingsScreen() {
 
               <View style={styles.sectionHeading}>
                 <AppText style={styles.sectionTitle} variant="heading">Profil bilgileri</AppText>
-                <AppText color="textMuted" variant="bodySmall">
-                  Bu bilgiler işletme profilinde müşterilere gösterilir.
-                </AppText>
               </View>
               <AppCard style={styles.formCard}>
                 <BusinessSettingsField
@@ -239,9 +236,6 @@ export default function BusinessSettingsScreen() {
 
               <View style={styles.sectionHeading}>
                 <AppText style={styles.sectionTitle} variant="heading">İletişim ve konum</AppText>
-                <AppText color="textMuted" variant="bodySmall">
-                  Adres arama sonuçlarında da kullanılır.
-                </AppText>
               </View>
               <AppCard style={styles.formCard}>
                 <BusinessSettingsField
@@ -267,31 +261,30 @@ export default function BusinessSettingsScreen() {
 
               <View style={styles.sectionHeading}>
                 <AppText style={styles.sectionTitle} variant="heading">Profil görselleri</AppText>
-                <AppText color="textMuted" variant="bodySmall">
-                  Şimdilik HTTPS görsel bağlantısı kullanıyoruz.
-                </AppText>
               </View>
               <AppCard style={styles.formCard}>
                 <BusinessSettingsField
                   autoCapitalize="none"
                   autoCorrect={false}
+                  horizontal
                   icon={{ ios: 'person.crop.square', android: 'account_box', web: 'account_box' }}
                   keyboardType="url"
                   label="Profil fotoğrafı"
                   maxLength={2048}
                   onChangeText={(value) => updateProfile({ profileImageUrl: value })}
-                  placeholder="https://..."
+                  placeholder="Fotoğraf bağlantısı"
                   value={profile.profileImageUrl}
                 />
                 <BusinessSettingsField
                   autoCapitalize="none"
                   autoCorrect={false}
+                  horizontal
                   icon={{ ios: 'photo.on.rectangle', android: 'image', web: 'image' }}
                   keyboardType="url"
                   label="Kapak fotoğrafı"
                   maxLength={2048}
                   onChangeText={(value) => updateProfile({ coverImageUrl: value })}
-                  placeholder="https://..."
+                  placeholder="Fotoğraf bağlantısı"
                   value={profile.coverImageUrl}
                 />
               </AppCard>
@@ -351,12 +344,12 @@ export default function BusinessSettingsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
+  content: { paddingBottom: 116, paddingHorizontal: spacing.md },
   subtitle: { marginTop: spacing.xs, textAlign: 'center' },
   loader: { marginTop: spacing.xxxl },
-  sectionHeading: { marginBottom: spacing.sm, marginTop: spacing.xl },
-  sectionTitle: { fontSize: 18, lineHeight: 24, marginBottom: 2 },
-  formCard: { paddingTop: 0 },
+  sectionHeading: { marginBottom: spacing.xs, marginTop: spacing.md },
+  sectionTitle: { fontSize: 16, lineHeight: 22 },
+  formCard: { paddingBottom: spacing.sm, paddingTop: 0 },
   identityCard: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,

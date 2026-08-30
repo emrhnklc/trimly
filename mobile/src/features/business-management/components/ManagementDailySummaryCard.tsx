@@ -1,4 +1,4 @@
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -12,9 +12,16 @@ export function ManagementDailySummaryCard({ summary }: { summary: DailyBusiness
     <View style={styles.card}>
       <View style={styles.header}>
         <View>
-          <AppText color="onPrimary" style={styles.overline} variant="overline">
-            BUGÜNÜN ÖZETİ
-          </AppText>
+          <View style={styles.titleRow}>
+            <SymbolView
+              name={{ ios: 'line.3.horizontal', android: 'menu', web: 'menu' }}
+              size={13}
+              tintColor="#D8B960"
+            />
+            <AppText color="onPrimary" style={styles.overline} variant="overline">
+              BUGÜNÜN ÖZETİ
+            </AppText>
+          </View>
           <AppText color="onPrimary" style={styles.revenue} variant="displayMedium">
             {formatTurkishPrice(summary.completedRevenue)}
           </AppText>
@@ -33,20 +40,58 @@ export function ManagementDailySummaryCard({ summary }: { summary: DailyBusiness
 
       <View style={styles.divider} />
       <View style={styles.stats}>
-        <SummaryStat label="Toplam" value={summary.total} />
-        <SummaryStat label="Aktif" value={summary.confirmed + summary.arrived} />
-        <SummaryStat label="Tamamlandı" value={summary.completed} />
-        <SummaryStat label="İptal" value={summary.cancelled} />
+        <SummaryStat
+          icon={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }}
+          label={'Toplam\nrandevu'}
+          value={summary.total}
+        />
+        <SummaryStat
+          divided
+          icon={{ ios: 'person', android: 'person', web: 'person' }}
+          label={'Aktif\nrandevu'}
+          value={summary.confirmed + summary.arrived}
+        />
+        <SummaryStat
+          divided
+          icon={{ ios: 'checkmark.circle', android: 'check_circle', web: 'check_circle' }}
+          label="Tamamlanan"
+          value={summary.completed}
+        />
+        <SummaryStat
+          divided
+          icon={{ ios: 'xmark.circle', android: 'cancel', web: 'cancel' }}
+          label={'İptal\nedilen'}
+          value={summary.cancelled}
+        />
       </View>
     </View>
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: number }) {
+function SummaryStat({
+  divided = false,
+  icon,
+  label,
+  value,
+}: {
+  divided?: boolean;
+  icon: SymbolViewProps['name'];
+  label: string;
+  value: number;
+}) {
   return (
-    <View style={styles.stat}>
+    <View style={[styles.stat, divided && styles.statDivided]}>
+      <SymbolView name={icon} size={20} tintColor="#D8B960" />
       <AppText color="onPrimary" style={styles.statValue} variant="label">{value}</AppText>
-      <AppText color="onPrimary" style={styles.statLabel} variant="bodySmall">{label}</AppText>
+      <AppText
+        adjustsFontSizeToFit
+        color="onPrimary"
+        minimumFontScale={0.75}
+        numberOfLines={2}
+        style={styles.statLabel}
+        variant="bodySmall">
+        {label}
+      </AppText>
     </View>
   );
 }
@@ -60,9 +105,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  overline: { color: '#DFC78E', fontSize: 9, lineHeight: 13 },
-  revenue: { fontSize: 30, lineHeight: 37, marginTop: spacing.xxs },
-  revenueLabel: { color: '#DDD3C9', fontSize: 10, lineHeight: 14, marginTop: 2 },
+  titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
+  overline: { color: '#DFC78E', fontSize: 12, lineHeight: 16 },
+  revenue: { fontSize: 31, lineHeight: 38, marginTop: spacing.xs },
+  revenueLabel: { color: '#DDD3C9', fontSize: 12, lineHeight: 17, marginTop: 1 },
   iconShell: {
     alignItems: 'center',
     backgroundColor: '#F4E7C8',
@@ -71,9 +117,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 52,
   },
-  divider: { backgroundColor: '#594C43', height: 1, marginVertical: spacing.md },
+  divider: { backgroundColor: '#66584E', height: 1, marginVertical: spacing.md },
   stats: { flexDirection: 'row' },
-  stat: { alignItems: 'center', flex: 1 },
-  statValue: { fontSize: 14, lineHeight: 19 },
-  statLabel: { color: '#CFC5BC', fontSize: 8, lineHeight: 12, marginTop: 2 },
+  stat: { alignItems: 'center', flex: 1, minHeight: 86, paddingHorizontal: spacing.xxs },
+  statDivided: { borderLeftColor: '#66584E', borderLeftWidth: 1 },
+  statValue: { fontSize: 17, lineHeight: 22, marginTop: spacing.xxs },
+  statLabel: { color: '#DED6CE', fontSize: 12, lineHeight: 16, marginTop: 1, textAlign: 'center' },
 });

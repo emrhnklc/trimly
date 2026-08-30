@@ -7,6 +7,7 @@ import { radius, spacing } from '@/theme/spacing';
 
 export function BusinessSettingsField({
   helper,
+  horizontal = false,
   icon,
   label,
   multiline,
@@ -14,9 +15,28 @@ export function BusinessSettingsField({
   ...props
 }: TextInputProps & {
   helper?: string;
+  horizontal?: boolean;
   icon: SymbolViewProps['name'];
   label: string;
 }) {
+  if (horizontal) {
+    return (
+      <View style={styles.horizontalField}>
+        <AppText style={styles.horizontalLabel} variant="label">{label}</AppText>
+        <View style={[styles.inputShell, styles.horizontalInputShell]}>
+          <SymbolView name={icon} size={18} tintColor={colors.text} />
+          <TextInput
+            multiline={multiline}
+            placeholderTextColor={colors.textMuted}
+            selectionColor={colors.primary}
+            style={[styles.input, styles.horizontalInput, style]}
+            {...props}
+          />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.field}>
       <AppText variant="label">{label}</AppText>
@@ -38,7 +58,7 @@ export function BusinessSettingsField({
 }
 
 const styles = StyleSheet.create({
-  field: { marginTop: spacing.md },
+  field: { marginTop: spacing.sm },
   helper: { marginTop: 2 },
   inputShell: {
     alignItems: 'center',
@@ -48,17 +68,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     marginTop: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   multilineShell: { alignItems: 'flex-start', paddingTop: spacing.md },
   input: {
     color: colors.text,
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    minHeight: 52,
+    fontSize: 14,
+    minHeight: 46,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  multilineInput: { minHeight: 96, paddingTop: 0, textAlignVertical: 'top' },
+  multilineInput: { minHeight: 72, paddingTop: 0, textAlignVertical: 'top' },
+  horizontalField: { alignItems: 'center', flexDirection: 'row', paddingVertical: spacing.xs },
+  horizontalLabel: { fontSize: 12, lineHeight: 16, width: 108 },
+  horizontalInputShell: { flex: 1, marginTop: 0 },
+  horizontalInput: { minHeight: 42 },
 });

@@ -230,7 +230,7 @@ export default function BusinessManagementScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
+  content: { paddingBottom: 116, paddingHorizontal: spacing.md },
   loader: { marginTop: spacing.xxxl },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   sectionTitle: { fontSize: 18, lineHeight: 24, marginTop: spacing.xl },

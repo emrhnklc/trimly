@@ -53,7 +53,7 @@ export function BusinessProfilePreview({
           )}
         </View>
         <View style={styles.copy}>
-          <AppText numberOfLines={1} style={styles.name} variant="heading">
+          <AppText numberOfLines={2} style={styles.name} variant="heading">
             {name.trim() || 'İşletme adı'}
           </AppText>
           <AppText color="textMuted" numberOfLines={1} variant="bodySmall">
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.darkSurface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    height: 156,
+    height: 112,
     overflow: 'hidden',
   },
   fill: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
@@ -91,25 +91,25 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 94,
-    paddingLeft: 104,
+    minHeight: 78,
+    paddingLeft: 91,
     paddingRight: spacing.sm,
   },
   avatarFrame: {
     backgroundColor: colors.surface,
     borderRadius: radius.pill,
-    height: 82,
+    height: 70,
     left: spacing.md,
     padding: 4,
     position: 'absolute',
-    top: -28,
-    width: 82,
+    top: -24,
+    width: 70,
   },
   avatar: { borderRadius: radius.pill, height: '100%', width: '100%' },
   avatarPlaceholder: { alignItems: 'center', backgroundColor: colors.surfaceMuted, justifyContent: 'center' },
-  initial: { fontSize: 28, lineHeight: 34 },
+  initial: { fontSize: 24, lineHeight: 30 },
   copy: { flex: 1, paddingRight: spacing.xs },
-  name: { fontSize: 17, lineHeight: 23 },
+  name: { fontSize: 15, lineHeight: 20 },
   badge: {
     backgroundColor: '#FBF3DE',
     borderRadius: radius.pill,
