@@ -29,6 +29,15 @@ export class BusinessMembersController {
     return this.membersService.findByBarbershop(barbershopId);
   }
 
+  @Get(':memberId')
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  findOneByBarbershop(
+    @Param('barbershopId') barbershopId: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.membersService.findOneByBarbershop(barbershopId, memberId);
+  }
+
   @Patch(':memberId')
   @Roles(BusinessRole.OWNER)
   updateMember(

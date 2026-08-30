@@ -1,9 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { BusinessRole } from '@prisma/client';
 
 export class CreateInvitationDto {
-  @IsEnum(BusinessRole)
+  @IsIn([
+    BusinessRole.MANAGER,
+    BusinessRole.BARBER,
+    BusinessRole.APPRENTICE,
+  ])
   role: BusinessRole;
 
   @IsOptional()

@@ -120,6 +120,7 @@ export default function BusinessManagementScreen() {
         description: `${bookableMembers.length} çalışan randevuya açık`,
         icon: { ios: 'person.2', android: 'group', web: 'group' },
         id: 'members',
+        onPress: () => router.push('/management/members'),
         title: 'Çalışanlar',
         value: `${activeMembers.length} kişi`,
       },

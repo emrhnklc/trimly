@@ -18,6 +18,12 @@ export class MembersService {
     createdByUserId: string,
     dto: CreateInvitationDto,
   ) {
+    if (dto.role === 'OWNER') {
+      throw new BadRequestException(
+        'Owner rolü davet bağlantısıyla verilemez.',
+      );
+    }
+
     const creatorMembership = await this.prisma.businessMember.findUnique({
       where: {
         userId_barbershopId: {
@@ -53,7 +59,7 @@ export class MembersService {
 
     return {
       ...invitation,
-      inviteUrl: `trimly.app/join/${token}`,
+      inviteUrl: `https://trimly.app/join/${token}`,
     };
   }
 
@@ -71,6 +77,12 @@ export class MembersService {
 
       if (invitation.revokedAt || invitation.usedAt) {
         throw new BadRequestException('Bu davet artık kullanılamaz.');
+      }
+
+      if (invitation.role === 'OWNER') {
+        throw new BadRequestException(
+          'Owner rolü davet bağlantısıyla verilemez.',
+        );
       }
 
       if (invitation.expiresAt <= new Date()) {
@@ -151,8 +163,59 @@ export class MembersService {
             profileImageUrl: true,
           },
         },
+        serviceAssignments: {
+          select: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                durationMinutes: true,
+                isActive: true,
+              },
+            },
+          },
+        },
       },
     });
+  }
+
+  async findOneByBarbershop(barbershopId: string, memberId: string) {
+    const member = await this.prisma.businessMember.findFirst({
+      where: { id: memberId, barbershopId },
+      select: {
+        id: true,
+        role: true,
+        isActive: true,
+        isBookable: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profileImageUrl: true,
+          },
+        },
+        serviceAssignments: {
+          select: {
+            service: {
+              select: {
+                id: true,
+                name: true,
+                durationMinutes: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Çalışan bu işletmeye ait değil.');
+    }
+
+    return member;
   }
 
   findPublicBarbers(barbershopId: string) {
@@ -187,7 +250,7 @@ export class MembersService {
   ) {
     const member = await this.prisma.businessMember.findFirst({
       where: { id: memberId, barbershopId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, role: true },
     });
 
     if (!member) {
@@ -197,6 +260,12 @@ export class MembersService {
     if (isBookable && !member.isActive) {
       throw new BadRequestException(
         'Pasif bir çalışan randevu alınabilir yapılamaz.',
+      );
+    }
+
+    if (isBookable && member.role === 'APPRENTICE') {
+      throw new BadRequestException(
+        'Çırak rolündeki çalışan randevuya açılamaz.',
       );
     }
 
@@ -233,6 +302,7 @@ export class MembersService {
         ...(dto.role !== undefined && { role: dto.role }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         ...(dto.isActive === false && { isBookable: false }),
+        ...(dto.role === 'APPRENTICE' && { isBookable: false }),
       },
       select: { id: true, role: true, isActive: true, isBookable: true },
     });

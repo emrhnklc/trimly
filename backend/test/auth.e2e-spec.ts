@@ -44,6 +44,10 @@ type PublicBarbershopBody = {
   name: string;
 };
 
+type BusinessMemberBody = {
+  serviceAssignments: { service: { id: string } }[];
+};
+
 function asAuthResponseBody(body: unknown): AuthResponseBody {
   return body as AuthResponseBody;
 }
@@ -61,6 +65,7 @@ describe('Authentication flow (e2e)', () => {
   let prisma: PrismaService;
   let accessToken: string;
   const email = `e2e-${randomUUID()}@trimly.test`;
+  const employeeEmail = `e2e-employee-${randomUUID()}@trimly.test`;
   const barbershopSlug = `e2e-${randomUUID()}`;
   const password = 'very-safe-test-password';
 
@@ -224,6 +229,98 @@ describe('Authentication flow (e2e)', () => {
     });
     expect(Number((updateServiceResponse.body as { price: string }).price)).toBe(500.25);
 
+    await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/invitations`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'OWNER', expiresInHours: 24 })
+      .expect(400);
+
+    const invitationResponse = await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/invitations`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'APPRENTICE', expiresInHours: 24 })
+      .expect(201);
+    const invitation = invitationResponse.body as { inviteUrl: string };
+    expect(invitation.inviteUrl).toMatch(/^https:\/\/trimly\.app\/join\//);
+
+    const employeeResponse = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: employeeEmail,
+        password,
+        firstName: 'Employee',
+        lastName: 'Test',
+      })
+      .expect(201);
+    const employee = asAuthResponseBody(employeeResponse.body);
+    const invitationToken = invitation.inviteUrl.split('/').at(-1);
+    const acceptedResponse = await request(app.getHttpServer())
+      .post(`/invitations/${invitationToken}/accept`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .send({})
+      .expect(201);
+    const employeeMembership = acceptedResponse.body as {
+      id: string;
+      role: string;
+      isBookable: boolean;
+    };
+    expect(employeeMembership).toMatchObject({ role: 'APPRENTICE', isBookable: false });
+
+    await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'BARBER', isActive: true })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/bookable`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ isBookable: true })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/services/${createdService.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({})
+      .expect(200);
+
+    const memberResponse = await request(app.getHttpServer())
+      .get(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    expect(memberResponse.body).toMatchObject({ role: 'BARBER', isBookable: true });
+    expect(
+      (memberResponse.body as BusinessMemberBody).serviceAssignments[0].service.id,
+    ).toBe(createdService.id);
+
+    const apprenticeResponse = await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ role: 'APPRENTICE' })
+      .expect(200);
+    expect(apprenticeResponse.body).toMatchObject({
+      role: 'APPRENTICE',
+      isBookable: false,
+    });
+
+    await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/bookable`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ isBookable: true })
+      .expect(400);
+
     const searchResponse = await request(app.getHttpServer())
       .get('/barbershops?search=discovery')
       .expect(200);
@@ -246,6 +343,9 @@ describe('Authentication flow (e2e)', () => {
   });
 
   afterAll(async () => {
+    await prisma.businessInvitation.deleteMany({
+      where: { barbershop: { slug: barbershopSlug } },
+    });
     await prisma.service.deleteMany({
       where: { barbershop: { slug: barbershopSlug } },
     });
@@ -253,7 +353,7 @@ describe('Authentication flow (e2e)', () => {
       where: { barbershop: { slug: barbershopSlug } },
     });
     await prisma.barbershop.deleteMany({ where: { slug: barbershopSlug } });
-    await prisma.user.deleteMany({ where: { email } });
+    await prisma.user.deleteMany({ where: { email: { in: [email, employeeEmail] } } });
     await app.close();
   });
 });
