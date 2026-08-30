@@ -283,6 +283,43 @@ describe('Authentication flow (e2e)', () => {
       .expect(200);
 
     await request(app.getHttpServer())
+      .put(`/barbershops/${ownerMembership.barbershop.id}/working-hours`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        hours: [
+          { weekday: 'MONDAY', startTime: '09:00', endTime: '19:00' },
+        ],
+      })
+      .expect(200);
+
+    const memberHoursResponse = await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/working-hours/members/${employeeMembership.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        hours: [
+          { weekday: 'MONDAY', startTime: '10:00', endTime: '18:00' },
+        ],
+      })
+      .expect(200);
+    expect(memberHoursResponse.body).toEqual([
+      { weekday: 'MONDAY', startTime: '10:00', endTime: '18:00' },
+    ]);
+
+    await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/working-hours/members/${employeeMembership.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        hours: [
+          { weekday: 'MONDAY', startTime: '08:00', endTime: '18:00' },
+        ],
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
       .put(
         `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/services/${createdService.id}`,
       )
@@ -350,6 +387,9 @@ describe('Authentication flow (e2e)', () => {
       where: { barbershop: { slug: barbershopSlug } },
     });
     await prisma.businessMember.deleteMany({
+      where: { barbershop: { slug: barbershopSlug } },
+    });
+    await prisma.workingHours.deleteMany({
       where: { barbershop: { slug: barbershopSlug } },
     });
     await prisma.barbershop.deleteMany({ where: { slug: barbershopSlug } });

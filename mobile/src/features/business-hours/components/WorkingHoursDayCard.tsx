@@ -7,27 +7,32 @@ import { radius, spacing } from '@/theme/spacing';
 import type { WorkingDayDraft } from '../types';
 
 export function WorkingHoursDayCard({
+  closedLabel = 'Randevuya kapalı',
   day,
+  disabled = false,
   label,
   onChangeTime,
   onToggle,
 }: {
+  closedLabel?: string;
   day: WorkingDayDraft;
+  disabled?: boolean;
   label: string;
   onChangeTime: (field: 'startTime' | 'endTime') => void;
   onToggle: (isOpen: boolean) => void;
 }) {
   return (
-    <View style={[styles.card, day.isOpen && styles.cardOpen]}>
+    <View style={[styles.card, day.isOpen && styles.cardOpen, disabled && styles.disabled]}>
       <View style={styles.topRow}>
         <View style={styles.dayCopy}>
           <AppText style={styles.dayLabel} variant="label">{label}</AppText>
           <AppText color={day.isOpen ? 'primary' : 'textMuted'} variant="bodySmall">
-            {day.isOpen ? `${day.startTime} – ${day.endTime}` : 'Randevuya kapalı'}
+            {day.isOpen ? `${day.startTime} – ${day.endTime}` : closedLabel}
           </AppText>
         </View>
         <Switch
           accessibilityLabel={`${label} gününü ${day.isOpen ? 'kapat' : 'aç'}`}
+          disabled={disabled}
           ios_backgroundColor={colors.border}
           onValueChange={onToggle}
           thumbColor={colors.surface}
@@ -38,24 +43,45 @@ export function WorkingHoursDayCard({
 
       {day.isOpen ? (
         <View style={styles.timeRow}>
-          <TimeButton label="Açılış" onPress={() => onChangeTime('startTime')} value={day.startTime} />
+          <TimeButton
+            disabled={disabled}
+            label="Açılış"
+            onPress={() => onChangeTime('startTime')}
+            value={day.startTime}
+          />
           <SymbolView
             name={{ ios: 'arrow.right', android: 'arrow_forward', web: 'arrow_forward' }}
             size={17}
             tintColor={colors.textMuted}
           />
-          <TimeButton label="Kapanış" onPress={() => onChangeTime('endTime')} value={day.endTime} />
+          <TimeButton
+            disabled={disabled}
+            label="Kapanış"
+            onPress={() => onChangeTime('endTime')}
+            value={day.endTime}
+          />
         </View>
       ) : null}
     </View>
   );
 }
 
-function TimeButton({ label, onPress, value }: { label: string; onPress: () => void; value: string }) {
+function TimeButton({
+  disabled,
+  label,
+  onPress,
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+  value: string;
+}) {
   return (
     <Pressable
       accessibilityLabel={`${label} saati ${value}`}
       accessibilityRole="button"
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [styles.timeButton, pressed && styles.pressed]}>
       <AppText color="textMuted" variant="bodySmall">{label}</AppText>
@@ -74,6 +100,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   cardOpen: { borderColor: '#DCC796' },
+  disabled: { opacity: 0.58 },
   topRow: { alignItems: 'center', flexDirection: 'row' },
   dayCopy: { flex: 1 },
   dayLabel: { fontSize: 15, lineHeight: 20, marginBottom: 2 },

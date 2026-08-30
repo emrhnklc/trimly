@@ -13,6 +13,7 @@ import {
   weekdayOptions,
 } from '@/features/business-hours/constants';
 import { TimePickerModal } from '@/features/business-hours/components/TimePickerModal';
+import { EmployeeSchedulesCard } from '@/features/business-hours/components/EmployeeSchedulesCard';
 import { WorkingHoursDayCard } from '@/features/business-hours/components/WorkingHoursDayCard';
 import { WorkingHoursSummaryCard } from '@/features/business-hours/components/WorkingHoursSummaryCard';
 import type { WorkingDayDraft } from '@/features/business-hours/types';
@@ -187,6 +188,9 @@ export default function BusinessWorkingHoursScreen() {
             <WorkingHoursSummaryCard
               openDayCount={summary.openDayCount}
               totalMinutes={summary.totalMinutes}
+            />
+            <EmployeeSchedulesCard
+              onPress={() => router.push('/management/hours/members')}
             />
 
             <View style={styles.sectionHeading}>

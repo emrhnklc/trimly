@@ -66,6 +66,10 @@ export class SchedulesService {
   ) {
     await this.ensureMemberBelongsToBarbershop(barbershopId, memberId);
     this.validateWorkingHours(dto.hours);
+    await this.validateMemberHoursAgainstBusinessHours(
+      barbershopId,
+      dto.hours,
+    );
 
     await this.prisma.$transaction([
       this.prisma.memberWorkingHours.deleteMany({
@@ -152,6 +156,42 @@ export class SchedulesService {
       if (this.toMinutes(hour.startTime) >= this.toMinutes(hour.endTime)) {
         throw new BadRequestException(
           'Bitiş saati başlangıç saatinden sonra olmalı.',
+        );
+      }
+    }
+  }
+
+  private async validateMemberHoursAgainstBusinessHours(
+    barbershopId: string,
+    hours: WorkingHoursItemDto[],
+  ) {
+    const businessHours = await this.prisma.workingHours.findMany({
+      where: {
+        barbershopId,
+        weekday: { in: hours.map((hour) => hour.weekday) },
+      },
+      select: { weekday: true, startTime: true, endTime: true },
+    });
+    const businessHoursByWeekday = new Map(
+      businessHours.map((hour) => [hour.weekday, hour]),
+    );
+
+    for (const hour of hours) {
+      const businessDay = businessHoursByWeekday.get(hour.weekday);
+
+      if (!businessDay) {
+        throw new BadRequestException(
+          'İşletmenin kapalı olduğu güne çalışan vardiyası eklenemez.',
+        );
+      }
+
+      if (
+        this.toMinutes(hour.startTime) <
+          this.toMinutes(businessDay.startTime) ||
+        this.toMinutes(hour.endTime) > this.toMinutes(businessDay.endTime)
+      ) {
+        throw new BadRequestException(
+          'Çalışan vardiyası işletmenin açık saatleri içinde olmalı.',
         );
       }
     }
