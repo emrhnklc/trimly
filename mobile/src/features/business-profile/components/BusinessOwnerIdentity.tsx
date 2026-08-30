@@ -70,12 +70,16 @@ export function BusinessOwnerIdentity({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     flexDirection: 'row',
     marginTop: spacing.sm,
     minHeight: 92,
-    paddingVertical: spacing.sm,
+    padding: spacing.sm,
   },
-  avatar: { borderRadius: radius.pill, height: 72, width: 72 },
+  avatar: { borderRadius: radius.pill, height: 66, width: 66 },
   avatarPlaceholder: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,

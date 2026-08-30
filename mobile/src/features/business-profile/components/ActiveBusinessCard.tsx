@@ -47,7 +47,14 @@ export function ActiveBusinessCard({
             </View>
           ) : null}
         </View>
-        <AppText numberOfLines={1} style={styles.name} variant="heading">{name}</AppText>
+        <AppText
+          adjustsFontSizeToFit
+          minimumFontScale={0.78}
+          numberOfLines={1}
+          style={styles.name}
+          variant="heading">
+          {name}
+        </AppText>
         <View style={styles.addressRow}>
           <SymbolView
             name={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }}
@@ -82,7 +89,7 @@ const styles = StyleSheet.create({
     minHeight: 96,
     padding: spacing.sm,
   },
-  logo: { borderRadius: radius.md, height: 68, width: 68 },
+  logo: { borderRadius: radius.md, height: 60, width: 60 },
   logoPlaceholder: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
@@ -105,17 +112,15 @@ const styles = StyleSheet.create({
   dot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 5, marginRight: 4, width: 5 },
   hiddenDot: { backgroundColor: colors.textMuted },
   visibilityText: { fontSize: 7, lineHeight: 9 },
-  name: { fontSize: 16, lineHeight: 22, marginTop: 3 },
+  name: { fontSize: 14, lineHeight: 20, marginTop: 3 },
   addressRow: { alignItems: 'center', flexDirection: 'row', marginTop: 3 },
   address: { flex: 1, fontSize: 10, lineHeight: 14, marginLeft: 4 },
   chevron: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: radius.sm,
-    height: 36,
+    height: 32,
     justifyContent: 'center',
     marginLeft: spacing.xs,
-    width: 32,
+    width: 20,
   },
   pressed: { opacity: 0.68 },
 });

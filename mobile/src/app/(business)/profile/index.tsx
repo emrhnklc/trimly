@@ -8,6 +8,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { getPublicBarbershop } from '@/features/barbershops/api';
 import type { PublicBarbershopDetail } from '@/features/barbershops/types';
 import { ActiveBusinessCard } from '@/features/business-profile/components/ActiveBusinessCard';
+import { BusinessPlusPreviewCard } from '@/features/business-profile/components/BusinessPlusPreviewCard';
 import { BusinessOwnerIdentity } from '@/features/business-profile/components/BusinessOwnerIdentity';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessScreenHeader } from '@/features/business/components/BusinessScreenHeader';
@@ -61,36 +62,35 @@ export default function BusinessProfileScreen() {
     ]);
   }
 
+  function showComingSoon(feature: string) {
+    Alert.alert(`${feature} yakında`, 'Bu özelliği sağlam bir altyapıyla hazırlayıp aktif edeceğiz.');
+  }
+
   const quickActions: ProfileMenuItem[] = [
     {
-      icon: { ios: 'clock', android: 'schedule', web: 'schedule' },
-      id: 'working-hours',
-      label: 'Çalışma Saatleri',
-      onPress: () => router.push('/management/hours'),
+      icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
+      id: 'notifications',
+      label: 'Bildirimler',
+      onPress: () => showComingSoon('Bildirim merkezi'),
     },
     {
-      icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
-      id: 'business-settings',
-      label: 'İşletme Ayarları',
-      onPress: () => router.push('/management/business'),
-    },
-    {
-      icon: { ios: 'calendar.badge.clock', android: 'event_note', web: 'event_note' },
-      id: 'booking-settings',
-      label: 'Randevu Ayarları',
-      onPress: () => router.push('/management/booking'),
-    },
-    {
-      icon: { ios: 'person.2', android: 'group', web: 'group' },
-      id: 'members',
-      label: 'Çalışanlar',
-      onPress: () => router.push('/management/members'),
+      icon: { ios: 'person.badge.plus', android: 'person_add', web: 'person_add' },
+      id: 'referral',
+      label: 'Davet / Referans Kodum',
+      onPress: () => showComingSoon('Berber referans sistemi'),
     },
     {
       badge: 'YAKINDA',
-      icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
-      id: 'notifications',
-      label: 'Bildirim Ayarları',
+      icon: { ios: 'crown', android: 'workspace_premium', web: 'workspace_premium' },
+      id: 'subscription',
+      label: 'Abonelik / Plan',
+      onPress: () => showComingSoon('Trimly Plus'),
+    },
+    {
+      icon: { ios: 'headphones', android: 'support_agent', web: 'support_agent' },
+      id: 'support',
+      label: 'Yardım & Destek',
+      onPress: () => showComingSoon('Yardım ve destek merkezi'),
     },
   ];
 
@@ -99,7 +99,7 @@ export default function BusinessProfileScreen() {
       icon: { ios: 'person.crop.circle', android: 'manage_accounts', web: 'manage_accounts' },
       id: 'account-settings',
       label: 'Hesap Ayarları',
-      onPress: () => router.push('/profile/settings'),
+      onPress: () => router.push('/(business)/profile/settings'),
     },
     {
       badge: memberships.length > 1 ? `${memberships.length} İŞLETME` : undefined,
@@ -129,17 +129,18 @@ export default function BusinessProfileScreen() {
         <BusinessScreenHeader title="Profil" />
         <BusinessOwnerIdentity
           membership={activeMembership}
-          onPress={() => router.push('/profile/settings')}
+          onPress={() => router.push('/(business)/profile/settings')}
           user={user}
         />
         <ActiveBusinessCard
           address={business?.address}
           isDiscoverable={business?.isDiscoverable}
           name={business?.name ?? activeMembership.barbershop.name}
-          onPress={() => router.push('/management/business')}
+          onPress={() => router.push('/(business)/management/business')}
           profileImageUrl={business?.profileImageUrl ?? activeMembership.barbershop.profileImageUrl}
         />
-        <ProfileMenuGroup items={quickActions} title="Hızlı İşlemler" />
+        <ProfileMenuGroup items={quickActions} title="Profil Kısayolları" />
+        <BusinessPlusPreviewCard onPress={() => showComingSoon('Trimly Plus')} />
         <ProfileMenuGroup items={accountActions} title="Hesap & Mod" />
       </ScrollView>
     </Screen>
