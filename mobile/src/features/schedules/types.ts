@@ -12,3 +12,7 @@ export type BusinessWorkingHours = {
   startTime: string;
   endTime: string;
 };
+
+export type UpdateBusinessWorkingHoursInput = {
+  hours: BusinessWorkingHours[];
+};

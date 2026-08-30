@@ -128,6 +128,7 @@ export default function BusinessManagementScreen() {
         description: 'Vardiya, mola ve izin planlarını düzenle',
         icon: { ios: 'clock', android: 'schedule', web: 'schedule' },
         id: 'hours',
+        onPress: () => router.push('/management/hours'),
         title: 'Çalışma Saatleri',
         value: `${data.workingHours.length} gün açık`,
       },
