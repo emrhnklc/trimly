@@ -130,7 +130,9 @@ export class SchedulesService {
           businessMemberId: memberId,
           startsAt: { lt: endsAt },
           endsAt: { gt: startsAt },
-          status: AppointmentStatus.CONFIRMED,
+          status: {
+            in: [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
+          },
         },
         select: { id: true },
       }),

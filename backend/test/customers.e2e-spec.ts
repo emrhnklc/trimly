@@ -190,6 +190,64 @@ describe('Business customers (e2e)', () => {
     expect(customers[0].lastVisitAt).toEqual(expect.any(String));
     expect(customers[0].nextAppointmentAt).toEqual(expect.any(String));
 
+    const arrivalStart = new Date(Date.now() - 5 * 60 * 1000);
+    const arrivalAppointment = await prisma.appointment.create({
+      data: {
+        barbershopId,
+        businessMemberId: barbershop.members[0].id,
+        customerId: customer.user.id,
+        serviceId: service.id,
+        serviceNameSnapshot: service.name,
+        priceSnapshot: service.price,
+        durationMinutes: service.durationMinutes,
+        startsAt: arrivalStart,
+        endsAt: new Date(arrivalStart.getTime() + 30 * 60 * 1000),
+      },
+    });
+
+    await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${barbershopId}/appointments/${arrivalAppointment.id}/arrived`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200)
+      .expect(({ body }: { body: { status: string; arrivedAt: string } }) => {
+        expect(body.status).toBe('ARRIVED');
+        expect(body.arrivedAt).toEqual(expect.any(String));
+      });
+
+    await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${barbershopId}/appointments/${arrivalAppointment.id}/undo-arrival`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200)
+      .expect(({ body }: { body: { status: string; arrivedAt: null } }) => {
+        expect(body.status).toBe('CONFIRMED');
+        expect(body.arrivedAt).toBeNull();
+      });
+
+    await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${barbershopId}/appointments/${arrivalAppointment.id}/arrived`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    await prisma.appointment.update({
+      where: { id: arrivalAppointment.id },
+      data: { autoCompleteAt: new Date(Date.now() - 1000) },
+    });
+
+    const reconciledAppointments = await request(app.getHttpServer())
+      .get(`/barbershops/${barbershopId}/appointments`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(
+      (reconciledAppointments.body as { id: string; status: string }[]).find(
+        (appointment) => appointment.id === arrivalAppointment.id,
+      )?.status,
+    ).toBe('COMPLETED');
+
     await request(app.getHttpServer())
       .get(`/barbershops/${barbershopId}/customers`)
       .expect(401);

@@ -1,4 +1,4 @@
-export type AppointmentStatus = 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+export type AppointmentStatus = 'CONFIRMED' | 'ARRIVED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export type CreateAppointmentInput = {
   memberId: string;
@@ -18,6 +18,8 @@ export type CreatedAppointment = {
   startsAt: string;
   endsAt: string;
   status: AppointmentStatus;
+  arrivedAt?: string | null;
+  autoCompleteAt?: string | null;
 };
 
 export type BusinessAppointment = {
@@ -25,6 +27,9 @@ export type BusinessAppointment = {
   startsAt: string;
   endsAt: string;
   status: AppointmentStatus;
+  arrivedAt: string | null;
+  autoCompleteAt: string | null;
+  completedAt: string | null;
   serviceNameSnapshot: string;
   priceSnapshot: string;
   durationMinutes: number;

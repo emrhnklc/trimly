@@ -25,6 +25,7 @@ export type DailyBusinessSummary = {
   timezone: string;
   total: number;
   confirmed: number;
+  arrived: number;
   completed: number;
   cancelled: number;
   noShow: number;
@@ -33,6 +34,7 @@ export type DailyBusinessSummary = {
     memberId: string;
     name: string;
     confirmed: number;
+    arrived: number;
     completed: number;
     cancelled: number;
     noShow: number;

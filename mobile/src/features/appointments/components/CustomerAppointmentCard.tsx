@@ -13,6 +13,7 @@ import { radius, spacing } from '@/theme/spacing';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   CONFIRMED: 'Onaylandı',
+  ARRIVED: 'İşlemde',
   COMPLETED: 'Tamamlandı',
   CANCELLED: 'İptal edildi',
   NO_SHOW: 'Gelinmedi',

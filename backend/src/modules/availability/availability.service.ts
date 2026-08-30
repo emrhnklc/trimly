@@ -147,6 +147,7 @@ export class AvailabilityService {
           status: {
             in: [
               AppointmentStatus.CONFIRMED,
+              AppointmentStatus.ARRIVED,
               AppointmentStatus.COMPLETED,
               AppointmentStatus.NO_SHOW,
             ],

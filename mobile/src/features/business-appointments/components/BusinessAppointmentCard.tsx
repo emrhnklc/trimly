@@ -10,6 +10,7 @@ import { formatBusinessTime } from '../date';
 
 const statusConfig: Record<AppointmentStatus, { color: string; label: string }> = {
   CONFIRMED: { color: '#5E8B61', label: 'Onaylandı' },
+  ARRIVED: { color: '#B8860B', label: 'İşlemde' },
   COMPLETED: { color: colors.primary, label: 'Tamamlandı' },
   CANCELLED: { color: colors.danger, label: 'İptal' },
   NO_SHOW: { color: '#9B6B3D', label: 'Gelmedi' },

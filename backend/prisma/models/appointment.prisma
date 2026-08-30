@@ -1,5 +1,6 @@
 enum AppointmentStatus {
   CONFIRMED
+  ARRIVED
   COMPLETED
   CANCELLED
   NO_SHOW
@@ -19,6 +20,8 @@ model Appointment {
   status              AppointmentStatus @default(CONFIRMED)
   cancelledAt         DateTime?
   cancellationReason  String?
+  arrivedAt           DateTime?
+  autoCompleteAt      DateTime?
   completedAt         DateTime?
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -32,4 +35,5 @@ model Appointment {
   @@index([barbershopId, startsAt])
   @@index([customerId, startsAt])
   @@index([businessMemberId, startsAt])
+  @@index([status, autoCompleteAt])
 }

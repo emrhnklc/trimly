@@ -3,7 +3,10 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { DateTime } from 'luxon';
@@ -77,6 +80,7 @@ function getCancellationPolicy(
       string
     > = {
       CANCELLED: 'Bu randevu iptal edilmiş.',
+      ARRIVED: 'Müşterinin geldiği randevular iptal edilemez.',
       COMPLETED: 'Tamamlanan randevular iptal edilemez.',
       NO_SHOW: 'Gelinmedi olarak işaretlenen randevular iptal edilemez.',
     };
@@ -131,12 +135,47 @@ function presentCustomerAppointment(appointment: CustomerAppointmentRecord) {
 }
 
 @Injectable()
-export class AppointmentsService {
+export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(AppointmentsService.name);
+  private reconciliationTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  onModuleInit() {
+    this.reconciliationTimer = setInterval(() => {
+      void this.reconcileAutoCompletedAppointments().catch((error: unknown) => {
+        this.logger.error('Otomatik randevu tamamlama çalıştırılamadı.', error);
+      });
+    }, 30_000);
+    this.reconciliationTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.reconciliationTimer) clearInterval(this.reconciliationTimer);
+  }
+
+  private async reconcileAutoCompletedAppointments(where?: {
+    barbershopId?: string;
+    customerId?: string;
+  }) {
+    const now = new Date();
+
+    await this.prisma.appointment.updateMany({
+      where: {
+        ...where,
+        status: AppointmentStatus.ARRIVED,
+        autoCompleteAt: { lte: now },
+      },
+      data: {
+        status: AppointmentStatus.COMPLETED,
+        completedAt: now,
+      },
+    });
+  }
 
   async create(
     barbershopId: string,
@@ -231,6 +270,8 @@ export class AppointmentsService {
   }
 
   async findForCustomer(customerId: string) {
+    await this.reconcileAutoCompletedAppointments({ customerId });
+
     const appointments = await this.prisma.appointment.findMany({
       where: { customerId },
       orderBy: { startsAt: 'desc' },
@@ -241,6 +282,8 @@ export class AppointmentsService {
   }
 
   async findOneForCustomer(appointmentId: string, customerId: string) {
+    await this.reconcileAutoCompletedAppointments({ customerId });
+
     const appointment = await this.prisma.appointment.findFirst({
       where: { id: appointmentId, customerId },
       select: customerAppointmentSelect,
@@ -302,7 +345,9 @@ export class AppointmentsService {
     });
   }
 
-  findForBarbershop(barbershopId: string) {
+  async findForBarbershop(barbershopId: string) {
+    await this.reconcileAutoCompletedAppointments({ barbershopId });
+
     return this.prisma.appointment.findMany({
       where: { barbershopId },
       orderBy: { startsAt: 'desc' },
@@ -311,6 +356,9 @@ export class AppointmentsService {
         startsAt: true,
         endsAt: true,
         status: true,
+        arrivedAt: true,
+        autoCompleteAt: true,
+        completedAt: true,
         serviceNameSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
@@ -334,6 +382,8 @@ export class AppointmentsService {
   }
 
   async findDailySummary(barbershopId: string, date?: string) {
+    await this.reconcileAutoCompletedAppointments({ barbershopId });
+
     const barbershop = await this.prisma.barbershop.findUnique({
       where: { id: barbershopId },
       select: { timezone: true },
@@ -374,6 +424,7 @@ export class AppointmentsService {
     const counts = {
       total: appointments.length,
       confirmed: 0,
+      arrived: 0,
       completed: 0,
       cancelled: 0,
       noShow: 0,
@@ -385,6 +436,7 @@ export class AppointmentsService {
         memberId: string;
         name: string;
         confirmed: number;
+        arrived: number;
         completed: number;
         cancelled: number;
         noShow: number;
@@ -398,6 +450,7 @@ export class AppointmentsService {
         memberId,
         name: `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`,
         confirmed: 0,
+        arrived: 0,
         completed: 0,
         cancelled: 0,
         noShow: 0,
@@ -407,6 +460,10 @@ export class AppointmentsService {
       if (appointment.status === 'CONFIRMED') {
         counts.confirmed += 1;
         memberSummary.confirmed += 1;
+      }
+      if (appointment.status === 'ARRIVED') {
+        counts.arrived += 1;
+        memberSummary.arrived += 1;
       }
       if (appointment.status === 'COMPLETED') {
         counts.completed += 1;
@@ -445,6 +502,8 @@ export class AppointmentsService {
     period = RevenuePeriod.WEEK,
     anchor?: string,
   ) {
+    await this.reconcileAutoCompletedAppointments({ barbershopId });
+
     const barbershop = await this.prisma.barbershop.findUnique({
       where: { id: barbershopId },
       select: { timezone: true },
@@ -491,6 +550,7 @@ export class AppointmentsService {
     const counts = {
       total: 0,
       confirmed: 0,
+      arrived: 0,
       completed: 0,
       cancelled: 0,
       noShow: 0,
@@ -522,6 +582,7 @@ export class AppointmentsService {
 
       counts.total += 1;
       if (appointment.status === 'CONFIRMED') counts.confirmed += 1;
+      if (appointment.status === 'ARRIVED') counts.arrived += 1;
       if (appointment.status === 'CANCELLED') counts.cancelled += 1;
       if (appointment.status === 'NO_SHOW') counts.noShow += 1;
 
@@ -666,6 +727,8 @@ export class AppointmentsService {
   }
 
   async findNextForCurrentMember(barbershopId: string, userId: string) {
+    await this.reconcileAutoCompletedAppointments({ barbershopId });
+
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
       select: { id: true, isActive: true },
@@ -679,8 +742,13 @@ export class AppointmentsService {
       where: {
         barbershopId,
         businessMemberId: membership.id,
-        status: 'CONFIRMED',
-        startsAt: { gte: new Date() },
+        status: {
+          in: [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
+        },
+        OR: [
+          { status: AppointmentStatus.ARRIVED },
+          { startsAt: { gte: new Date() } },
+        ],
       },
       orderBy: { startsAt: 'asc' },
       select: {
@@ -746,7 +814,10 @@ export class AppointmentsService {
       throw new ForbiddenException('Bu randevuyu tamamlama yetkin yok.');
     }
 
-    if (appointment.status !== 'CONFIRMED') {
+    if (
+      appointment.status !== AppointmentStatus.CONFIRMED &&
+      appointment.status !== AppointmentStatus.ARRIVED
+    ) {
       throw new BadRequestException('Bu randevu tamamlanamaz.');
     }
 
@@ -755,6 +826,80 @@ export class AppointmentsService {
       data: {
         status: 'COMPLETED',
         completedAt: new Date(),
+        autoCompleteAt: null,
+      },
+    });
+  }
+
+  async markArrivedForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+  ) {
+    const appointment = await this.findManageableAppointment(
+      barbershopId,
+      appointmentId,
+      userId,
+      {
+        startsAt: true,
+        endsAt: true,
+        durationMinutes: true,
+      },
+    );
+
+    if (appointment.status !== AppointmentStatus.CONFIRMED) {
+      throw new BadRequestException(
+        'Bu randevu için geliş kaydı oluşturulamaz.',
+      );
+    }
+
+    const now = new Date();
+    if (now < appointment.startsAt) {
+      throw new BadRequestException(
+        'Müşteri gelişi randevu saati geldiğinde işaretlenebilir.',
+      );
+    }
+
+    const arrivedAt = now;
+    const arrivedServiceEnd = new Date(
+      arrivedAt.getTime() + appointment.durationMinutes * 60 * 1000,
+    );
+    const autoCompleteAt =
+      appointment.endsAt > arrivedServiceEnd
+        ? appointment.endsAt
+        : arrivedServiceEnd;
+
+    return this.prisma.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        status: AppointmentStatus.ARRIVED,
+        arrivedAt,
+        autoCompleteAt,
+      },
+    });
+  }
+
+  async undoArrivalForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+  ) {
+    const appointment = await this.findManageableAppointment(
+      barbershopId,
+      appointmentId,
+      userId,
+    );
+
+    if (appointment.status !== AppointmentStatus.ARRIVED) {
+      throw new BadRequestException('Bu randevunun geliş kaydı geri alınamaz.');
+    }
+
+    return this.prisma.appointment.update({
+      where: { id: appointment.id },
+      data: {
+        status: AppointmentStatus.CONFIRMED,
+        arrivedAt: null,
+        autoCompleteAt: null,
       },
     });
   }
@@ -771,7 +916,10 @@ export class AppointmentsService {
       userId,
     );
 
-    if (appointment.status !== 'CONFIRMED') {
+    if (
+      appointment.status !== AppointmentStatus.CONFIRMED &&
+      appointment.status !== AppointmentStatus.ARRIVED
+    ) {
       throw new BadRequestException('Bu randevu iptal edilemez.');
     }
 
@@ -781,6 +929,8 @@ export class AppointmentsService {
         status: 'CANCELLED',
         cancelledAt: new Date(),
         cancellationReason: dto.reason?.trim(),
+        arrivedAt: null,
+        autoCompleteAt: null,
       },
     });
   }

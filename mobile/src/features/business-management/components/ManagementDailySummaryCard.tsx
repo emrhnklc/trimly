@@ -34,7 +34,7 @@ export function ManagementDailySummaryCard({ summary }: { summary: DailyBusiness
       <View style={styles.divider} />
       <View style={styles.stats}>
         <SummaryStat label="Toplam" value={summary.total} />
-        <SummaryStat label="Onaylı" value={summary.confirmed} />
+        <SummaryStat label="Aktif" value={summary.confirmed + summary.arrived} />
         <SummaryStat label="Tamamlandı" value={summary.completed} />
         <SummaryStat label="İptal" value={summary.cancelled} />
       </View>

@@ -14,6 +14,42 @@ export function getBusinessAppointments(barbershopId: string, accessToken: strin
   );
 }
 
+export function markBusinessAppointmentArrived(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPatch<CreatedAppointment>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/arrived`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function undoBusinessAppointmentArrival(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPatch<CreatedAppointment>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/undo-arrival`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function cancelBusinessAppointment(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPatch<CreatedAppointment>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+    { reason: 'İşletme tarafından iptal edildi.' },
+    accessToken,
+  );
+}
+
 export function createAppointment(
   barbershopId: string,
   input: CreateAppointmentInput,

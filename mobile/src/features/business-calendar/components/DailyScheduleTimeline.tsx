@@ -10,6 +10,7 @@ const HOUR_HEIGHT = 76;
 
 const appointmentColors: Record<AppointmentStatus, { background: string; accent: string }> = {
   CONFIRMED: { background: '#EEF4EA', accent: '#6C8B5B' },
+  ARRIVED: { background: '#FBF0D2', accent: colors.primary },
   COMPLETED: { background: '#F4E7C8', accent: colors.primary },
   CANCELLED: { background: '#F7E8E5', accent: colors.danger },
   NO_SHOW: { background: '#F3E9DF', accent: '#9B6B3D' },

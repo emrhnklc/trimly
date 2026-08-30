@@ -21,6 +21,7 @@ export type RevenueSummary = {
   rangeEnd: string;
   total: number;
   confirmed: number;
+  arrived: number;
   completed: number;
   cancelled: number;
   noShow: number;

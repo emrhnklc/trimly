@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,7 +11,12 @@ import {
 
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { getBusinessAppointments } from '@/features/appointments/api';
+import {
+  cancelBusinessAppointment,
+  getBusinessAppointments,
+  markBusinessAppointmentArrived,
+  undoBusinessAppointmentArrival,
+} from '@/features/appointments/api';
 import type { BusinessAppointment } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
@@ -18,6 +24,7 @@ import {
   type AppointmentPeriod,
 } from '@/features/business-appointments/components/AppointmentPeriodTabs';
 import { BusinessAppointmentCard } from '@/features/business-appointments/components/BusinessAppointmentCard';
+import { BusinessActiveAppointmentCard } from '@/features/business-appointments/components/BusinessActiveAppointmentCard';
 import { BusinessAppointmentState } from '@/features/business-appointments/components/BusinessAppointmentState';
 import { formatBusinessDate, getDateKey } from '@/features/business-appointments/date';
 import { useBusiness } from '@/features/business/BusinessProvider';
@@ -33,14 +40,15 @@ export default function BusinessAppointmentsScreen() {
   const [referenceTime, setReferenceTime] = useState(() => Date.now());
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
+  const [actionAppointmentId, setActionAppointmentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadAppointments = useCallback(
-    async (refreshing = false) => {
+    async (refreshing = false, silent = false) => {
       if (!token || !activeMembership) return;
 
       if (refreshing) setRefreshing(true);
-      else setLoading(true);
+      else if (!silent) setLoading(true);
       setError(null);
 
       try {
@@ -63,6 +71,12 @@ export default function BusinessAppointmentsScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadAppointments();
+
+      const refreshTimer = setInterval(() => {
+        void loadAppointments(false, true);
+      }, 30_000);
+
+      return () => clearInterval(refreshTimer);
     }, [loadAppointments]),
   );
 
@@ -93,9 +107,31 @@ export default function BusinessAppointmentsScreen() {
     return { history, today, upcoming };
   }, [activeMembership, appointments, referenceTime]);
 
+  const activeAppointment = useMemo(() => {
+    const arrived = groupedAppointments.today.find(
+      (appointment) => appointment.status === 'ARRIVED',
+    );
+    if (arrived) return arrived;
+
+    const currentOrNext = groupedAppointments.today.find(
+      (appointment) =>
+        appointment.status === 'CONFIRMED' &&
+        new Date(appointment.endsAt).getTime() >= referenceTime,
+    );
+    if (currentOrNext) return currentOrNext;
+
+    return [...groupedAppointments.today]
+      .reverse()
+      .find((appointment) => appointment.status === 'CONFIRMED');
+  }, [groupedAppointments.today, referenceTime]);
+
   if (!activeMembership) return null;
 
   const selectedAppointments = groupedAppointments[period];
+  const listedAppointments =
+    period === 'today' && activeAppointment
+      ? selectedAppointments.filter((appointment) => appointment.id !== activeAppointment.id)
+      : selectedAppointments;
   const timeZone = activeMembership.barbershop.timezone;
   const emptyMessages: Record<AppointmentPeriod, { description: string; title: string }> = {
     today: {
@@ -111,6 +147,59 @@ export default function BusinessAppointmentsScreen() {
       title: 'Geçmiş henüz boş',
     },
   };
+
+  async function runAppointmentAction(
+    appointment: BusinessAppointment,
+    action: 'arrive' | 'undo-arrival' | 'cancel',
+  ) {
+    if (!token || !activeMembership) return;
+
+    setActionAppointmentId(appointment.id);
+    try {
+      if (action === 'arrive') {
+        await markBusinessAppointmentArrived(
+          activeMembership.barbershop.id,
+          appointment.id,
+          token,
+        );
+      } else if (action === 'undo-arrival') {
+        await undoBusinessAppointmentArrival(
+          activeMembership.barbershop.id,
+          appointment.id,
+          token,
+        );
+      } else {
+        await cancelBusinessAppointment(
+          activeMembership.barbershop.id,
+          appointment.id,
+          token,
+        );
+      }
+      await loadAppointments(false, true);
+    } catch (reason) {
+      Alert.alert(
+        'Randevu güncellenemedi',
+        reason instanceof Error ? reason.message : 'Lütfen tekrar dene.',
+      );
+    } finally {
+      setActionAppointmentId(null);
+    }
+  }
+
+  function confirmCancellation(appointment: BusinessAppointment) {
+    Alert.alert(
+      'Randevu iptal edilsin mi?',
+      `${appointment.customer.firstName} ${appointment.customer.lastName} için olan randevu iptal edilecek.`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Randevuyu İptal Et',
+          style: 'destructive',
+          onPress: () => void runAppointmentAction(appointment, 'cancel'),
+        },
+      ],
+    );
+  }
 
   return (
     <Screen>
@@ -154,13 +243,25 @@ export default function BusinessAppointmentsScreen() {
           />
         ) : null}
 
+        {!isLoading && !error && period === 'today' && activeAppointment ? (
+          <BusinessActiveAppointmentCard
+            appointment={activeAppointment}
+            isSubmitting={actionAppointmentId === activeAppointment.id}
+            now={referenceTime}
+            onArrive={() => void runAppointmentAction(activeAppointment, 'arrive')}
+            onCancel={() => confirmCancellation(activeAppointment)}
+            onUndoArrival={() => void runAppointmentAction(activeAppointment, 'undo-arrival')}
+            timeZone={timeZone}
+          />
+        ) : null}
+
         {!isLoading && !error && !selectedAppointments.length ? (
           <BusinessAppointmentState {...emptyMessages[period]} />
         ) : null}
 
-        {!isLoading && !error && selectedAppointments.length ? (
+        {!isLoading && !error && listedAppointments.length ? (
           <View style={styles.list}>
-            {selectedAppointments.map((appointment) => (
+            {listedAppointments.map((appointment) => (
               <BusinessAppointmentCard
                 appointment={appointment}
                 key={appointment.id}

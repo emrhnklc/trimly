@@ -126,6 +126,34 @@ export class AppointmentsController {
     );
   }
 
+  @Patch(':appointmentId/arrived')
+  @UseGuards(JwtAuthGuard)
+  markArrived(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.markArrivedForBusiness(
+      barbershopId,
+      appointmentId,
+      user.id,
+    );
+  }
+
+  @Patch(':appointmentId/undo-arrival')
+  @UseGuards(JwtAuthGuard)
+  undoArrival(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.undoArrivalForBusiness(
+      barbershopId,
+      appointmentId,
+      user.id,
+    );
+  }
+
   @Patch(':appointmentId/no-show')
   @UseGuards(JwtAuthGuard)
   markNoShow(

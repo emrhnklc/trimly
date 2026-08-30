@@ -28,6 +28,7 @@ import { fontFamily } from '@/theme/typography';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   CONFIRMED: 'Onaylandı',
+  ARRIVED: 'İşlemde',
   COMPLETED: 'Tamamlandı',
   CANCELLED: 'İptal edildi',
   NO_SHOW: 'Gelinmedi',
