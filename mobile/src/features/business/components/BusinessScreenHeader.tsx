@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
+import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
 import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
@@ -18,9 +19,9 @@ export function BusinessScreenHeader({
 }: BusinessScreenHeaderProps) {
   return (
     <View>
-      <View style={styles.row}>
+      <View style={styles.logoRow}>
         <View style={styles.side} />
-        <AppText style={styles.title} variant="heading">{title}</AppText>
+        <TrimlyLogo size="small" />
         <View style={styles.side}>
           {showNotification ? (
             <View style={styles.iconShell}>
@@ -33,6 +34,7 @@ export function BusinessScreenHeader({
           ) : null}
         </View>
       </View>
+      <AppText style={styles.title} variant="heading">{title}</AppText>
       {subtitle ? (
         <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
           {subtitle}
@@ -43,9 +45,14 @@ export function BusinessScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  row: { alignItems: 'center', flexDirection: 'row', minHeight: 48 },
+  logoRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 44,
+  },
   side: { alignItems: 'flex-end', width: 44 },
-  title: { flex: 1, fontSize: 18, lineHeight: 24, textAlign: 'center' },
+  title: { fontSize: 18, lineHeight: 24, marginTop: spacing.xxs, textAlign: 'center' },
   iconShell: {
     alignItems: 'center',
     borderRadius: radius.pill,
