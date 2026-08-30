@@ -19,38 +19,44 @@ export function ManagementMenuSection({ items }: { items: ManagementMenuItem[] }
     <View style={styles.container}>
       {items.map((item, index) => {
         return (
-        <Pressable
-          accessibilityRole={item.onPress ? 'button' : undefined}
-          disabled={!item.onPress}
-          key={item.id}
-          onPress={item.onPress}
-          style={({ pressed }) => [
-            styles.row,
-            index < items.length - 1 && styles.rowBorder,
-            pressed && styles.pressed,
-          ]}>
-          <View style={styles.iconShell}>
-            <SymbolView name={item.icon} size={19} tintColor={colors.primary} />
-          </View>
-          <View style={styles.content}>
-            <View style={styles.titleRow}>
+          <Pressable
+            accessibilityRole={item.onPress ? 'button' : undefined}
+            disabled={!item.onPress}
+            key={item.id}
+            onPress={item.onPress}
+            style={({ pressed }) => [
+              styles.row,
+              index < items.length - 1 && styles.rowBorder,
+              pressed && styles.pressed,
+            ]}>
+            <View style={styles.iconShell}>
+              <SymbolView name={item.icon} size={22} tintColor={colors.primary} />
+            </View>
+            <View style={styles.content}>
               <AppText style={styles.title} variant="label">{item.title}</AppText>
+              <AppText
+                color="textMuted"
+                numberOfLines={2}
+                style={styles.description}
+                variant="bodySmall">
+                {item.description}
+              </AppText>
+            </View>
+            <View style={styles.valueBadge}>
               <AppText color="primary" numberOfLines={1} style={styles.value} variant="label">
                 {item.value}
               </AppText>
             </View>
-            <AppText color="textMuted" numberOfLines={1} style={styles.description} variant="bodySmall">
-              {item.description}
-            </AppText>
-          </View>
-          {item.onPress ? (
-            <SymbolView
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={16}
-              tintColor={colors.textMuted}
-            />
-          ) : null}
-        </Pressable>
+            {item.onPress ? (
+              <View style={styles.chevronShell}>
+                <SymbolView
+                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                  size={16}
+                  tintColor={colors.textMuted}
+                />
+              </View>
+            ) : null}
+          </Pressable>
         );
       })}
     </View>
@@ -61,24 +67,40 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  row: { alignItems: 'center', flexDirection: 'row', minHeight: 76, padding: spacing.sm },
+  row: { alignItems: 'center', flexDirection: 'row', minHeight: 98, padding: spacing.sm },
   rowBorder: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
   iconShell: {
     alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: radius.sm,
-    height: 42,
+    height: 56,
     justifyContent: 'center',
-    width: 42,
+    width: 56,
   },
   content: { flex: 1, marginLeft: spacing.sm },
-  titleRow: { alignItems: 'center', flexDirection: 'row' },
-  title: { flex: 1, fontSize: 13, lineHeight: 18 },
-  value: { fontSize: 10, lineHeight: 14, marginLeft: spacing.xs, maxWidth: 130 },
-  description: { fontSize: 10, lineHeight: 14, marginTop: 2 },
+  title: { fontSize: 15, lineHeight: 20 },
+  description: { marginTop: 3, paddingRight: spacing.xs },
+  valueBadge: {
+    backgroundColor: '#FBF3DE',
+    borderRadius: radius.sm,
+    marginLeft: spacing.xs,
+    maxWidth: 104,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  value: { fontSize: 12, lineHeight: 16 },
+  chevronShell: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    height: 38,
+    justifyContent: 'center',
+    marginLeft: spacing.xs,
+    width: 34,
+  },
   pressed: { opacity: 0.68 },
 });

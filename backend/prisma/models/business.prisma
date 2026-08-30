@@ -15,6 +15,7 @@ model Barbershop {
   phone           String?
   address         String?
   timezone        String   @default("Europe/Istanbul")
+  isDiscoverable  Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

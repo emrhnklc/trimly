@@ -152,6 +152,7 @@ export default function BusinessManagementScreen() {
         description: 'İşletme profili, konumu ve görünürlüğü',
         icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
         id: 'business',
+        onPress: () => router.push('/management/business'),
         title: 'İşletme Ayarları',
         value: 'Owner',
       },

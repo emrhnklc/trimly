@@ -2,11 +2,13 @@ import type {
   AvailabilityResult,
   BookableBarber,
   BookingSettings,
+  EditableBarbershopProfile,
   PublicBarbershop,
   PublicBarbershopDetail,
+  UpdateBarbershopProfileInput,
   UpdateBookingSettingsInput,
 } from './types';
-import { apiGet, apiPost, apiPut } from '@/lib/api/client';
+import { apiGet, apiPatch, apiPost, apiPut } from '@/lib/api/client';
 
 export type CreateBarbershopInput = {
   name: string;
@@ -48,6 +50,18 @@ export function updateBookingSettings(
 ): Promise<BookingSettings> {
   return apiPut<BookingSettings>(
     `/barbershops/${encodeURIComponent(barbershopId)}/booking-settings`,
+    input,
+    accessToken,
+  );
+}
+
+export function updateBarbershopProfile(
+  barbershopId: string,
+  input: UpdateBarbershopProfileInput,
+  accessToken: string,
+) {
+  return apiPatch<EditableBarbershopProfile>(
+    `/barbershops/${encodeURIComponent(barbershopId)}`,
     input,
     accessToken,
   );

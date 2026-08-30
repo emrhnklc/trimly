@@ -62,6 +62,7 @@ export class BarbershopsService {
         phone: true,
         address: true,
         timezone: true,
+        isDiscoverable: true,
         services: {
           where: { isActive: true },
           orderBy: { name: 'asc' },
@@ -116,15 +117,18 @@ export class BarbershopsService {
     const term = search?.trim();
 
     const barbershops = await this.prisma.barbershop.findMany({
-      where: term
-        ? {
-            OR: [
-              { name: { contains: term, mode: 'insensitive' } },
-              { description: { contains: term, mode: 'insensitive' } },
-              { address: { contains: term, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
+      where: {
+        isDiscoverable: true,
+        ...(term
+          ? {
+              OR: [
+                { name: { contains: term, mode: 'insensitive' } },
+                { description: { contains: term, mode: 'insensitive' } },
+                { address: { contains: term, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
       orderBy: { name: 'asc' },
       take: 20,
       select: {
@@ -135,6 +139,7 @@ export class BarbershopsService {
         profileImageUrl: true,
         coverImageUrl: true,
         address: true,
+        isDiscoverable: true,
         createdAt: true,
         members: {
           where: {
@@ -179,16 +184,21 @@ export class BarbershopsService {
         data: {
           ...(dto.name !== undefined && { name: dto.name.trim() }),
           ...(dto.description !== undefined && {
-            description: dto.description.trim(),
+            description: dto.description.trim() || null,
           }),
           ...(dto.profileImageUrl !== undefined && {
-            profileImageUrl: dto.profileImageUrl.trim(),
+            profileImageUrl: dto.profileImageUrl.trim() || null,
           }),
           ...(dto.coverImageUrl !== undefined && {
-            coverImageUrl: dto.coverImageUrl.trim(),
+            coverImageUrl: dto.coverImageUrl.trim() || null,
           }),
-          ...(dto.phone !== undefined && { phone: dto.phone.trim() }),
-          ...(dto.address !== undefined && { address: dto.address.trim() }),
+          ...(dto.phone !== undefined && { phone: dto.phone.trim() || null }),
+          ...(dto.address !== undefined && {
+            address: dto.address.trim() || null,
+          }),
+          ...(dto.isDiscoverable !== undefined && {
+            isDiscoverable: dto.isDiscoverable,
+          }),
         },
       });
     } catch (error) {

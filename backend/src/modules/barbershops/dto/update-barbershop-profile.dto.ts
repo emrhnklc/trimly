@@ -1,9 +1,11 @@
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   IsUrl,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateBarbershopProfileDto {
@@ -19,11 +21,13 @@ export class UpdateBarbershopProfileDto {
   description?: string;
 
   @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== '')
   @IsUrl({ require_protocol: true })
   @MaxLength(2048)
   profileImageUrl?: string;
 
   @IsOptional()
+  @ValidateIf((_, value: unknown) => value !== '')
   @IsUrl({ require_protocol: true })
   @MaxLength(2048)
   coverImageUrl?: string;
@@ -37,4 +41,8 @@ export class UpdateBarbershopProfileDto {
   @IsString()
   @MaxLength(500)
   address?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isDiscoverable?: boolean;
 }

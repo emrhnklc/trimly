@@ -6,6 +6,7 @@ export type PublicBarbershop = {
   profileImageUrl: string | null;
   coverImageUrl: string | null;
   address: string | null;
+  isDiscoverable: boolean;
   ratingAverage: number | null;
   ratingCount: number;
   createdAt?: string;
@@ -57,6 +58,29 @@ export type UpdateBookingSettingsInput = Pick<
   | 'customerCancellationEnabled'
   | 'cancellationNoticeMinutes'
 >;
+
+export type UpdateBarbershopProfileInput = {
+  name: string;
+  description: string;
+  phone: string;
+  address: string;
+  profileImageUrl: string;
+  coverImageUrl: string;
+  isDiscoverable: boolean;
+};
+
+export type EditableBarbershopProfile = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  phone: string | null;
+  address: string | null;
+  profileImageUrl: string | null;
+  coverImageUrl: string | null;
+  isDiscoverable: boolean;
+  timezone: string;
+};
 
 export type AvailabilitySlot = {
   startTime: string;

@@ -434,6 +434,45 @@ describe('Authentication flow (e2e)', () => {
       .send({ isBookable: true })
       .expect(400);
 
+    const profileResponse = await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        description: 'Güncellenmiş işletme profili',
+        phone: '+90 555 000 00 00',
+        address: 'Alsancak, İzmir',
+        profileImageUrl: 'https://example.com/profile.jpg',
+        coverImageUrl: 'https://example.com/cover.jpg',
+        isDiscoverable: false,
+      })
+      .expect(200);
+    expect(profileResponse.body).toMatchObject({
+      address: 'Alsancak, İzmir',
+      isDiscoverable: false,
+    });
+
+    const hiddenSearchResponse = await request(app.getHttpServer())
+      .get('/barbershops?search=discovery')
+      .expect(200);
+    expect(
+      asPublicBarbershopsBody(hiddenSearchResponse.body).some(
+        (barbershop) => barbershop.slug === barbershopSlug,
+      ),
+    ).toBe(false);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${barbershopSlug}`)
+      .expect(200)
+      .expect(({ body }: { body: { isDiscoverable: boolean } }) => {
+        expect(body.isDiscoverable).toBe(false);
+      });
+
+    await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ isDiscoverable: true })
+      .expect(200);
+
     const searchResponse = await request(app.getHttpServer())
       .get('/barbershops?search=discovery')
       .expect(200);
