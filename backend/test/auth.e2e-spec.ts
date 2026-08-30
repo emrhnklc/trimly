@@ -185,6 +185,36 @@ describe('Authentication flow (e2e)', () => {
 
     if (!ownerMembership) throw new Error('Test owner üyeliği oluşturulamadı.');
 
+    const bookingSettingsResponse = await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/booking-settings`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        minBookingNoticeMinutes: 90,
+        maxBookingAdvanceDays: 21,
+        slotIntervalMinutes: 15,
+        customerCancellationEnabled: true,
+        cancellationNoticeMinutes: 180,
+      })
+      .expect(200);
+
+    expect(bookingSettingsResponse.body).toMatchObject({
+      minBookingNoticeMinutes: 90,
+      maxBookingAdvanceDays: 21,
+      slotIntervalMinutes: 15,
+      customerCancellationEnabled: true,
+      cancellationNoticeMinutes: 180,
+    });
+
+    await request(app.getHttpServer())
+      .put(
+        `/barbershops/${ownerMembership.barbershop.id}/booking-settings`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ slotIntervalMinutes: 7 })
+      .expect(400);
+
     const createServiceResponse = await request(app.getHttpServer())
       .post(`/barbershops/${ownerMembership.barbershop.id}/services`)
       .set('Authorization', `Bearer ${accessToken}`)

@@ -4,8 +4,9 @@ import type {
   BookingSettings,
   PublicBarbershop,
   PublicBarbershopDetail,
+  UpdateBookingSettingsInput,
 } from './types';
-import { apiGet, apiPost } from '@/lib/api/client';
+import { apiGet, apiPost, apiPut } from '@/lib/api/client';
 
 export type CreateBarbershopInput = {
   name: string;
@@ -38,6 +39,18 @@ export function getBookableBarbers(barbershopId: string): Promise<BookableBarber
 
 export function getBookingSettings(barbershopId: string): Promise<BookingSettings> {
   return apiGet<BookingSettings>(`/barbershops/${barbershopId}/booking-settings`);
+}
+
+export function updateBookingSettings(
+  barbershopId: string,
+  input: UpdateBookingSettingsInput,
+  accessToken: string,
+): Promise<BookingSettings> {
+  return apiPut<BookingSettings>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/booking-settings`,
+    input,
+    accessToken,
+  );
 }
 
 export function getAvailability(barbershopId: string, memberId: string, serviceId: string, date: string) {

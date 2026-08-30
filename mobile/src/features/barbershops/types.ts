@@ -49,6 +49,15 @@ export type BookingSettings = {
   cancellationNoticeMinutes: number;
 };
 
+export type UpdateBookingSettingsInput = Pick<
+  BookingSettings,
+  | 'minBookingNoticeMinutes'
+  | 'maxBookingAdvanceDays'
+  | 'slotIntervalMinutes'
+  | 'customerCancellationEnabled'
+  | 'cancellationNoticeMinutes'
+>;
+
 export type AvailabilitySlot = {
   startTime: string;
   startsAt: string;

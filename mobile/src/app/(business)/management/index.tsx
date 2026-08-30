@@ -136,6 +136,7 @@ export default function BusinessManagementScreen() {
         description: `${cancellationDescription} · ${formatNotice(data.bookingSettings.minBookingNoticeMinutes)} ön bildirim`,
         icon: { ios: 'calendar.badge.clock', android: 'event_note', web: 'event_note' },
         id: 'booking',
+        onPress: () => router.push('/management/booking'),
         title: 'Randevu Ayarları',
         value: `${data.bookingSettings.maxBookingAdvanceDays} gün ileri`,
       },
