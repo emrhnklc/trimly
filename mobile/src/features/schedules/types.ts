@@ -16,3 +16,22 @@ export type BusinessWorkingHours = {
 export type UpdateBusinessWorkingHoursInput = {
   hours: BusinessWorkingHours[];
 };
+
+export type ScheduleBlockType = 'BREAK' | 'TIME_OFF';
+
+export type MemberScheduleBlock = {
+  id: string;
+  type: ScheduleBlockType;
+  startsAt: string;
+  endsAt: string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateMemberScheduleBlockInput = {
+  type: ScheduleBlockType;
+  startsAt: string;
+  endsAt: string;
+  note?: string;
+};

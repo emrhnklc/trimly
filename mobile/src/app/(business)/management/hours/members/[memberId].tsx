@@ -20,6 +20,7 @@ import {
   weekdayOptions,
 } from '@/features/business-hours/constants';
 import { EmployeeScheduleIdentityCard } from '@/features/business-hours/components/EmployeeScheduleIdentityCard';
+import { ScheduleBlocksNavigationCard } from '@/features/business-hours/components/ScheduleBlocksNavigationCard';
 import { TimePickerModal } from '@/features/business-hours/components/TimePickerModal';
 import { WorkingHoursDayCard } from '@/features/business-hours/components/WorkingHoursDayCard';
 import { WorkingHoursSummaryCard } from '@/features/business-hours/components/WorkingHoursSummaryCard';
@@ -255,6 +256,14 @@ export default function EmployeeScheduleDetailScreen() {
             <WorkingHoursSummaryCard
               openDayCount={summary.openDayCount}
               totalMinutes={summary.totalMinutes}
+            />
+            <ScheduleBlocksNavigationCard
+              onPress={() =>
+                router.push({
+                  pathname: '/management/hours/blocks/[memberId]',
+                  params: { memberId },
+                })
+              }
             />
 
             {!member.isActive || !member.isBookable ? (

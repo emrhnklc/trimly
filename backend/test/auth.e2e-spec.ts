@@ -319,6 +319,52 @@ describe('Authentication flow (e2e)', () => {
       })
       .expect(400);
 
+    const blockResponse = await request(app.getHttpServer())
+      .post(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/schedule-blocks`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        type: 'TIME_OFF',
+        startsAt: '2099-01-05T06:00:00.000Z',
+        endsAt: '2099-01-05T15:00:00.000Z',
+        note: 'E2E izin testi',
+      })
+      .expect(201);
+    const createdBlock = blockResponse.body as { id: string };
+
+    const blocksResponse = await request(app.getHttpServer())
+      .get(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/schedule-blocks`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    expect(blocksResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: createdBlock.id, type: 'TIME_OFF' }),
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .post(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/schedule-blocks`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        type: 'BREAK',
+        startsAt: '2099-01-05T07:00:00.000Z',
+        endsAt: '2099-01-05T08:00:00.000Z',
+      })
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .delete(
+        `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/schedule-blocks/${createdBlock.id}`,
+      )
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect({ success: true });
+
     await request(app.getHttpServer())
       .put(
         `/barbershops/${ownerMembership.barbershop.id}/members/${employeeMembership.id}/services/${createdService.id}`,

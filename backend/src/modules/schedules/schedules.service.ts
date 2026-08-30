@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { AppointmentStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
   UpdateWorkingHoursDto,
@@ -113,6 +115,44 @@ export class SchedulesService {
     if (startsAt >= endsAt) {
       throw new BadRequestException(
         'Blok bitişi başlangıç zamanından sonra olmalı.',
+      );
+    }
+
+    if (endsAt <= new Date()) {
+      throw new BadRequestException(
+        'Geçmiş zaman için mola veya izin eklenemez.',
+      );
+    }
+
+    const [conflictingAppointment, conflictingBlock] = await Promise.all([
+      this.prisma.appointment.findFirst({
+        where: {
+          businessMemberId: memberId,
+          startsAt: { lt: endsAt },
+          endsAt: { gt: startsAt },
+          status: AppointmentStatus.CONFIRMED,
+        },
+        select: { id: true },
+      }),
+      this.prisma.memberScheduleBlock.findFirst({
+        where: {
+          businessMemberId: memberId,
+          startsAt: { lt: endsAt },
+          endsAt: { gt: startsAt },
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    if (conflictingAppointment) {
+      throw new ConflictException(
+        'Bu zaman aralığında çalışanın onaylı randevusu var.',
+      );
+    }
+
+    if (conflictingBlock) {
+      throw new ConflictException(
+        'Bu zaman aralığında çalışanın başka bir mola veya izni var.',
       );
     }
 
