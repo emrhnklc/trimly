@@ -200,6 +200,13 @@ Fotoğraflar kişisel veri kabul edilir. MVP'de müşteri fotoğrafı eklenmeden
 
 Local geliştirmede fotoğraflar backend'in gitignore'daki `uploads/haircut-photos/` klasöründe dosya olarak saklanır. Berber, tamamlanmış randevunun tıraş kaydı oluşturulduktan sonra `POST /barbershops/:barbershopId/appointments/:appointmentId/haircut-record/photos` üzerinden JPEG/PNG/WebP ve en fazla 5 MB dosya yükler. Müşteri fotoğrafı yalnız JWT ile `GET /haircut-records/:recordId/photos/:photoId` üzerinden görür; berbere fotoğraf okuma API'si verilmez. Production'da bu local storage Supabase/S3 gibi private storage ve imzalı URL yapısına taşınmalıdır.
 
+### Tıraş fotoğrafı çekim kuralı
+
+- Berber, müşterinin tıraş fotoğrafını yalnız Trimly içindeki kamera ekranından çekebilir; cihaz galerisinden mevcut fotoğraf seçme seçeneği sunulmaz.
+- Çekilen fotoğraf cihazın Fotoğraflar/Galeri uygulamasına kaydedilmez. Dosya yalnız uygulamanın geçici önbelleğinde tutulur, Trimly'nin private storage alanına yüklenir ve işlem tamamlandığında geçici kopya temizlenir.
+- Bu akış yalnız kamera izni ister; medya galerisi erişim izni istemez. Kamera izni verilmezse fotoğraf ekleme yapılamaz ancak randevunun tamamlanması engellenmez.
+- Kamera açılmadan önce müşterinin açık rızasının alındığı işletme çalışanı tarafından doğrulanır. Fotoğraf yüklemek zorunlu değildir.
+
 “Aynısını tekrar iste” seçeneği önceki kayıttaki işletme, çalışan ve hizmet seçimini taşır. Yeni tarih/saat yine güncel uygunluk kurallarına göre seçilir.
 
 ## Bildirimler
