@@ -70,6 +70,20 @@ export class AppointmentsController {
     );
   }
 
+  @Get(':appointmentId')
+  @UseGuards(JwtAuthGuard)
+  findOneForBusiness(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.findOneForBusiness(
+      barbershopId,
+      appointmentId,
+      user.id,
+    );
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(

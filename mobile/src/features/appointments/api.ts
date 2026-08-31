@@ -4,11 +4,24 @@ import type {
   CreatedAppointment,
   CustomerAppointment,
   BusinessAppointment,
+  BusinessAppointmentDetail,
 } from './types';
 
 export function getBusinessAppointments(barbershopId: string, accessToken: string) {
   return apiGet<BusinessAppointment[]>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function getBusinessAppointment(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiGet<BusinessAppointmentDetail>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}`,
     undefined,
     accessToken,
   );
@@ -42,10 +55,48 @@ export function cancelBusinessAppointment(
   barbershopId: string,
   appointmentId: string,
   accessToken: string,
+  reason = 'İşletme tarafından iptal edildi.',
 ) {
   return apiPatch<CreatedAppointment>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
-    { reason: 'İşletme tarafından iptal edildi.' },
+    { reason },
+    accessToken,
+  );
+}
+
+export function markBusinessAppointmentNoShow(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPatch<CreatedAppointment>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/no-show`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function completeBusinessAppointment(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPatch<CreatedAppointment>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/complete`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function rescheduleBusinessAppointment(
+  barbershopId: string,
+  appointmentId: string,
+  startsAt: string,
+  accessToken: string,
+) {
+  return apiPatch<CreatedAppointment>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
+    { startsAt },
     accessToken,
   );
 }

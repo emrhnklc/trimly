@@ -49,6 +49,27 @@ export type BusinessAppointment = {
   };
 };
 
+export type BusinessAppointmentDetail = BusinessAppointment & {
+  serviceId: string;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  completedVisitCount: number;
+  barbershop: {
+    id: string;
+    name: string;
+    timezone: string;
+  };
+  businessMember: BusinessAppointment['businessMember'] & {
+    user: BusinessAppointment['businessMember']['user'] & {
+      profileImageUrl: string | null;
+    };
+  };
+  haircutRecord: {
+    styleName: string | null;
+    notes: string | null;
+  } | null;
+};
+
 export type CustomerAppointment = {
   id: string;
   serviceId: string;

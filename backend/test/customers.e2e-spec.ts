@@ -1,6 +1,8 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
+import { unlink } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { DateTime } from 'luxon';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -25,10 +27,19 @@ type BusinessCustomerResponse = {
   nextAppointmentAt: string | null;
 };
 
+type BusinessCustomerDetailResponse = BusinessCustomerResponse & {
+  appointments: {
+    id: string;
+    status: string;
+    haircutRecord: { styleName: string | null; notes: string | null } | null;
+  }[];
+};
+
 describe('Business customers (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let barbershopId: string;
+  let uploadedPhotoStorageKey: string | undefined;
   const ownerEmail = `customer-owner-${randomUUID()}@trimly.test`;
   const customerEmail = `customer-${randomUUID()}@trimly.test`;
   const password = 'very-safe-test-password';
@@ -76,7 +87,10 @@ describe('Business customers (e2e)', () => {
     const barbershopResponse = await request(app.getHttpServer())
       .post('/barbershops')
       .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ name: 'Customer E2E Barber', slug: `customer-e2e-${randomUUID()}` })
+      .send({
+        name: 'Customer E2E Barber',
+        slug: `customer-e2e-${randomUUID()}`,
+      })
       .expect(201);
     const barbershop = barbershopResponse.body as CreatedBarbershop;
     barbershopId = barbershop.id;
@@ -190,6 +204,134 @@ describe('Business customers (e2e)', () => {
     expect(customers[0].lastVisitAt).toEqual(expect.any(String));
     expect(customers[0].nextAppointmentAt).toEqual(expect.any(String));
 
+    const upcomingAppointment = await prisma.appointment.findFirstOrThrow({
+      where: {
+        barbershopId,
+        customerId: customer.user.id,
+        status: 'CONFIRMED',
+      },
+    });
+    await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${barbershopId}/appointments/${upcomingAppointment.id}/no-show`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch(
+        `/barbershops/${barbershopId}/appointments/${upcomingAppointment.id}/complete`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(400);
+
+    const completedAppointment = await prisma.appointment.findFirstOrThrow({
+      where: {
+        barbershopId,
+        customerId: customer.user.id,
+        status: 'COMPLETED',
+      },
+    });
+    await prisma.haircutRecord.create({
+      data: {
+        appointmentId: completedAppointment.id,
+        createdByMemberId: barbershop.members[0].id,
+        styleName: 'Low Fade',
+        notes: 'Yanlar 0.5 numara',
+      },
+    });
+
+    await request(app.getHttpServer())
+      .post(
+        `/barbershops/${barbershopId}/appointments/${completedAppointment.id}/haircut-record/photos`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .attach('file', Buffer.from('not-written-without-consent'), {
+        contentType: 'image/jpeg',
+        filename: 'consent-test.jpg',
+      })
+      .expect(400)
+      .expect(({ body }: { body: { message: string[] } }) => {
+        expect(body.message).toContain(
+          'Fotoğraf yüklemek için müşterinin açık izni alınmalıdır.',
+        );
+      });
+
+    await request(app.getHttpServer())
+      .post(
+        `/barbershops/${barbershopId}/appointments/${completedAppointment.id}/haircut-record/photos`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .field('customerConsentConfirmed', 'true')
+      .attach('file', Buffer.from('consented-test-photo'), {
+        contentType: 'image/jpeg',
+        filename: 'consented-test.jpg',
+      })
+      .expect(201);
+
+    const uploadedPhoto = await prisma.haircutPhoto.findFirstOrThrow({
+      where: { haircutRecord: { appointmentId: completedAppointment.id } },
+    });
+    uploadedPhotoStorageKey = uploadedPhoto.storageKey;
+    expect(uploadedPhoto.customerConsentConfirmedAt).toBeInstanceOf(Date);
+
+    const customerDetailResponse = await request(app.getHttpServer())
+      .get(`/barbershops/${barbershopId}/customers/${customer.user.id}`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    const customerDetail =
+      customerDetailResponse.body as BusinessCustomerDetailResponse;
+
+    expect(customerDetail).toMatchObject({
+      id: customer.user.id,
+      totalAppointmentCount: 2,
+      completedVisitCount: 1,
+    });
+    expect(customerDetail.appointments).toHaveLength(2);
+    const completedVisit = customerDetail.appointments.find(
+      (appointment) => appointment.id === completedAppointment.id,
+    );
+    expect(completedVisit).toMatchObject({
+      status: 'COMPLETED',
+      haircutRecord: {
+        styleName: 'Low Fade',
+        notes: 'Yanlar 0.5 numara',
+      },
+    });
+    expect(completedVisit).not.toHaveProperty('customer');
+    expect(completedVisit).not.toHaveProperty('haircutRecord.photos');
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${barbershopId}/customers/${customer.user.id}`)
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${barbershopId}/customers/missing-customer`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(404);
+
+    const detailResponse = await request(app.getHttpServer())
+      .get(
+        `/barbershops/${barbershopId}/appointments/${completedAppointment.id}`,
+      )
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    expect(detailResponse.body).toMatchObject({
+      id: completedAppointment.id,
+      completedVisitCount: 1,
+      serviceNameSnapshot: 'Test Kesim',
+      customer: { id: customer.user.id },
+      businessMember: { id: barbershop.members[0].id },
+      barbershop: { id: barbershopId },
+    });
+
+    await request(app.getHttpServer())
+      .get(
+        `/barbershops/${barbershopId}/appointments/${completedAppointment.id}`,
+      )
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .expect(403);
+
     const arrivalStart = new Date(Date.now() - 5 * 60 * 1000);
     const arrivalAppointment = await prisma.appointment.create({
       data: {
@@ -260,6 +402,11 @@ describe('Business customers (e2e)', () => {
   });
 
   afterAll(async () => {
+    if (uploadedPhotoStorageKey) {
+      await unlink(
+        resolve(process.cwd(), 'uploads', uploadedPhotoStorageKey),
+      ).catch(() => undefined);
+    }
     if (barbershopId) {
       await prisma.appointment.deleteMany({ where: { barbershopId } });
       await prisma.service.deleteMany({ where: { barbershopId } });
@@ -267,7 +414,9 @@ describe('Business customers (e2e)', () => {
       await prisma.bookingSettings.deleteMany({ where: { barbershopId } });
       await prisma.barbershop.deleteMany({ where: { id: barbershopId } });
     }
-    await prisma.user.deleteMany({ where: { email: { in: [ownerEmail, customerEmail] } } });
+    await prisma.user.deleteMany({
+      where: { email: { in: [ownerEmail, customerEmail] } },
+    });
     await app.close();
   });
 });

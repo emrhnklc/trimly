@@ -17,4 +17,13 @@ export class CustomersController {
   findByBarbershop(@Param('barbershopId') barbershopId: string) {
     return this.customersService.findByBarbershop(barbershopId);
   }
+
+  @Get(':customerId')
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  findOneByBarbershop(
+    @Param('barbershopId') barbershopId: string,
+    @Param('customerId') customerId: string,
+  ) {
+    return this.customersService.findOneByBarbershop(barbershopId, customerId);
+  }
 }

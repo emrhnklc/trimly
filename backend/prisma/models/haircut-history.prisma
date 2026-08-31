@@ -13,13 +13,14 @@ model HaircutRecord {
 }
 
 model HaircutPhoto {
-  id              String   @id @default(cuid())
-  haircutRecordId String
-  storageKey      String   @unique
-  mimeType        String
-  sizeBytes       Int
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
+  id                         String   @id @default(cuid())
+  haircutRecordId            String
+  storageKey                 String   @unique
+  mimeType                   String
+  sizeBytes                  Int
+  sortOrder                  Int      @default(0)
+  customerConsentConfirmedAt DateTime
+  createdAt                  DateTime @default(now())
 
   haircutRecord HaircutRecord @relation(fields: [haircutRecordId], references: [id], onDelete: Cascade)
 

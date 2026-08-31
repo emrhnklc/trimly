@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
@@ -18,9 +18,11 @@ const statusConfig: Record<AppointmentStatus, { color: string; label: string }> 
 
 export function BusinessAppointmentCard({
   appointment,
+  onPress,
   timeZone,
 }: {
   appointment: BusinessAppointment;
+  onPress?: () => void;
   timeZone: string;
 }) {
   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
@@ -28,7 +30,7 @@ export function BusinessAppointmentCard({
   const initials = `${appointment.customer.firstName[0] ?? ''}${appointment.customer.lastName[0] ?? ''}`;
   const status = statusConfig[appointment.status];
 
-  return (
+  const content = (
     <AppCard style={styles.card}>
       <View style={styles.timeColumn}>
         <AppText style={styles.time} variant="label">
@@ -72,6 +74,18 @@ export function BusinessAppointmentCard({
       </View>
     </AppCard>
   );
+
+  if (!onPress) return content;
+
+  return (
+    <Pressable
+      accessibilityLabel={`${customerName} randevu detayını aç`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => pressed && styles.pressed}>
+      {content}
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -98,4 +112,5 @@ const styles = StyleSheet.create({
   status: { alignItems: 'center', flexDirection: 'row', marginLeft: spacing.xs },
   statusDot: { borderRadius: radius.pill, height: 6, width: 6 },
   statusLabel: { fontSize: 9, lineHeight: 13, marginLeft: 3 },
+  pressed: { opacity: 0.68 },
 });

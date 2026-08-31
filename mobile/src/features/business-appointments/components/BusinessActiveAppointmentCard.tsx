@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
@@ -58,6 +58,7 @@ export function BusinessActiveAppointmentCard({
   now,
   onArrive,
   onCancel,
+  onDetail,
   onUndoArrival,
   timeZone,
 }: {
@@ -66,6 +67,7 @@ export function BusinessActiveAppointmentCard({
   now: number;
   onArrive: () => void;
   onCancel: () => void;
+  onDetail: () => void;
   onUndoArrival: () => void;
   timeZone: string;
 }) {
@@ -98,7 +100,11 @@ export function BusinessActiveAppointmentCard({
         </View>
       </View>
 
-      <View style={styles.customerRow}>
+      <Pressable
+        accessibilityLabel={`${customerName} randevu detayını aç`}
+        accessibilityRole="button"
+        onPress={onDetail}
+        style={({ pressed }) => [styles.customerRow, pressed && styles.pressed]}>
         {appointment.customer.profileImageUrl ? (
           <Image
             accessibilityLabel={`${customerName} profil fotoğrafı`}
@@ -122,7 +128,12 @@ export function BusinessActiveAppointmentCard({
             {barberName} ile
           </AppText>
         </View>
-      </View>
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={17}
+          tintColor={colors.textMuted}
+        />
+      </Pressable>
 
       <View style={styles.infoRow}>
         <SymbolView
@@ -206,4 +217,5 @@ const styles = StyleSheet.create({
   actions: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.sm },
   primaryAction: { flex: 1 },
   cancelAction: { marginLeft: spacing.xs, minWidth: 82 },
+  pressed: { opacity: 0.68 },
 });

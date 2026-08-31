@@ -139,6 +139,7 @@ export class HaircutHistoryService {
     barbershopId: string,
     appointmentId: string,
     userId: string,
+    customerConsentConfirmed: boolean,
     file: Express.Multer.File | undefined,
   ) {
     const { appointment } = await this.assertCanManageRecord(
@@ -154,6 +155,12 @@ export class HaircutHistoryService {
     if (!record) {
       throw new BadRequestException(
         'Fotoğraf eklemeden önce tıraş kaydı oluşturulmalıdır.',
+      );
+    }
+
+    if (!customerConsentConfirmed) {
+      throw new BadRequestException(
+        'Fotoğraf yüklemek için müşterinin açık izni alınmalıdır.',
       );
     }
 
@@ -186,6 +193,7 @@ export class HaircutHistoryService {
           mimeType: file.mimetype,
           sizeBytes: file.size,
           sortOrder,
+          customerConsentConfirmedAt: new Date(),
         },
         select: { id: true, mimeType: true, sizeBytes: true, sortOrder: true },
       });

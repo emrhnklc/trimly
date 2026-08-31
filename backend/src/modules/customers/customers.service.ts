@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
@@ -56,7 +56,9 @@ export class CustomersService {
         appointment.startsAt,
       ]),
     );
-    const customersById = new Map(customers.map((customer) => [customer.id, customer]));
+    const customersById = new Map(
+      customers.map((customer) => [customer.id, customer]),
+    );
 
     return appointmentStats
       .map((stat) => {
@@ -72,14 +74,91 @@ export class CustomersService {
           firstAppointmentAt: stat._min.startsAt,
           lastAppointmentAt: stat._max.startsAt,
           lastVisitAt: completedVisits?._max.startsAt ?? null,
-          nextAppointmentAt: upcomingAppointmentByCustomer.get(stat.customerId) ?? null,
+          nextAppointmentAt:
+            upcomingAppointmentByCustomer.get(stat.customerId) ?? null,
         };
       })
       .filter((customer) => customer !== null)
       .sort((first, second) => {
         const firstActivity = first.lastVisitAt ?? first.lastAppointmentAt;
         const secondActivity = second.lastVisitAt ?? second.lastAppointmentAt;
-        return (secondActivity?.getTime() ?? 0) - (firstActivity?.getTime() ?? 0);
+        return (
+          (secondActivity?.getTime() ?? 0) - (firstActivity?.getTime() ?? 0)
+        );
       });
+  }
+
+  async findOneByBarbershop(barbershopId: string, customerId: string) {
+    const appointments = await this.prisma.appointment.findMany({
+      where: { barbershopId, customerId },
+      orderBy: { startsAt: 'desc' },
+      select: {
+        id: true,
+        startsAt: true,
+        endsAt: true,
+        status: true,
+        serviceNameSnapshot: true,
+        priceSnapshot: true,
+        durationMinutes: true,
+        cancellationReason: true,
+        businessMember: {
+          select: {
+            id: true,
+            user: {
+              select: { firstName: true, lastName: true },
+            },
+          },
+        },
+        haircutRecord: {
+          select: {
+            styleName: true,
+            notes: true,
+          },
+        },
+      },
+    });
+
+    if (!appointments.length) {
+      throw new NotFoundException('Müşteri bu işletmede bulunamadı.');
+    }
+
+    const customer = await this.prisma.user.findUnique({
+      where: { id: customerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        profileImageUrl: true,
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Müşteri bulunamadı.');
+    }
+
+    const completedAppointments = appointments.filter(
+      (appointment) => appointment.status === 'COMPLETED',
+    );
+    const upcomingAppointment = [...appointments]
+      .filter(
+        (appointment) =>
+          appointment.status === 'CONFIRMED' &&
+          appointment.startsAt.getTime() >= Date.now(),
+      )
+      .sort(
+        (first, second) => first.startsAt.getTime() - second.startsAt.getTime(),
+      )[0];
+
+    return {
+      ...customer,
+      totalAppointmentCount: appointments.length,
+      completedVisitCount: completedAppointments.length,
+      firstAppointmentAt: appointments.at(-1)?.startsAt ?? null,
+      lastAppointmentAt: appointments[0]?.startsAt ?? null,
+      lastVisitAt: completedAppointments[0]?.startsAt ?? null,
+      nextAppointmentAt: upcomingAppointment?.startsAt ?? null,
+      appointments,
+    };
   }
 }

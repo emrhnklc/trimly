@@ -381,6 +381,88 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async findOneForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+  ) {
+    await this.reconcileAutoCompletedAppointments({ barbershopId });
+
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, barbershopId },
+      select: {
+        id: true,
+        serviceId: true,
+        startsAt: true,
+        endsAt: true,
+        status: true,
+        arrivedAt: true,
+        autoCompleteAt: true,
+        completedAt: true,
+        cancelledAt: true,
+        cancellationReason: true,
+        serviceNameSnapshot: true,
+        priceSnapshot: true,
+        durationMinutes: true,
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            profileImageUrl: true,
+          },
+        },
+        businessMember: {
+          select: {
+            id: true,
+            userId: true,
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                profileImageUrl: true,
+              },
+            },
+          },
+        },
+        barbershop: { select: { id: true, name: true, timezone: true } },
+        haircutRecord: {
+          select: { styleName: true, notes: true },
+        },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Randevu bulunamadı.');
+    }
+
+    const membership = await this.prisma.businessMember.findUnique({
+      where: { userId_barbershopId: { userId, barbershopId } },
+      select: { role: true },
+    });
+    const canView =
+      membership?.role === 'OWNER' ||
+      membership?.role === 'MANAGER' ||
+      appointment.businessMember.userId === userId;
+
+    if (!canView) {
+      throw new ForbiddenException('Bu randevuyu görüntüleme yetkin yok.');
+    }
+
+    const completedVisitCount = await this.prisma.appointment.count({
+      where: {
+        barbershopId,
+        customerId: appointment.customer.id,
+        status: AppointmentStatus.COMPLETED,
+      },
+    });
+    const { userId: _assignedUserId, ...businessMember } =
+      appointment.businessMember;
+
+    return { ...appointment, businessMember, completedVisitCount };
+  }
+
   async findDailySummary(barbershopId: string, date?: string) {
     await this.reconcileAutoCompletedAppointments({ barbershopId });
 
@@ -793,6 +875,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       select: {
         id: true,
         status: true,
+        startsAt: true,
         businessMember: { select: { userId: true } },
       },
     });
@@ -819,6 +902,12 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       appointment.status !== AppointmentStatus.ARRIVED
     ) {
       throw new BadRequestException('Bu randevu tamamlanamaz.');
+    }
+
+    if (new Date() < appointment.startsAt) {
+      throw new BadRequestException(
+        'Randevu, başlangıç saati gelmeden tamamlanamaz.',
+      );
     }
 
     return this.prisma.appointment.update({
@@ -1021,6 +1110,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       select: {
         id: true,
         status: true,
+        startsAt: true,
         businessMember: { select: { userId: true } },
       },
     });
@@ -1046,6 +1136,12 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     if (appointment.status !== 'CONFIRMED') {
       throw new BadRequestException('Bu randevu no-show işaretlenemez.');
+    }
+
+    if (new Date() < appointment.startsAt) {
+      throw new BadRequestException(
+        'Müşteri ancak randevu saati geldikten sonra gelmedi işaretlenebilir.',
+      );
     }
 
     return this.prisma.appointment.update({

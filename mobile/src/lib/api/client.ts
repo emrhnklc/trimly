@@ -61,6 +61,20 @@ export async function apiPost<T>(path: string, body: unknown, accessToken?: stri
   return parseResponse<T>(response);
 }
 
+export async function apiUpload<T>(
+  path: string,
+  body: FormData,
+  accessToken?: string,
+) {
+  const response = await fetch(new URL(path, API_URL), {
+    method: 'POST',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    body,
+  });
+
+  return parseResponse<T>(response);
+}
+
 export async function apiPatch<T>(path: string, body?: unknown, accessToken?: string) {
   const hasBody = body !== undefined;
   const response = await fetch(new URL(path, API_URL), {

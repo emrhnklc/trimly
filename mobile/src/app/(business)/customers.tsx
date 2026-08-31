@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -24,6 +24,7 @@ function normalizeSearchValue(value: string) {
 }
 
 export default function BusinessCustomersScreen() {
+  const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
   const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
@@ -144,6 +145,12 @@ export default function BusinessCustomersScreen() {
         renderItem={({ item }) => (
           <BusinessCustomerCard
             customer={item}
+            onPress={() =>
+              router.push({
+                pathname: '/business-customers/[customerId]',
+                params: { customerId: item.id },
+              })
+            }
             timeZone={activeMembership.barbershop.timezone}
           />
         )}

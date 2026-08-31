@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import type { BusinessCustomer } from '@/features/business-customers/types';
@@ -10,9 +10,11 @@ import { formatCustomerAppointment, formatCustomerDate } from '../date';
 
 export function BusinessCustomerCard({
   customer,
+  onPress,
   timeZone,
 }: {
   customer: BusinessCustomer;
+  onPress?: () => void;
   timeZone: string;
 }) {
   const fullName = `${customer.firstName} ${customer.lastName}`;
@@ -20,7 +22,13 @@ export function BusinessCustomerCard({
   const isRegular = customer.completedVisitCount >= 3;
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      accessibilityLabel={`${fullName} müşteri detayını aç`}
+      accessibilityRole={onPress ? 'button' : undefined}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       {customer.profileImageUrl ? (
         <Image
           accessibilityLabel={`${fullName} profil fotoğrafı`}
@@ -73,7 +81,14 @@ export function BusinessCustomerCard({
           ) : null}
         </View>
       </View>
-    </View>
+      {onPress ? (
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={15}
+          tintColor={colors.textMuted}
+        />
+      ) : null}
+    </Pressable>
   );
 }
 
@@ -86,6 +101,7 @@ const styles = StyleSheet.create({
     minHeight: 88,
     paddingVertical: spacing.sm,
   },
+  pressed: { opacity: 0.65 },
   avatar: { borderRadius: radius.pill, height: 50, width: 50 },
   avatarPlaceholder: {
     alignItems: 'center',

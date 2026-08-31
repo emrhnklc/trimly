@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -33,6 +33,7 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BusinessAppointmentsScreen() {
+  const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
   const [appointments, setAppointments] = useState<BusinessAppointment[]>([]);
@@ -250,6 +251,12 @@ export default function BusinessAppointmentsScreen() {
             now={referenceTime}
             onArrive={() => void runAppointmentAction(activeAppointment, 'arrive')}
             onCancel={() => confirmCancellation(activeAppointment)}
+            onDetail={() =>
+              router.push({
+                pathname: '/business-appointments/[appointmentId]',
+                params: { appointmentId: activeAppointment.id },
+              })
+            }
             onUndoArrival={() => void runAppointmentAction(activeAppointment, 'undo-arrival')}
             timeZone={timeZone}
           />
@@ -265,6 +272,12 @@ export default function BusinessAppointmentsScreen() {
               <BusinessAppointmentCard
                 appointment={appointment}
                 key={appointment.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/business-appointments/[appointmentId]',
+                    params: { appointmentId: appointment.id },
+                  })
+                }
                 timeZone={timeZone}
               />
             ))}
