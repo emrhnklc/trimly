@@ -189,6 +189,54 @@ describe('Authentication flow (e2e)', () => {
     });
   });
 
+  it('resets the password without revealing accounts and invalidates old sessions', async () => {
+    const unknownResponse = await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({ email: `unknown-${randomUUID()}@trimly.test` })
+      .expect(201);
+
+    expect(unknownResponse.body).toEqual({
+      message: 'Bu e-posta kullanılabiliyorsa şifre sıfırlama kodu gönderildi.',
+    });
+
+    const forgotResponse = await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({ email })
+      .expect(201);
+    const resetCode = (forgotResponse.body as { devResetCode: string })
+      .devResetCode;
+    expect(resetCode).toMatch(/^\d{6}$/);
+
+    await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({ email, code: '000000', newPassword: 'New-safe-password2!' })
+      .expect(400)
+      .expect(({ body }: { body: { code: string } }) => {
+        expect(body.code).toBe('PASSWORD_RESET_CODE_INVALID');
+      });
+
+    await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({ email, code: resetCode, newPassword: 'New-safe-password2!' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(401);
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'New-safe-password2!' })
+      .expect(201);
+    accessToken = asAuthResponseBody(loginResponse.body).accessToken;
+  });
+
   it('reads and updates only its own profile', async () => {
     const profileResponse = await request(app.getHttpServer())
       .get('/users/me')

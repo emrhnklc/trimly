@@ -2,6 +2,7 @@ model User {
   id              String    @id @default(cuid())
   email           String    @unique
   emailVerifiedAt DateTime?
+  authVersion     Int       @default(0)
   passwordHash    String
   phone           String?   @unique
   firstName       String
@@ -20,6 +21,22 @@ model User {
   notificationPreference      NotificationPreference?
   notifications               AppNotification[]
   emailVerificationChallenges EmailVerificationChallenge[]
+  passwordResetChallenges     PasswordResetChallenge[]
+}
+
+model PasswordResetChallenge {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model EmailVerificationChallenge {

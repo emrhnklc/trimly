@@ -18,12 +18,19 @@ import { isApiErrorCode } from "@/lib/api/client";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { accessCode, accessSlug } = useLocalSearchParams<{
+  const {
+    accessCode,
+    accessSlug,
+    email: initialEmail,
+    passwordReset,
+  } = useLocalSearchParams<{
     accessCode?: string;
     accessSlug?: string;
+    email?: string;
+    passwordReset?: string;
   }>();
   const { signIn } = useAuth();
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [isPasswordVisible, setPasswordVisible] = useState(false);
@@ -121,7 +128,19 @@ export default function LoginScreen() {
           <RememberMeToggle onValueChange={setRememberMe} value={rememberMe} />
           <Pressable
             accessibilityRole="button"
-            onPress={() => showComingSoon("Şifre yenileme")}
+            onPress={() =>
+              router.push({
+                pathname: "/auth/forgot-password",
+                params: {
+                  ...(email.trim()
+                    ? { email: email.trim().toLowerCase() }
+                    : {}),
+                  ...(accessSlug && accessCode
+                    ? { accessCode, accessSlug }
+                    : {}),
+                },
+              })
+            }
             style={({ pressed }) => pressed && styles.pressed}
           >
             <AppText color="primary" variant="bodySmall">
@@ -133,6 +152,11 @@ export default function LoginScreen() {
         {error ? (
           <AppText color="danger" style={styles.error}>
             {error}
+          </AppText>
+        ) : null}
+        {passwordReset === "true" ? (
+          <AppText color="primary" style={styles.error}>
+            Şifren yenilendi. Yeni şifrenle giriş yapabilirsin.
           </AppText>
         ) : null}
 

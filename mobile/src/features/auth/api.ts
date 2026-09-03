@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   AuthUser,
   EmailVerificationPendingResponse,
+  PasswordResetRequestResponse,
 } from "./types";
 
 export const getCurrentUser = (accessToken: string) =>
@@ -25,6 +26,20 @@ export const verifyEmail = (email: string, code: string) =>
 export const resendEmailVerification = (email: string) =>
   apiPost<EmailVerificationPendingResponse>("/auth/resend-email-verification", {
     email,
+  });
+
+export const requestPasswordReset = (email: string) =>
+  apiPost<PasswordResetRequestResponse>("/auth/forgot-password", { email });
+
+export const resetPassword = (
+  email: string,
+  code: string,
+  newPassword: string,
+) =>
+  apiPost<{ message: string }>("/auth/reset-password", {
+    code,
+    email,
+    newPassword,
   });
 
 export const updateMyProfile = (

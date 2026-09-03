@@ -1,11 +1,13 @@
 import 'dotenv/config';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../../../database/prisma.service';
 
 type JwtPayload = {
   sub: string;
   email: string;
+  authVersion?: number;
 };
 
 export type AuthenticatedUser = {
@@ -15,7 +17,7 @@ export type AuthenticatedUser = {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     const secret = process.env.JWT_SECRET;
 
     if (!secret) {
@@ -29,10 +31,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: JwtPayload): AuthenticatedUser {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { authVersion: true, email: true, emailVerifiedAt: true },
+    });
+
+    if (
+      !user?.emailVerifiedAt ||
+      user.authVersion !== (payload.authVersion ?? 0)
+    ) {
+      throw new UnauthorizedException('Oturum geçersiz veya süresi dolmuş.');
+    }
+
     return {
       id: payload.sub,
-      email: payload.email,
+      email: user.email,
     };
   }
 }

@@ -56,4 +56,18 @@ export class EmailService {
       to: email,
     });
   }
+
+  async sendPasswordResetCode(email: string, code: string) {
+    if (!this.transporter) {
+      this.logger.log(`[DEV EMAIL] ${email} şifre sıfırlama kodu: ${code}`);
+      return;
+    }
+
+    await this.transporter.sendMail({
+      from: this.from,
+      subject: 'Trimly şifre sıfırlama kodun',
+      text: `Trimly şifre sıfırlama kodun: ${code}. Bu kod 10 dakika geçerlidir. Bu işlemi sen istemediysen kodu paylaşma.`,
+      to: email,
+    });
+  }
 }

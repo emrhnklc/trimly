@@ -15,14 +15,19 @@ import { EmailService } from '../../common/email/email.service';
 import { normalizeTurkishPhone } from '../../common/phone/normalize-turkish-phone';
 import { PrismaService } from '../../database/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UsersService } from '../users/users.service';
 
 const emailVerificationLifetimeMinutes = 10;
 const emailVerificationResendCooldownSeconds = 60;
 const emailVerificationMaximumAttempts = 5;
+const passwordResetLifetimeMinutes = 10;
+const passwordResetResendCooldownSeconds = 60;
+const passwordResetMaximumAttempts = 5;
 
 @Injectable()
 export class AuthService {
@@ -225,6 +230,126 @@ export class AuthService {
     return this.issueEmailVerificationChallenge(user.id, user.email);
   }
 
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const genericResponse = {
+      message: 'Bu e-posta kullanılabiliyorsa şifre sıfırlama kodu gönderildi.',
+    };
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { email: true, emailVerifiedAt: true, id: true },
+    });
+
+    if (!user?.emailVerifiedAt) return genericResponse;
+
+    const latestChallenge = await this.prisma.passwordResetChallenge.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    });
+
+    if (
+      latestChallenge &&
+      latestChallenge.createdAt.getTime() +
+        passwordResetResendCooldownSeconds * 1000 >
+        Date.now()
+    ) {
+      return genericResponse;
+    }
+
+    const challenge = await this.issuePasswordResetChallenge(
+      user.id,
+      user.email,
+    );
+
+    return { ...genericResponse, ...challenge };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const email = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (!user) this.throwInvalidPasswordResetCode();
+
+    const challenge = await this.prisma.passwordResetChallenge.findFirst({
+      where: { userId: user.id, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!challenge || challenge.expiresAt <= new Date()) {
+      throw new BadRequestException({
+        code: 'PASSWORD_RESET_CODE_EXPIRED',
+        message: 'Şifre sıfırlama kodunun süresi dolmuş. Yeni kod iste.',
+      });
+    }
+
+    if (challenge.attempts >= passwordResetMaximumAttempts) {
+      this.throwPasswordResetAttemptLimit();
+    }
+
+    if (
+      !this.matchesOneTimeCode(
+        'password-reset',
+        user.id,
+        dto.code,
+        challenge.codeHash,
+      )
+    ) {
+      const updated = await this.prisma.passwordResetChallenge.update({
+        where: { id: challenge.id },
+        data: { attempts: { increment: 1 } },
+        select: { attempts: true },
+      });
+
+      if (updated.attempts >= passwordResetMaximumAttempts) {
+        this.throwPasswordResetAttemptLimit();
+      }
+
+      throw new BadRequestException({
+        code: 'PASSWORD_RESET_CODE_INVALID',
+        message: `Kod hatalı. ${passwordResetMaximumAttempts - updated.attempts} deneme hakkın kaldı.`,
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    const now = new Date();
+    await this.prisma.$transaction(async (transaction) => {
+      const claimed = await transaction.passwordResetChallenge.updateMany({
+        where: {
+          expiresAt: { gt: now },
+          id: challenge.id,
+          usedAt: null,
+        },
+        data: { usedAt: now },
+      });
+
+      if (claimed.count !== 1) {
+        throw new ConflictException({
+          code: 'PASSWORD_RESET_CODE_ALREADY_USED',
+          message: 'Bu şifre sıfırlama kodu daha önce kullanılmış.',
+        });
+      }
+
+      await transaction.user.update({
+        where: { id: user.id },
+        data: {
+          authVersion: { increment: 1 },
+          passwordHash,
+        },
+      });
+
+      await transaction.passwordResetChallenge.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: now },
+      });
+    });
+
+    return { message: 'Şifren yenilendi. Yeni şifrenle giriş yapabilirsin.' };
+  }
+
   findMe(userId: string) {
     return this.usersService.findMe(userId);
   }
@@ -259,6 +384,34 @@ export class AuthService {
     };
   }
 
+  private async issuePasswordResetChallenge(userId: string, email: string) {
+    const code = randomInt(100000, 1000000).toString();
+    const codeHash = this.hashOneTimeCode('password-reset', userId, code);
+    const now = new Date();
+    const expiresAt = new Date(
+      now.getTime() + passwordResetLifetimeMinutes * 60 * 1000,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.passwordResetChallenge.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: now },
+      }),
+      this.prisma.passwordResetChallenge.create({
+        data: { codeHash, expiresAt, userId },
+      }),
+    ]);
+
+    await this.emailService.sendPasswordResetCode(email, code);
+
+    return {
+      expiresAt,
+      ...(this.emailService.usesDevelopmentPreview
+        ? { devResetCode: code }
+        : {}),
+    };
+  }
+
   private throwInvalidVerificationCode(): never {
     throw new BadRequestException({
       code: 'EMAIL_VERIFICATION_CODE_INVALID',
@@ -267,6 +420,10 @@ export class AuthService {
   }
 
   private hashVerificationCode(userId: string, code: string) {
+    return this.hashOneTimeCode('email-verification', userId, code);
+  }
+
+  private hashOneTimeCode(purpose: string, userId: string, code: string) {
     const secret =
       process.env.EMAIL_VERIFICATION_SECRET ?? process.env.JWT_SECRET;
 
@@ -277,7 +434,7 @@ export class AuthService {
     }
 
     return createHmac('sha256', secret)
-      .update(`${userId}:${code}`)
+      .update(`${purpose}:${userId}:${code}`)
       .digest('hex');
   }
 
@@ -297,6 +454,40 @@ export class AuthService {
     );
   }
 
+  private matchesOneTimeCode(
+    purpose: string,
+    userId: string,
+    code: string,
+    storedHash: string,
+  ) {
+    const expected = Buffer.from(storedHash, 'hex');
+    const received = Buffer.from(
+      this.hashOneTimeCode(purpose, userId, code),
+      'hex',
+    );
+
+    return (
+      expected.length === received.length && timingSafeEqual(expected, received)
+    );
+  }
+
+  private throwInvalidPasswordResetCode(): never {
+    throw new BadRequestException({
+      code: 'PASSWORD_RESET_CODE_INVALID',
+      message: 'Şifre sıfırlama kodu hatalı.',
+    });
+  }
+
+  private throwPasswordResetAttemptLimit(): never {
+    throw new HttpException(
+      {
+        code: 'PASSWORD_RESET_ATTEMPTS_EXCEEDED',
+        message: 'Kod deneme sınırına ulaştın. Yeni bir kod iste.',
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
   private throwVerificationAttemptLimit(): never {
     throw new HttpException(
       {
@@ -308,9 +499,14 @@ export class AuthService {
   }
 
   private async createAuthResponse(user: { id: string; email: string }) {
+    const tokenUser = await this.prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { authVersion: true, email: true },
+    });
     const accessToken = await this.jwtService.signAsync({
+      authVersion: tokenUser.authVersion,
       sub: user.id,
-      email: user.email,
+      email: tokenUser.email,
     });
 
     const publicUser = await this.usersService.findMe(user.id);

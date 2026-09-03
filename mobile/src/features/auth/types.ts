@@ -32,3 +32,9 @@ export type EmailVerificationPendingResponse = {
   devVerificationCode?: string;
   message?: string;
 };
+
+export type PasswordResetRequestResponse = {
+  message: string;
+  expiresAt?: string;
+  devResetCode?: string;
+};
