@@ -16,6 +16,14 @@ Bir kullanıcı için ayrıca "müşteri" veya "işletme" modu veritabanında sa
 
 Kullanıcı kendi profilini JWT ile `GET /users/me` ve `PATCH /users/me` üzerinden yönetir. Şifre hash'i gibi hassas alanlar bu yanıtlarda asla dönmez.
 
+### E-posta doğrulama
+
+Yeni hesap `POST /auth/register` ile oluşturulduktan sonra doğrudan oturum açılmaz. Backend 6 haneli, 10 dakika geçerli ve tek kullanımlık bir kod üretir. Kodun kendisi veritabanında tutulmaz; kullanıcıya ve doğrulama koduna bağlı HMAC özeti `EmailVerificationChallenge` kaydında saklanır.
+
+Kullanıcı kodu `POST /auth/verify-email` ile doğruladığında `User.emailVerifiedAt` yazılır ve ilk JWT bu aşamada verilir. Doğrulanmamış hesap doğru şifre kullansa bile login olamaz; `EMAIL_NOT_VERIFIED` kodu alır ve mobil uygulama doğrulama ekranına yönlendirir. Bir kod en fazla 5 kez denenebilir. Yeni kod isteme çağrısı `POST /auth/resend-email-verification` üzerinden yapılır ve iki gönderim arasında en az 60 saniye bulunur.
+
+Local geliştirmede SMTP yapılandırılmadığında kod backend terminaline yazılır ve simulator testi için development cevabında gösterilir. Production ortamında SMTP ayarları zorunludur; development kodu API cevabına eklenmez.
+
 ## Müşteri deneyimi
 
 Mobil uygulamadaki ilk ekran, canlı `GET /barbershops` isteğiyle işletmeleri listeler ve isimle arar. İşletme detayına geçiş, favori ve randevu akışları sonraki mobil adımlardır.
@@ -294,7 +302,7 @@ Salt okunur takvim, hizmet kataloğu ve profil ekranlarını deneyen örnek appr
 
 Yeni büyüme özelliklerine geçmeden önce mevcut MVP aşağıdaki sırayla tamamlanıp sağlamlaştırılır:
 
-1. **Auth güvenliği:** E-posta doğrulama, şifremi unuttum/sıfırlama akışı ve gerçek mail servisi. Telefon numarası doğrulaması daha sonra SMS sağlayıcısıyla eklenebilir.
+1. **Auth güvenliği:** E-posta doğrulama tamamlandı. Sıradaki işler şifremi unuttum/sıfırlama akışı ve production SMTP sağlayıcısının bağlanmasıdır. Telefon numarası doğrulaması daha sonra SMS sağlayıcısıyla eklenebilir.
 2. **Kullanıcı profili:** Doğum tarihi gibi kayıt alanlarını veritabanına bağlama; profil fotoğrafını URL yazmak yerine güvenli yükleme akışına taşıma.
 3. **İşletme kurulumu ve galeri:** İşletme oluştururken en az üç görsel alma, kapak/profil/galeri ayrımı ve görsel yönetimi.
 4. **Konum tabanlı keşif:** İşletme koordinatları, cihaz konum izni, gerçek mesafe hesabı ve “Yakındaki Berberler” filtresi.

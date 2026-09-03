@@ -1,21 +1,38 @@
 model User {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailVerifiedAt DateTime?
   passwordHash    String
-  phone           String?  @unique
+  phone           String?   @unique
   firstName       String
   lastName        String
   profileImageUrl String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  memberships              BusinessMember[]
-  customerAppointments     Appointment[]
-  acceptedInvitations      BusinessInvitation[]
-  favoriteBarbershops      FavoriteBarbershop[]
-  barbershopAccesses       CustomerBarbershopAccess[]
-  barbershopAccessAttempts CustomerBarbershopAccessAttempt[]
-  pushDevices              PushDevice[]
-  notificationPreference   NotificationPreference?
-  notifications            AppNotification[]
+  memberships                 BusinessMember[]
+  customerAppointments        Appointment[]
+  acceptedInvitations         BusinessInvitation[]
+  favoriteBarbershops         FavoriteBarbershop[]
+  barbershopAccesses          CustomerBarbershopAccess[]
+  barbershopAccessAttempts    CustomerBarbershopAccessAttempt[]
+  pushDevices                 PushDevice[]
+  notificationPreference      NotificationPreference?
+  notifications               AppNotification[]
+  emailVerificationChallenges EmailVerificationChallenge[]
+}
+
+model EmailVerificationChallenge {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }

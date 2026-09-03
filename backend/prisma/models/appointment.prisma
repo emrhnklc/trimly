@@ -28,10 +28,10 @@ model Appointment {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
-  barbershop     Barbershop     @relation(fields: [barbershopId], references: [id])
-  customer       User           @relation(fields: [customerId], references: [id])
-  businessMember BusinessMember @relation(fields: [businessMemberId], references: [id])
-  service        Service        @relation(fields: [serviceId], references: [id])
+  barbershop     Barbershop        @relation(fields: [barbershopId], references: [id])
+  customer       User              @relation(fields: [customerId], references: [id])
+  businessMember BusinessMember    @relation(fields: [businessMemberId], references: [id])
+  service        Service           @relation(fields: [serviceId], references: [id])
   haircutRecord  HaircutRecord?
   notifications  AppNotification[]
 

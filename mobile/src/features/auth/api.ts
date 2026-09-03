@@ -1,11 +1,15 @@
-import { apiGet, apiPatch, apiPost } from '@/lib/api/client';
-import type { AuthResponse, AuthUser } from './types';
+import { apiGet, apiPatch, apiPost } from "@/lib/api/client";
+import type {
+  AuthResponse,
+  AuthUser,
+  EmailVerificationPendingResponse,
+} from "./types";
 
 export const getCurrentUser = (accessToken: string) =>
-  apiGet<AuthUser>('/users/me', undefined, accessToken);
+  apiGet<AuthUser>("/users/me", undefined, accessToken);
 
 export const login = (email: string, password: string) =>
-  apiPost<AuthResponse>('/auth/login', { email, password });
+  apiPost<AuthResponse>("/auth/login", { email, password });
 
 export const register = (data: {
   email: string;
@@ -13,7 +17,15 @@ export const register = (data: {
   firstName: string;
   lastName: string;
   phone?: string;
-}) => apiPost<AuthResponse>('/auth/register', data);
+}) => apiPost<EmailVerificationPendingResponse>("/auth/register", data);
+
+export const verifyEmail = (email: string, code: string) =>
+  apiPost<AuthResponse>("/auth/verify-email", { code, email });
+
+export const resendEmailVerification = (email: string) =>
+  apiPost<EmailVerificationPendingResponse>("/auth/resend-email-verification", {
+    email,
+  });
 
 export const updateMyProfile = (
   data: {
@@ -23,4 +35,4 @@ export const updateMyProfile = (
     profileImageUrl?: string;
   },
   accessToken: string,
-) => apiPatch<AuthUser>('/users/me', data, accessToken);
+) => apiPatch<AuthUser>("/users/me", data, accessToken);

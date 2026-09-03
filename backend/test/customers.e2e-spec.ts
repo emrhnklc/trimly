@@ -15,6 +15,11 @@ type RegisterResponse = {
   user: { id: string };
 };
 
+type VerificationPendingResponse = {
+  email: string;
+  devVerificationCode: string;
+};
+
 type CreatedBarbershop = {
   id: string;
   members: { id: string }[];
@@ -35,6 +40,16 @@ type BusinessCustomerDetailResponse = BusinessCustomerResponse & {
     haircutRecord: { styleName: string | null; notes: string | null } | null;
   }[];
 };
+
+async function verifyRegistration(app: INestApplication<App>, body: unknown) {
+  const pending = body as VerificationPendingResponse;
+  const response = await request(app.getHttpServer())
+    .post('/auth/verify-email')
+    .send({ email: pending.email, code: pending.devVerificationCode })
+    .expect(201);
+
+  return response.body as RegisterResponse;
+}
 
 describe('Business customers (e2e)', () => {
   let app: INestApplication<App>;
@@ -72,7 +87,7 @@ describe('Business customers (e2e)', () => {
         lastName: 'Test',
       })
       .expect(201);
-    const owner = ownerResponse.body as RegisterResponse;
+    const owner = await verifyRegistration(app, ownerResponse.body);
 
     const customerResponse = await request(app.getHttpServer())
       .post('/auth/register')
@@ -83,7 +98,7 @@ describe('Business customers (e2e)', () => {
         lastName: 'Test',
       })
       .expect(201);
-    const customer = customerResponse.body as RegisterResponse;
+    const customer = await verifyRegistration(app, customerResponse.body);
 
     const barbershopResponse = await request(app.getHttpServer())
       .post('/barbershops')
@@ -348,7 +363,9 @@ describe('Business customers (e2e)', () => {
       },
     });
 
-    await app.get(NotificationsService).notifyNewAppointment(arrivalAppointment.id);
+    await app
+      .get(NotificationsService)
+      .notifyNewAppointment(arrivalAppointment.id);
 
     const notificationsResponse = await request(app.getHttpServer())
       .get('/notifications')
@@ -361,7 +378,9 @@ describe('Business customers (e2e)', () => {
         readAt: string | null;
         type: string;
       }[]
-    ).find((notification) => notification.appointment.id === arrivalAppointment.id);
+    ).find(
+      (notification) => notification.appointment.id === arrivalAppointment.id,
+    );
     expect(appointmentNotification).toMatchObject({
       appointment: { id: arrivalAppointment.id },
       readAt: null,

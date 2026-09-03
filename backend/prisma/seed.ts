@@ -194,28 +194,29 @@ async function upsertService(
 }
 
 async function seedShop(shop: ShopSeed, passwordHash: string) {
+  const emailVerifiedAt = new Date();
   const owner = await prisma.user.upsert({
     where: { email: shop.owner.email },
-    update: { ...shop.owner, passwordHash },
-    create: { ...shop.owner, passwordHash },
+    update: { ...shop.owner, emailVerifiedAt, passwordHash },
+    create: { ...shop.owner, emailVerifiedAt, passwordHash },
   });
   const barber = await prisma.user.upsert({
     where: { email: shop.barber.email },
-    update: { ...shop.barber, passwordHash },
-    create: { ...shop.barber, passwordHash },
+    update: { ...shop.barber, emailVerifiedAt, passwordHash },
+    create: { ...shop.barber, emailVerifiedAt, passwordHash },
   });
   const manager = shop.manager
     ? await prisma.user.upsert({
         where: { email: shop.manager.email },
-        update: { ...shop.manager, passwordHash },
-        create: { ...shop.manager, passwordHash },
+        update: { ...shop.manager, emailVerifiedAt, passwordHash },
+        create: { ...shop.manager, emailVerifiedAt, passwordHash },
       })
     : null;
   const apprentice = shop.apprentice
     ? await prisma.user.upsert({
         where: { email: shop.apprentice.email },
-        update: { ...shop.apprentice, passwordHash },
-        create: { ...shop.apprentice, passwordHash },
+        update: { ...shop.apprentice, emailVerifiedAt, passwordHash },
+        create: { ...shop.apprentice, emailVerifiedAt, passwordHash },
       })
     : null;
 

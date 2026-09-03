@@ -1,4 +1,4 @@
-export type BusinessRole = 'OWNER' | 'MANAGER' | 'BARBER' | 'APPRENTICE';
+export type BusinessRole = "OWNER" | "MANAGER" | "BARBER" | "APPRENTICE";
 
 export type BusinessMembership = {
   id: string;
@@ -24,3 +24,11 @@ export type AuthUser = {
   businessMemberships: BusinessMembership[];
 };
 export type AuthResponse = { accessToken: string; user: AuthUser };
+
+export type EmailVerificationPendingResponse = {
+  email: string;
+  expiresAt?: string;
+  verificationRequired?: true;
+  devVerificationCode?: string;
+  message?: string;
+};

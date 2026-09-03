@@ -6,7 +6,6 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
 import { register } from "@/features/auth/api";
-import { useAuth } from "@/features/auth/AuthProvider";
 import { AuthScreenLayout } from "@/features/auth/components/AuthScreenLayout";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import { PasswordRequirements } from "@/features/auth/components/PasswordRequirements";
@@ -26,7 +25,6 @@ export default function RegisterScreen() {
     accessCode?: string;
     accessSlug?: string;
   }>();
-  const { signIn } = useAuth();
   const [step, setStep] = useState<"intent" | "account">("intent");
   const [intent, setIntent] = useState<RegistrationIntent | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -88,26 +86,16 @@ export default function RegisterScreen() {
         password,
         ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       });
-      await signIn(result);
-
-      requestAnimationFrame(() => {
-        if (accessSlug && accessCode) {
-          router.replace({
-            pathname: "/access/[slug]",
-            params: { code: accessCode, slug: accessSlug },
-          });
-        } else if (intent === "owner") {
-          router.replace({
-            pathname: "/onboarding/business",
-            params: { source: "registration" },
-          });
-        }
-        else if (intent === "employee")
-          router.replace({
-            pathname: "/onboarding/invitation",
-            params: { source: "registration" },
-          });
-        else router.replace("/");
+      router.replace({
+        pathname: "/auth/verify-email",
+        params: {
+          email: result.email,
+          intent: intent ?? "customer",
+          ...(result.devVerificationCode
+            ? { devCode: result.devVerificationCode }
+            : {}),
+          ...(accessSlug && accessCode ? { accessCode, accessSlug } : {}),
+        },
       });
     } catch (reason) {
       setError(

@@ -20,6 +20,13 @@ type AuthResponseBody = {
   };
 };
 
+type VerificationPendingBody = {
+  email: string;
+  expiresAt: string;
+  verificationRequired: true;
+  devVerificationCode: string;
+};
+
 type BusinessMembershipBody = {
   id: string;
   role: 'OWNER' | 'MANAGER' | 'BARBER' | 'APPRENTICE';
@@ -52,6 +59,20 @@ type BusinessMemberBody = {
 
 function asAuthResponseBody(body: unknown): AuthResponseBody {
   return body as AuthResponseBody;
+}
+
+function asVerificationPendingBody(body: unknown): VerificationPendingBody {
+  return body as VerificationPendingBody;
+}
+
+async function verifyRegistration(app: INestApplication<App>, body: unknown) {
+  const pending = asVerificationPendingBody(body);
+  const response = await request(app.getHttpServer())
+    .post('/auth/verify-email')
+    .send({ code: pending.devVerificationCode, email: pending.email })
+    .expect(201);
+
+  return asAuthResponseBody(response.body);
 }
 
 function asUserProfileBody(body: unknown): UserProfileBody {
@@ -92,7 +113,7 @@ describe('Authentication flow (e2e)', () => {
     await app.init();
   });
 
-  it('registers a user and returns a JWT', async () => {
+  it('registers a user, requires email verification and then returns a JWT', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
@@ -103,8 +124,41 @@ describe('Authentication flow (e2e)', () => {
       })
       .expect(201);
 
-    const body = asAuthResponseBody(response.body);
+    const pending = asVerificationPendingBody(response.body);
 
+    expect(pending).toMatchObject({
+      email,
+      verificationRequired: true,
+      devVerificationCode: expect.stringMatching(/^\d{6}$/),
+    });
+    expect(response.body).not.toHaveProperty('accessToken');
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(403)
+      .expect(({ body }: { body: { code: string } }) => {
+        expect(body.code).toBe('EMAIL_NOT_VERIFIED');
+      });
+
+    await request(app.getHttpServer())
+      .post('/auth/resend-email-verification')
+      .send({ email })
+      .expect(429)
+      .expect(({ body }: { body: { code: string } }) => {
+        expect(body.code).toBe('EMAIL_VERIFICATION_RATE_LIMITED');
+      });
+
+    await request(app.getHttpServer())
+      .post('/auth/verify-email')
+      .send({ code: '000000', email })
+      .expect(400)
+      .expect(({ body }: { body: { code: string } }) => {
+        expect(body.code).toBe('EMAIL_VERIFICATION_CODE_INVALID');
+      });
+
+    const body = await verifyRegistration(app, pending);
+    accessToken = body.accessToken;
     expect(body.accessToken).toEqual(expect.any(String));
     expect(body.user).toMatchObject({
       email,
@@ -170,9 +224,8 @@ describe('Authentication flow (e2e)', () => {
       })
       .expect(201);
 
-    expect(asAuthResponseBody(firstResponse.body).user.phone).toBe(
-      '+905329876543',
-    );
+    const firstUser = await verifyRegistration(app, firstResponse.body);
+    expect(firstUser.user.phone).toBe('+905329876543');
 
     await request(app.getHttpServer())
       .post('/auth/register')
@@ -322,7 +375,7 @@ describe('Authentication flow (e2e)', () => {
         lastName: 'Test',
       })
       .expect(201);
-    const employee = asAuthResponseBody(employeeResponse.body);
+    const employee = await verifyRegistration(app, employeeResponse.body);
     const invitationToken = invitation.inviteUrl.split('/').at(-1);
     const acceptedResponse = await request(app.getHttpServer())
       .post(`/invitations/${invitationToken}/accept`)
@@ -633,7 +686,10 @@ describe('Authentication flow (e2e)', () => {
         lastName: 'Access',
       })
       .expect(201);
-    const bookingCustomer = asAuthResponseBody(bookingCustomerResponse.body);
+    const bookingCustomer = await verifyRegistration(
+      app,
+      bookingCustomerResponse.body,
+    );
 
     await request(app.getHttpServer())
       .get(`/barbershops/${ownerMembership.barbershop.id}/services`)
@@ -723,7 +779,10 @@ describe('Authentication flow (e2e)', () => {
         lastName: 'Limit',
       })
       .expect(201);
-    const accessCustomer = asAuthResponseBody(accessCustomerResponse.body);
+    const accessCustomer = await verifyRegistration(
+      app,
+      accessCustomerResponse.body,
+    );
     const wrongAccessCode =
       secondAccessCode === 'AAAAAAAA' ? 'BBBBBBBB' : 'AAAAAAAA';
 
