@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -13,6 +13,7 @@ import { spacing } from '@/theme/spacing';
 
 export default function BusinessOnboardingScreen() {
   const router = useRouter();
+  const { source } = useLocalSearchParams<{ source?: string }>();
   const { refreshUser, token } = useAuth();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -22,6 +23,20 @@ export default function BusinessOnboardingScreen() {
   const [createdName, setCreatedName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+
+  function goBack() {
+    if (source === 'profile' || source === 'business-select') {
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+
+      router.replace(source === 'profile' ? '/(tabs)/profile' : '/business/select');
+      return;
+    }
+
+    router.replace('/(tabs)');
+  }
 
   function changeName(value: string) {
     setName(value);
@@ -70,7 +85,7 @@ export default function BusinessOnboardingScreen() {
           </AppText>
         </AppCard>
         <View style={styles.action}>
-          <AppButton onPress={() => router.replace('/')}>Ana Sayfaya Dön</AppButton>
+          <AppButton onPress={() => router.replace('/(tabs)')}>Ana Sayfaya Dön</AppButton>
         </View>
       </AuthScreenLayout>
     );
@@ -79,7 +94,7 @@ export default function BusinessOnboardingScreen() {
   return (
     <AuthScreenLayout
       description="Önce işletmenin temel kimliğini oluşturalım. Ayrıntıları daha sonra değiştirebilirsin."
-      onBackPress={() => router.replace('/')}
+      onBackPress={goBack}
       title="İşletmeni oluştur.">
       <AppCard style={styles.formCard}>
         <AuthTextField
@@ -129,7 +144,7 @@ export default function BusinessOnboardingScreen() {
           </AppButton>
         </View>
       </AppCard>
-      <AppButton disabled={isSubmitting} onPress={() => router.replace('/')} variant="ghost">
+      <AppButton disabled={isSubmitting} onPress={goBack} variant="ghost">
         Şimdilik Geç
       </AppButton>
     </AuthScreenLayout>

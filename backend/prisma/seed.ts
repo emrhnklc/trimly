@@ -36,7 +36,9 @@ type ShopSeed = {
   address: string;
   phone: string;
   owner: { email: string; firstName: string; lastName: string };
+  manager?: { email: string; firstName: string; lastName: string };
   barber: { email: string; firstName: string; lastName: string };
+  apprentice?: { email: string; firstName: string; lastName: string };
   services: Array<{
     name: string;
     description: string;
@@ -58,10 +60,20 @@ const shops: ShopSeed[] = [
       firstName: 'Emir',
       lastName: 'Kaya',
     },
+    manager: {
+      email: 'manager.alsancak@trimly.dev',
+      firstName: 'Selin',
+      lastName: 'Yılmaz',
+    },
     barber: {
       email: 'barber.alsancak@trimly.dev',
       firstName: 'Mert',
       lastName: 'Aydın',
+    },
+    apprentice: {
+      email: 'apprentice.alsancak@trimly.dev',
+      firstName: 'Efe',
+      lastName: 'Çelik',
     },
     services: [
       {
@@ -192,6 +204,20 @@ async function seedShop(shop: ShopSeed, passwordHash: string) {
     update: { ...shop.barber, passwordHash },
     create: { ...shop.barber, passwordHash },
   });
+  const manager = shop.manager
+    ? await prisma.user.upsert({
+        where: { email: shop.manager.email },
+        update: { ...shop.manager, passwordHash },
+        create: { ...shop.manager, passwordHash },
+      })
+    : null;
+  const apprentice = shop.apprentice
+    ? await prisma.user.upsert({
+        where: { email: shop.apprentice.email },
+        update: { ...shop.apprentice, passwordHash },
+        create: { ...shop.apprentice, passwordHash },
+      })
+    : null;
 
   const barbershop = await prisma.barbershop.upsert({
     where: { slug: shop.slug },
@@ -236,6 +262,46 @@ async function seedShop(shop: ShopSeed, passwordHash: string) {
       isBookable: true,
     },
   });
+  if (manager) {
+    await prisma.businessMember.upsert({
+      where: {
+        userId_barbershopId: {
+          userId: manager.id,
+          barbershopId: barbershop.id,
+        },
+      },
+      update: { role: BusinessRole.MANAGER, isActive: true, isBookable: false },
+      create: {
+        userId: manager.id,
+        barbershopId: barbershop.id,
+        role: BusinessRole.MANAGER,
+        isActive: true,
+        isBookable: false,
+      },
+    });
+  }
+  const apprenticeMember = apprentice
+    ? await prisma.businessMember.upsert({
+        where: {
+          userId_barbershopId: {
+            userId: apprentice.id,
+            barbershopId: barbershop.id,
+          },
+        },
+        update: {
+          role: BusinessRole.APPRENTICE,
+          isActive: true,
+          isBookable: false,
+        },
+        create: {
+          userId: apprentice.id,
+          barbershopId: barbershop.id,
+          role: BusinessRole.APPRENTICE,
+          isActive: true,
+          isBookable: false,
+        },
+      })
+    : null;
 
   await prisma.bookingSettings.upsert({
     where: { barbershopId: barbershop.id },
@@ -268,7 +334,10 @@ async function seedShop(shop: ShopSeed, passwordHash: string) {
       },
     });
 
-    for (const member of [ownerMember, barberMember]) {
+    const scheduledMembers = apprenticeMember
+      ? [ownerMember, barberMember, apprenticeMember]
+      : [ownerMember, barberMember];
+    for (const member of scheduledMembers) {
       await prisma.memberWorkingHours.upsert({
         where: {
           businessMemberId_weekday: { businessMemberId: member.id, weekday },
@@ -315,6 +384,8 @@ async function main() {
   }
 
   console.log('Development login: owner.alsancak@trimly.dev / Trimly123!');
+  console.log('Manager login: manager.alsancak@trimly.dev / Trimly123!');
+  console.log('Apprentice login: apprentice.alsancak@trimly.dev / Trimly123!');
 }
 
 main()

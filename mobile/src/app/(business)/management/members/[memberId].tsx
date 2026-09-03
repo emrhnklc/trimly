@@ -33,7 +33,7 @@ export default function EditBusinessMemberScreen() {
   const router = useRouter();
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const { token } = useAuth();
-  const { activeMembership } = useBusiness();
+  const { activeMembership, can } = useBusiness();
   const [member, setMember] = useState<BusinessMember | null>(null);
   const [services, setServices] = useState<ManagementService[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -76,12 +76,14 @@ export default function EditBusinessMemberScreen() {
     setSubmitError(null);
     try {
       const barbershopId = activeMembership.barbershop.id;
-      await updateBusinessMember(
-        barbershopId,
-        memberId,
-        { isActive: values.isActive, role: values.role },
-        token,
-      );
+      if (can('EDIT_MEMBER_ROLE_AND_STATUS')) {
+        await updateBusinessMember(
+          barbershopId,
+          memberId,
+          { isActive: values.isActive, role: values.role },
+          token,
+        );
+      }
 
       if (values.isActive && values.role !== 'APPRENTICE') {
         await updateBusinessMemberBookable(
@@ -142,6 +144,7 @@ export default function EditBusinessMemberScreen() {
 
         {!isLoading && !loadError && member ? (
           <BusinessMemberForm
+            canEditRoleAndStatus={can('EDIT_MEMBER_ROLE_AND_STATUS')}
             error={submitError}
             isSubmitting={isSubmitting}
             member={member}

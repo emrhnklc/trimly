@@ -1,18 +1,19 @@
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
 import { TrimlyLogo } from '@/components/branding/TrimlyLogo';
+import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { spacing } from '@/theme/spacing';
 
 type BusinessScreenHeaderProps = {
+  onNotificationPress?: () => void;
   showNotification?: boolean;
   subtitle?: string;
   title: string;
 };
 
 export function BusinessScreenHeader({
+  onNotificationPress,
   showNotification = false,
   subtitle,
   title,
@@ -24,13 +25,13 @@ export function BusinessScreenHeader({
         <TrimlyLogo size="small" />
         <View style={styles.side}>
           {showNotification ? (
-            <View style={styles.iconShell}>
-              <SymbolView
-                name={{ ios: 'bell', android: 'notifications_none', web: 'notifications_none' }}
-                size={19}
-                tintColor={colors.text}
-              />
-            </View>
+            <AppIconButton
+              accessibilityLabel="Bildirimleri aç"
+              icon={{ ios: 'bell', android: 'notifications_none', web: 'notifications_none' }}
+              onPress={onNotificationPress}
+              size={19}
+              variant="transparent"
+            />
           ) : null}
         </View>
       </View>
@@ -53,12 +54,5 @@ const styles = StyleSheet.create({
   },
   side: { alignItems: 'flex-end', width: 44 },
   title: { fontSize: 18, lineHeight: 24, marginTop: spacing.xxs, textAlign: 'center' },
-  iconShell: {
-    alignItems: 'center',
-    borderRadius: radius.pill,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
   subtitle: { marginTop: spacing.xs, textAlign: 'center' },
 });

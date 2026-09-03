@@ -48,12 +48,14 @@ export class HaircutHistoryService {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { id: true, role: true },
+      select: { id: true, isActive: true, role: true },
     });
     const canManageRecord =
-      membership?.role === 'OWNER' ||
-      membership?.role === 'MANAGER' ||
-      appointment.businessMember.userId === userId;
+      membership?.isActive &&
+      (membership.role === 'OWNER' ||
+        membership.role === 'MANAGER' ||
+        (membership.role === 'BARBER' &&
+          appointment.businessMember.userId === userId));
 
     if (!canManageRecord || !membership) {
       throw new ForbiddenException('Bu tıraş kaydını düzenleme yetkin yok.');
@@ -257,12 +259,14 @@ export class HaircutHistoryService {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { id: true, role: true },
+      select: { id: true, isActive: true, role: true },
     });
     const canManageRecord =
-      membership?.role === 'OWNER' ||
-      membership?.role === 'MANAGER' ||
-      appointment.businessMember.userId === userId;
+      membership?.isActive &&
+      (membership.role === 'OWNER' ||
+        membership.role === 'MANAGER' ||
+        (membership.role === 'BARBER' &&
+          appointment.businessMember.userId === userId));
 
     if (!canManageRecord || !membership) {
       throw new ForbiddenException('Bu tıraş kaydını düzenleme yetkin yok.');

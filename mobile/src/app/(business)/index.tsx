@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import { Screen } from '@/components/ui/Screen';
 import {
   cancelBusinessAppointment,
   getBusinessAppointments,
+  getMyBusinessAppointments,
   markBusinessAppointmentArrived,
   undoBusinessAppointmentArrival,
 } from '@/features/appointments/api';
@@ -32,10 +33,20 @@ import { BusinessScreenHeader } from '@/features/business/components/BusinessScr
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
-export default function BusinessAppointmentsScreen() {
+export default function BusinessAppointmentsRoute() {
+  const { can } = useBusiness();
+
+  if (!can('VIEW_OWN_APPOINTMENTS')) {
+    return <Redirect href="/(business)/calendar" />;
+  }
+
+  return <BusinessAppointmentsScreen />;
+}
+
+function BusinessAppointmentsScreen() {
   const router = useRouter();
   const { token } = useAuth();
-  const { activeMembership } = useBusiness();
+  const { activeMembership, can } = useBusiness();
   const [appointments, setAppointments] = useState<BusinessAppointment[]>([]);
   const [period, setPeriod] = useState<AppointmentPeriod>('today');
   const [referenceTime, setReferenceTime] = useState(() => Date.now());
@@ -53,7 +64,10 @@ export default function BusinessAppointmentsScreen() {
       setError(null);
 
       try {
-        const nextAppointments = await getBusinessAppointments(
+        const getAppointments = can('VIEW_ALL_APPOINTMENTS')
+          ? getBusinessAppointments
+          : getMyBusinessAppointments;
+        const nextAppointments = await getAppointments(
           activeMembership.barbershop.id,
           token,
         );
@@ -66,7 +80,7 @@ export default function BusinessAppointmentsScreen() {
         setRefreshing(false);
       }
     },
-    [activeMembership, token],
+    [activeMembership, can, token],
   );
 
   useFocusEffect(
@@ -216,6 +230,7 @@ export default function BusinessAppointmentsScreen() {
         }
         showsVerticalScrollIndicator={false}>
         <BusinessScreenHeader
+          onNotificationPress={() => router.push('/notifications')}
           showNotification
           subtitle={activeMembership.barbershop.name}
           title="Randevular"

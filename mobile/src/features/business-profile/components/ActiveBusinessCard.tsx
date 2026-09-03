@@ -16,17 +16,18 @@ export function ActiveBusinessCard({
   address?: string | null;
   isDiscoverable?: boolean;
   name: string;
-  onPress: () => void;
+  onPress?: () => void;
   profileImageUrl?: string | null;
 }) {
   const initial = name.slice(0, 1).toLocaleUpperCase('tr-TR');
 
   return (
     <Pressable
-      accessibilityLabel="Aktif işletme bilgilerini düzenle"
-      accessibilityRole="button"
+      accessibilityLabel={onPress ? 'Aktif işletme bilgilerini düzenle' : 'Aktif işletme'}
+      accessibilityRole={onPress ? 'button' : undefined}
+      disabled={!onPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.card, onPress && pressed && styles.pressed]}>
       {profileImageUrl ? (
         <Image contentFit="cover" source={profileImageUrl} style={styles.logo} transition={180} />
       ) : (
@@ -67,13 +68,15 @@ export function ActiveBusinessCard({
         </View>
       </View>
 
-      <View style={styles.chevron}>
-        <SymbolView
-          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-          size={17}
-          tintColor={colors.textMuted}
-        />
-      </View>
+      {onPress ? (
+        <View style={styles.chevron}>
+          <SymbolView
+            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+            size={17}
+            tintColor={colors.textMuted}
+          />
+        </View>
+      ) : null}
     </Pressable>
   );
 }

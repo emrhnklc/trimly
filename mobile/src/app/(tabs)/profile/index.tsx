@@ -35,10 +35,10 @@ export default function ProfileOverviewScreen() {
 
   const quickActions: ProfileMenuItem[] = [
     {
-      badge: 'YAKINDA',
       icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
       id: 'notifications',
       label: 'Bildirimler',
+      onPress: () => router.push('/notifications'),
     },
     {
       icon: { ios: 'person.crop.circle', android: 'manage_accounts', web: 'manage_accounts' },
@@ -111,13 +111,19 @@ export default function ProfileOverviewScreen() {
       icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
       id: 'create-business',
       label: 'İşletme Oluştur',
-      onPress: () => router.push('/onboarding/business'),
+      onPress: () => router.push({
+        pathname: '/onboarding/business',
+        params: { source: 'profile' },
+      }),
     },
     {
       icon: { ios: 'person.badge.plus', android: 'group_add', web: 'group_add' },
       id: 'join-business',
       label: 'Çalışan Davetine Katıl',
-      onPress: () => router.push('/onboarding/invitation'),
+      onPress: () => router.push({
+        pathname: '/onboarding/invitation',
+        params: { source: 'profile' },
+      }),
     },
   ];
 

@@ -18,6 +18,8 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { BarbershopsService } from './barbershops.service';
 import { BarbershopSearchQueryDto } from './dto/barbershop-search-query.dto';
 import { CreateBarbershopDto } from './dto/create-barbershop.dto';
+import { RedeemBarbershopAccessDto } from './dto/redeem-barbershop-access.dto';
+import { UpdateBarbershopAccessSettingsDto } from './dto/update-barbershop-access-settings.dto';
 import { UpdateBarbershopProfileDto } from './dto/update-barbershop-profile.dto';
 
 @Controller('barbershops')
@@ -35,6 +37,13 @@ export class BarbershopsController {
     return this.barbershopsService.findPublicBySlug(slug);
   }
 
+  @Get(':barbershopId/access-settings')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  getAccessSettings(@Param('barbershopId') barbershopId: string) {
+    return this.barbershopsService.getAccessSettings(barbershopId);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(
@@ -42,6 +51,16 @@ export class BarbershopsController {
     @Body() dto: CreateBarbershopDto,
   ) {
     return this.barbershopsService.create(user.id, dto);
+  }
+
+  @Post(':slug/access')
+  @UseGuards(JwtAuthGuard)
+  redeemCustomerAccess(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('slug') slug: string,
+    @Body() dto: RedeemBarbershopAccessDto,
+  ) {
+    return this.barbershopsService.redeemCustomerAccess(user.id, slug, dto);
   }
 
   @Patch(':barbershopId')
@@ -52,5 +71,22 @@ export class BarbershopsController {
     @Body() dto: UpdateBarbershopProfileDto,
   ) {
     return this.barbershopsService.updateProfile(barbershopId, dto);
+  }
+
+  @Patch(':barbershopId/access-settings')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  updateAccessSettings(
+    @Param('barbershopId') barbershopId: string,
+    @Body() dto: UpdateBarbershopAccessSettingsDto,
+  ) {
+    return this.barbershopsService.updateAccessSettings(barbershopId, dto);
+  }
+
+  @Post(':barbershopId/access-code/rotate')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  rotateAccessCode(@Param('barbershopId') barbershopId: string) {
+    return this.barbershopsService.rotateAccessCode(barbershopId);
   }
 }

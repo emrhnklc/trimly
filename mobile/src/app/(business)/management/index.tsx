@@ -32,6 +32,7 @@ import type {
 } from '@/features/business-management/types';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessScreenHeader } from '@/features/business/components/BusinessScreenHeader';
+import { businessRoleLabels } from '@/features/business/role-labels';
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
 import { getBusinessWorkingHours } from '@/features/schedules/api';
@@ -154,12 +155,14 @@ export default function BusinessManagementScreen() {
         id: 'business',
         onPress: () => router.push('/management/business'),
         title: 'İşletme Ayarları',
-        value: 'Owner',
+        value: activeMembership
+          ? businessRoleLabels[activeMembership.role]
+          : 'İşletme',
       },
     ];
 
     return { activeMembers, activeServices, menuItems };
-  }, [data, router]);
+  }, [activeMembership, data, router]);
 
   if (!activeMembership) return null;
 

@@ -6,6 +6,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   View,
@@ -300,6 +301,30 @@ export default function BusinessSettingsScreen() {
                 value={profile.isDiscoverable}
               />
 
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/management/access')}
+                style={({ pressed }) => [styles.accessCard, pressed && styles.pressed]}>
+                <View style={styles.identityIcon}>
+                  <SymbolView
+                    name={{ ios: 'key', android: 'key', web: 'key' }}
+                    size={21}
+                    tintColor={colors.primary}
+                  />
+                </View>
+                <View style={styles.identityCopy}>
+                  <AppText variant="label">Randevu erişimi</AppText>
+                  <AppText color="textMuted" style={styles.timezone} variant="bodySmall">
+                    Herkese açık veya yalnızca özel kodla randevu
+                  </AppText>
+                </View>
+                <SymbolView
+                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                  size={18}
+                  tintColor={colors.textMuted}
+                />
+              </Pressable>
+
               <View style={styles.identityCard}>
                 <View style={styles.identityIcon}>
                   <SymbolView
@@ -359,6 +384,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     padding: spacing.md,
   },
+  accessCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    padding: spacing.md,
+  },
   identityIcon: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -373,4 +408,5 @@ const styles = StyleSheet.create({
   errorMessage: { backgroundColor: '#F8E7E3' },
   successMessage: { backgroundColor: '#E8F1E5' },
   successText: { color: '#4F7653' },
+  pressed: { opacity: 0.68 },
 });

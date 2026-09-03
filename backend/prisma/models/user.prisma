@@ -9,9 +9,13 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  memberships          BusinessMember[]
-  customerAppointments Appointment[]
-  acceptedInvitations  BusinessInvitation[]
-  favoriteBarbershops  FavoriteBarbershop[]
-  pushDevices          PushDevice[]
+  memberships              BusinessMember[]
+  customerAppointments     Appointment[]
+  acceptedInvitations      BusinessInvitation[]
+  favoriteBarbershops      FavoriteBarbershop[]
+  barbershopAccesses       CustomerBarbershopAccess[]
+  barbershopAccessAttempts CustomerBarbershopAccessAttempt[]
+  pushDevices              PushDevice[]
+  notificationPreference   NotificationPreference?
+  notifications            AppNotification[]
 }

@@ -15,6 +15,14 @@ export function getBusinessAppointments(barbershopId: string, accessToken: strin
   );
 }
 
+export function getMyBusinessAppointments(barbershopId: string, accessToken: string) {
+  return apiGet<BusinessAppointment[]>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/mine`,
+    undefined,
+    accessToken,
+  );
+}
+
 export function getBusinessAppointment(
   barbershopId: string,
   appointmentId: string,

@@ -22,6 +22,7 @@ export class FavoritesService {
             phone: true,
             address: true,
             timezone: true,
+            accessMode: true,
           },
         },
       },

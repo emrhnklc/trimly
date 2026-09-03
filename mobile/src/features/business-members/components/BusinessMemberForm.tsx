@@ -17,12 +17,14 @@ export type BusinessMemberFormValues = {
 };
 
 export function BusinessMemberForm({
+  canEditRoleAndStatus,
   error,
   isSubmitting,
   member,
   onSubmit,
   services,
 }: {
+  canEditRoleAndStatus: boolean;
   error?: string | null;
   isSubmitting: boolean;
   member: BusinessMember;
@@ -66,17 +68,23 @@ export function BusinessMemberForm({
       <View style={styles.card}>
         <AppText style={styles.sectionTitle} variant="label">Rol</AppText>
         <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
-          Çalışanın işletme içinde hangi işlemleri yapabileceğini belirler.
+          {canEditRoleAndStatus
+            ? 'Çalışanın işletme içinde hangi işlemleri yapabileceğini belirler.'
+            : 'Çalışan rolünü ve aktiflik durumunu yalnız işletme sahibi değiştirebilir.'}
         </AppText>
         <View style={styles.roleSelector}>
-          <MemberRoleSelector disabled={isSubmitting} onChange={handleRoleChange} value={role} />
+          <MemberRoleSelector
+            disabled={isSubmitting || !canEditRoleAndStatus}
+            onChange={handleRoleChange}
+            value={role}
+          />
         </View>
       </View>
 
       <View style={styles.card}>
         <SettingRow
           description="Pasif çalışan sisteme bağlı kalır ancak işletme işlemlerine katılamaz."
-          disabled={isSubmitting}
+          disabled={isSubmitting || !canEditRoleAndStatus}
           label="Aktif çalışan"
           onChange={handleActiveChange}
           value={isActive}

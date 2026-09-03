@@ -5,17 +5,36 @@ import { BusinessRolePendingScreen } from '@/features/business/components/Busine
 import { BusinessTabBar } from '@/features/business/components/BusinessTabBar';
 
 export default function BusinessModeLayout() {
-  const { activeMembership } = useBusiness();
+  const { activeMembership, can } = useBusiness();
 
   if (!activeMembership) return null;
-  if (activeMembership.role !== 'OWNER') return <BusinessRolePendingScreen />;
+  if (!can('ACCESS_BUSINESS_MODE')) return <BusinessRolePendingScreen />;
 
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <BusinessTabBar {...props} />}>
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="calendar" />
-      <Tabs.Screen name="customers" />
-      <Tabs.Screen name="management" />
+    <Tabs
+      initialRouteName={can('VIEW_OWN_APPOINTMENTS') ? 'index' : 'calendar'}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <BusinessTabBar {...props} />}>
+      <Tabs.Screen
+        name="index"
+        options={{ href: can('VIEW_OWN_APPOINTMENTS') ? undefined : null }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{ href: can('VIEW_OWN_SCHEDULE') ? undefined : null }}
+      />
+      <Tabs.Screen
+        name="services"
+        options={{ href: can('VIEW_SERVICE_CATALOG') ? undefined : null }}
+      />
+      <Tabs.Screen
+        name="customers"
+        options={{ href: can('VIEW_CUSTOMERS') ? undefined : null }}
+      />
+      <Tabs.Screen
+        name="management"
+        options={{ href: can('MANAGE_SERVICES') ? undefined : null }}
+      />
       <Tabs.Screen name="profile" />
     </Tabs>
   );

@@ -30,9 +30,9 @@ export function BusinessRolePendingScreen() {
           {businessRoleLabels[activeMembership.role]} görünümü
         </AppText>
         <AppCard style={styles.card}>
-          <AppText variant="heading">Owner ekranlarını sana açmadık</AppText>
+          <AppText variant="heading">Bu role özel ekran hazırlanıyor</AppText>
           <AppText color="textMuted" style={styles.description}>
-            Güvenli ilerlemek için önce OWNER ekranlarını tamamlıyoruz. Bu role özel sekmeleri sonraki turda aynı componentlerden oluşturacağız.
+            İşletme sahibi, yönetici ve berber akışları hazır. Çırak için güvenli, salt okunur çalışma görünümünü sıradaki adımda açacağız.
           </AppText>
         </AppCard>
         <View style={styles.action}>

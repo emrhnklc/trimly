@@ -1,4 +1,5 @@
 export type PublicBarbershop = {
+  accessMode: "PUBLIC" | "CODE_REQUIRED";
   id: string;
   name: string;
   slug: string;
@@ -13,6 +14,28 @@ export type PublicBarbershop = {
   members?: PublicBarber[];
 };
 
+export type BarbershopAccessResult = {
+  accessGranted: boolean;
+  alreadyGranted: boolean;
+  barbershopId: string;
+  slug: string;
+};
+
+export type BarbershopAccessMode = "PUBLIC" | "CODE_REQUIRED";
+
+export type BarbershopAccessSettings = {
+  id: string;
+  accessMode: BarbershopAccessMode;
+  isDiscoverable: boolean;
+  hasAccessCode: boolean;
+  accessCodeUpdatedAt: string | null;
+};
+
+export type RotatedBarbershopAccessCode = {
+  code: string;
+  updatedAt: string;
+};
+
 export type PublicBarbershopDetail = PublicBarbershop & {
   members: PublicBarber[];
   phone: string | null;
@@ -22,7 +45,7 @@ export type PublicBarbershopDetail = PublicBarbershop & {
 
 export type PublicBarber = {
   id: string;
-  role: 'OWNER' | 'MANAGER' | 'BARBER';
+  role: "OWNER" | "MANAGER" | "BARBER";
   user: { firstName: string; lastName: string; profileImageUrl: string | null };
 };
 
@@ -38,7 +61,7 @@ export type BookableBarber = {
   id: string;
   user: { firstName: string; lastName: string; profileImageUrl: string | null };
   serviceAssignments: {
-    service: Pick<PublicService, 'id' | 'name' | 'durationMinutes'>;
+    service: Pick<PublicService, "id" | "name" | "durationMinutes">;
   }[];
 };
 
@@ -52,11 +75,11 @@ export type BookingSettings = {
 
 export type UpdateBookingSettingsInput = Pick<
   BookingSettings,
-  | 'minBookingNoticeMinutes'
-  | 'maxBookingAdvanceDays'
-  | 'slotIntervalMinutes'
-  | 'customerCancellationEnabled'
-  | 'cancellationNoticeMinutes'
+  | "minBookingNoticeMinutes"
+  | "maxBookingAdvanceDays"
+  | "slotIntervalMinutes"
+  | "customerCancellationEnabled"
+  | "cancellationNoticeMinutes"
 >;
 
 export type UpdateBarbershopProfileInput = {

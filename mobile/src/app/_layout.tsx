@@ -17,6 +17,7 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { AppModeProvider, useAppMode } from '@/features/app-mode/AppModeProvider';
 import { BusinessProvider, useBusiness } from '@/features/business/BusinessProvider';
+import { PushNotificationsManager } from '@/features/notifications/PushNotificationsManager';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -38,6 +39,7 @@ export default function RootLayout() {
     <AuthProvider>
       <BusinessProvider>
         <AppModeProvider>
+          <PushNotificationsManager />
           <StatusBar style="dark" />
           <RootNavigator />
         </AppModeProvider>
@@ -83,7 +85,10 @@ function RootNavigator() {
         <Stack.Screen name="business-haircut-camera/[appointmentId]" />
         <Stack.Screen name="business-customers/[customerId]" />
         <Stack.Screen name="favorites" />
+        <Stack.Screen name="notifications" />
       </Stack.Protected>
+
+      <Stack.Screen name="access/[slug]" />
     </Stack>
   );
 }

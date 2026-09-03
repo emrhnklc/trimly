@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -13,11 +13,26 @@ import { spacing } from '@/theme/spacing';
 
 export default function InvitationOnboardingScreen() {
   const router = useRouter();
+  const { source } = useLocalSearchParams<{ source?: string }>();
   const { refreshUser, token } = useAuth();
   const [invitation, setInvitation] = useState('');
   const [joinedBusiness, setJoinedBusiness] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+
+  function goBack() {
+    if (source === 'profile' || source === 'business-select') {
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+
+      router.replace(source === 'profile' ? '/(tabs)/profile' : '/business/select');
+      return;
+    }
+
+    router.replace('/(tabs)');
+  }
 
   async function submit() {
     if (!token) return;
@@ -62,7 +77,7 @@ export default function InvitationOnboardingScreen() {
   return (
     <AuthScreenLayout
       description="İşletme sahibinin gönderdiği davet bağlantısını veya içindeki kodu kullan."
-      onBackPress={() => router.replace('/')}
+      onBackPress={goBack}
       title="Ekibe katıl.">
       <AppCard style={styles.formCard}>
         <AuthTextField
@@ -86,9 +101,9 @@ export default function InvitationOnboardingScreen() {
           </AppButton>
         </View>
       </AppCard>
-      <AppButton disabled={isSubmitting} onPress={() => router.replace('/')} variant="ghost">
-        Şimdilik Geç
-      </AppButton>
+      <AppText color="textMuted" style={styles.invitationNote} variant="bodySmall">
+        Davet kodun yoksa işletme sahibinden senin rolüne özel bir davet oluşturmasını iste.
+      </AppText>
     </AuthScreenLayout>
   );
 }
@@ -106,4 +121,5 @@ const styles = StyleSheet.create({
   action: { marginTop: spacing.xl },
   successCard: { marginTop: spacing.xl, padding: spacing.xl },
   successName: { marginBottom: spacing.sm, marginTop: spacing.xs },
+  invitationNote: { lineHeight: 19, marginTop: spacing.md, textAlign: 'center' },
 });

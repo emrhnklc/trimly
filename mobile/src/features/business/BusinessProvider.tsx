@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -10,9 +11,14 @@ import {
 
 import { useAuth } from '@/features/auth/AuthProvider';
 import type { BusinessMembership } from '@/features/auth/types';
+import {
+  hasBusinessPermission,
+  type BusinessPermission,
+} from '@/features/business/permissions';
 
 type BusinessContextValue = {
   activeMembership: BusinessMembership | null;
+  can: (permission: BusinessPermission) => boolean;
   isReady: boolean;
   memberships: BusinessMembership[];
   selectMembership: (membershipId: string) => Promise<void>;
@@ -82,6 +88,12 @@ export function BusinessProvider({ children }: PropsWithChildren) {
   const activeMembership =
     memberships.find((membership) => membership.id === activeMembershipId) ?? null;
   const isReady = resolvedUserId === userId;
+  const activeRole = activeMembership?.role ?? null;
+  const can = useCallback(
+    (permission: BusinessPermission) =>
+      activeRole ? hasBusinessPermission(activeRole, permission) : false,
+    [activeRole],
+  );
 
   async function selectMembership(membershipId: string) {
     if (!user) throw new Error('İşletme seçmek için giriş yapmalısın.');
@@ -95,7 +107,7 @@ export function BusinessProvider({ children }: PropsWithChildren) {
 
   return (
     <BusinessContext.Provider
-      value={{ activeMembership, isReady, memberships, selectMembership }}>
+      value={{ activeMembership, can, isReady, memberships, selectMembership }}>
       {children}
     </BusinessContext.Provider>
   );

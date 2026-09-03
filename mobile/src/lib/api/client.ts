@@ -1,33 +1,46 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export function resolveApiUrl(path: string) {
   return new URL(path, API_URL).toString();
 }
 
-type ApiErrorResponse = { message?: string | string[] };
+type ApiErrorResponse = { code?: string; message?: string | string[] };
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
 async function parseResponse<T>(response: Response) {
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
-    const message = Array.isArray(payload?.message) ? payload.message[0] : payload?.message;
+    const payload = (await response
+      .json()
+      .catch(() => null)) as ApiErrorResponse | null;
+    const message = Array.isArray(payload?.message)
+      ? payload.message[0]
+      : payload?.message;
 
     throw new ApiError(
-      message ?? 'İşlem şu an yapılamadı. Lütfen tekrar dene.',
+      message ?? "İşlem şu an yapılamadı. Lütfen tekrar dene.",
       response.status,
+      payload?.code,
     );
   }
 
   return response.json() as Promise<T>;
+}
+
+export function isApiErrorCode(
+  reason: unknown,
+  code: string,
+): reason is ApiError {
+  return reason instanceof ApiError && reason.code === code;
 }
 
 export async function apiGet<T>(
@@ -42,17 +55,23 @@ export async function apiGet<T>(
   });
 
   const response = await fetch(url, {
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    headers: accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : undefined,
   });
 
   return parseResponse<T>(response);
 }
 
-export async function apiPost<T>(path: string, body: unknown, accessToken?: string) {
+export async function apiPost<T>(
+  path: string,
+  body: unknown,
+  accessToken?: string,
+) {
   const response = await fetch(new URL(path, API_URL), {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     body: JSON.stringify(body),
@@ -67,20 +86,26 @@ export async function apiUpload<T>(
   accessToken?: string,
 ) {
   const response = await fetch(new URL(path, API_URL), {
-    method: 'POST',
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    method: "POST",
+    headers: accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : undefined,
     body,
   });
 
   return parseResponse<T>(response);
 }
 
-export async function apiPatch<T>(path: string, body?: unknown, accessToken?: string) {
+export async function apiPatch<T>(
+  path: string,
+  body?: unknown,
+  accessToken?: string,
+) {
   const hasBody = body !== undefined;
   const response = await fetch(new URL(path, API_URL), {
-    method: 'PATCH',
+    method: "PATCH",
     headers: {
-      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     body: hasBody ? JSON.stringify(body) : undefined,
@@ -89,12 +114,16 @@ export async function apiPatch<T>(path: string, body?: unknown, accessToken?: st
   return parseResponse<T>(response);
 }
 
-export async function apiPut<T>(path: string, body?: unknown, accessToken?: string) {
+export async function apiPut<T>(
+  path: string,
+  body?: unknown,
+  accessToken?: string,
+) {
   const hasBody = body !== undefined;
   const response = await fetch(new URL(path, API_URL), {
-    method: 'PUT',
+    method: "PUT",
     headers: {
-      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     },
     body: hasBody ? JSON.stringify(body) : undefined,
@@ -103,10 +132,19 @@ export async function apiPut<T>(path: string, body?: unknown, accessToken?: stri
   return parseResponse<T>(response);
 }
 
-export async function apiDelete<T>(path: string, accessToken?: string) {
+export async function apiDelete<T>(
+  path: string,
+  accessToken?: string,
+  body?: unknown,
+) {
+  const hasBody = body !== undefined;
   const response = await fetch(new URL(path, API_URL), {
-    method: 'DELETE',
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    method: "DELETE",
+    headers: {
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: hasBody ? JSON.stringify(body) : undefined,
   });
 
   return parseResponse<T>(response);

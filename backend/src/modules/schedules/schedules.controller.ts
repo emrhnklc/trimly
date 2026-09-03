@@ -3,7 +3,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { UpdateMemberWorkingHoursDto } from './dto/update-member-working-hours.dto';
 import { UpdateWorkingHoursDto } from './dto/update-working-hours.dto';
 import { SchedulesService } from './schedules.service';
@@ -16,6 +18,18 @@ export class SchedulesController {
   @Get()
   findWorkingHours(@Param('barbershopId') barbershopId: string) {
     return this.schedulesService.findWorkingHours(barbershopId);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  findCurrentMemberWorkingHours(
+    @Param('barbershopId') barbershopId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.schedulesService.findCurrentMemberWorkingHours(
+      barbershopId,
+      user.id,
+    );
   }
 
   @Put()

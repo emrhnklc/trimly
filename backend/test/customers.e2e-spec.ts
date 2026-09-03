@@ -8,6 +8,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { PrismaService } from '../src/database/prisma.service';
 import { AppModule } from '../src/app.module';
+import { NotificationsService } from '../src/modules/notifications/notifications.service';
 
 type RegisterResponse = {
   accessToken: string;
@@ -42,7 +43,7 @@ describe('Business customers (e2e)', () => {
   let uploadedPhotoStorageKey: string | undefined;
   const ownerEmail = `customer-owner-${randomUUID()}@trimly.test`;
   const customerEmail = `customer-${randomUUID()}@trimly.test`;
-  const password = 'very-safe-test-password';
+  const password = 'Very-safe-test-password1';
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -347,6 +348,92 @@ describe('Business customers (e2e)', () => {
       },
     });
 
+    await app.get(NotificationsService).notifyNewAppointment(arrivalAppointment.id);
+
+    const notificationsResponse = await request(app.getHttpServer())
+      .get('/notifications')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    const appointmentNotification = (
+      notificationsResponse.body as {
+        id: string;
+        appointment: { id: string };
+        readAt: string | null;
+        type: string;
+      }[]
+    ).find((notification) => notification.appointment.id === arrivalAppointment.id);
+    expect(appointmentNotification).toMatchObject({
+      appointment: { id: arrivalAppointment.id },
+      readAt: null,
+      type: 'NEW_APPOINTMENT',
+    });
+
+    await request(app.getHttpServer())
+      .patch(`/notifications/${appointmentNotification?.id}/read`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch('/notifications/read-all')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get('/notifications/preferences')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .expect(200)
+      .expect(
+        ({ body }: { body: { appointmentRemindersEnabled: boolean } }) => {
+          expect(body.appointmentRemindersEnabled).toBe(true);
+        },
+      );
+    await request(app.getHttpServer())
+      .patch('/notifications/preferences')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({ appointmentRemindersEnabled: false })
+      .expect(200)
+      .expect(
+        ({ body }: { body: { appointmentRemindersEnabled: boolean } }) => {
+          expect(body.appointmentRemindersEnabled).toBe(false);
+        },
+      );
+    await request(app.getHttpServer())
+      .patch('/notifications/preferences')
+      .set('Authorization', `Bearer ${customer.accessToken}`)
+      .send({ appointmentRemindersEnabled: true })
+      .expect(200);
+
+    const reminderStart = new Date(Date.now() + 90 * 60 * 1000);
+    const reminderAppointment = await prisma.appointment.create({
+      data: {
+        barbershopId,
+        businessMemberId: barbershop.members[0].id,
+        customerId: customer.user.id,
+        serviceId: service.id,
+        serviceNameSnapshot: service.name,
+        priceSnapshot: service.price,
+        durationMinutes: service.durationMinutes,
+        startsAt: reminderStart,
+        endsAt: new Date(reminderStart.getTime() + 30 * 60 * 1000),
+      },
+    });
+    await app.get(NotificationsService).reconcileAppointmentReminders();
+    const reminderNotification = await prisma.appNotification.findFirst({
+      where: {
+        appointmentId: reminderAppointment.id,
+        type: 'APPOINTMENT_REMINDER',
+        userId: customer.user.id,
+      },
+    });
+    expect(reminderNotification).not.toBeNull();
+    expect(
+      (
+        await prisma.appointment.findUniqueOrThrow({
+          where: { id: reminderAppointment.id },
+          select: { reminder2hSentAt: true },
+        })
+      ).reminder2hSentAt,
+    ).not.toBeNull();
+
     await request(app.getHttpServer())
       .patch(
         `/barbershops/${barbershopId}/appointments/${arrivalAppointment.id}/arrived`,
@@ -380,6 +467,20 @@ describe('Business customers (e2e)', () => {
       data: { autoCompleteAt: new Date(Date.now() - 1000) },
     });
 
+    const forgottenArrivalAppointment = await prisma.appointment.create({
+      data: {
+        barbershopId,
+        businessMemberId: barbershop.members[0].id,
+        customerId: customer.user.id,
+        serviceId: service.id,
+        serviceNameSnapshot: service.name,
+        priceSnapshot: service.price,
+        durationMinutes: service.durationMinutes,
+        startsAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        endsAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      },
+    });
+
     const reconciledAppointments = await request(app.getHttpServer())
       .get(`/barbershops/${barbershopId}/appointments`)
       .set('Authorization', `Bearer ${owner.accessToken}`)
@@ -387,6 +488,11 @@ describe('Business customers (e2e)', () => {
     expect(
       (reconciledAppointments.body as { id: string; status: string }[]).find(
         (appointment) => appointment.id === arrivalAppointment.id,
+      )?.status,
+    ).toBe('COMPLETED');
+    expect(
+      (reconciledAppointments.body as { id: string; status: string }[]).find(
+        (appointment) => appointment.id === forgottenArrivalAppointment.id,
       )?.status,
     ).toBe('COMPLETED');
 

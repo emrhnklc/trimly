@@ -4,36 +4,55 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
+import { useBusiness } from '@/features/business/BusinessProvider';
+import type { BusinessPermission } from '@/features/business/permissions';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
-type BusinessTabName = 'index' | 'calendar' | 'customers' | 'management' | 'profile';
+type BusinessTabName =
+  | 'index'
+  | 'calendar'
+  | 'services'
+  | 'customers'
+  | 'management'
+  | 'profile';
 
 type BusinessTabConfig = {
   icon: SymbolViewProps['name'];
   label: string;
+  permission: BusinessPermission;
 };
 
 const tabs: Record<BusinessTabName, BusinessTabConfig> = {
   index: {
     icon: { ios: 'calendar.badge.clock', android: 'event_note', web: 'event_note' },
     label: 'Randevular',
+    permission: 'VIEW_OWN_APPOINTMENTS',
   },
   calendar: {
     icon: { ios: 'calendar', android: 'calendar_month', web: 'calendar_month' },
     label: 'Takvim',
+    permission: 'VIEW_OWN_SCHEDULE',
+  },
+  services: {
+    icon: { ios: 'scissors', android: 'content_cut', web: 'content_cut' },
+    label: 'Hizmetler',
+    permission: 'VIEW_SERVICE_CATALOG',
   },
   customers: {
     icon: { ios: 'person.2', android: 'group', web: 'group' },
     label: 'Müşteriler',
+    permission: 'VIEW_CUSTOMERS',
   },
   management: {
     icon: { ios: 'square.grid.2x2', android: 'grid_view', web: 'grid_view' },
     label: 'Yönetim',
+    permission: 'MANAGE_SERVICES',
   },
   profile: {
     icon: { ios: 'person', android: 'person', web: 'person' },
     label: 'Profil',
+    permission: 'ACCESS_BUSINESS_MODE',
   },
 };
 
@@ -43,6 +62,7 @@ function isBusinessTabName(name: string): name is BusinessTabName {
 
 export function BusinessTabBar({ descriptors, navigation, state }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { can } = useBusiness();
 
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.xs) }]}>
@@ -50,6 +70,7 @@ export function BusinessTabBar({ descriptors, navigation, state }: BottomTabBarP
         if (!isBusinessTabName(route.name)) return null;
 
         const tab = tabs[route.name];
+        if (!can(tab.permission)) return null;
         const isFocused = state.index === index;
         const { options } = descriptors[route.key];
 

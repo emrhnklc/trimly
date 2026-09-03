@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { normalizeTurkishPhone } from '../../common/phone/normalize-turkish-phone';
 import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 
 const publicUserSelect = {
@@ -75,7 +76,7 @@ export class UsersService {
             lastName: dto.lastName?.trim(),
           }),
           ...(dto.phone !== undefined && {
-            phone: dto.phone?.trim() || null,
+            phone: dto.phone.trim() ? normalizeTurkishPhone(dto.phone) : null,
           }),
           ...(dto.profileImageUrl !== undefined && {
             profileImageUrl: dto.profileImageUrl?.trim() || null,

@@ -29,10 +29,18 @@ function getCardState(appointment: BusinessAppointment, now: number) {
   }
 
   if (now > endsAt) {
+    const minutesUntilAutomaticCompletion = Math.max(
+      0,
+      Math.ceil((endsAt + 60 * 60 * 1000 - now) / 60000),
+    );
+
     return {
       accent: '#9B6B3D',
       label: 'GECİKEN RANDEVU',
-      note: 'Müşteri geldiyse geliş kaydını oluşturabilirsin.',
+      note:
+        minutesUntilAutomaticCompletion > 0
+          ? `Müşteri geldiyse işaretle; aksi halde ${minutesUntilAutomaticCompletion} dk sonra otomatik tamamlanır.`
+          : 'Randevu otomatik tamamlanıyor.',
     };
   }
 

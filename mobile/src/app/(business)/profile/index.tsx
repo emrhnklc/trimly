@@ -22,7 +22,7 @@ export default function BusinessProfileScreen() {
   const router = useRouter();
   const { enterCustomerMode } = useAppMode();
   const { signOut, user } = useAuth();
-  const { activeMembership, memberships } = useBusiness();
+  const { activeMembership, can, memberships } = useBusiness();
   const [business, setBusiness] = useState<PublicBarbershopDetail | null>(null);
 
   useFocusEffect(
@@ -71,14 +71,24 @@ export default function BusinessProfileScreen() {
       icon: { ios: 'bell', android: 'notifications', web: 'notifications' },
       id: 'notifications',
       label: 'Bildirimler',
-      onPress: () => showComingSoon('Bildirim merkezi'),
+      onPress: () => router.push('/notifications'),
     },
-    {
-      icon: { ios: 'person.badge.plus', android: 'person_add', web: 'person_add' },
-      id: 'referral',
-      label: 'Davet / Referans Kodum',
-      onPress: () => showComingSoon('Berber referans sistemi'),
-    },
+    ...(can('MANAGE_BOOKING_SETTINGS')
+      ? [{
+          icon: { ios: 'qrcode', android: 'qr_code_2', web: 'qr_code_2' },
+          id: 'customer-invite-code',
+          label: 'Müşteri Davet Kodum',
+          onPress: () => router.push('/management/access'),
+        } satisfies ProfileMenuItem]
+      : []),
+    ...(can('INVITE_MEMBERS')
+      ? [{
+          icon: { ios: 'person.badge.plus', android: 'person_add', web: 'person_add' },
+          id: 'employee-invite-code',
+          label: 'Çalışan Davet Kodum',
+          onPress: () => router.push('/management/members/invite'),
+        } satisfies ProfileMenuItem]
+      : []),
     {
       badge: 'YAKINDA',
       icon: { ios: 'crown', android: 'workspace_premium', web: 'workspace_premium' },
@@ -136,7 +146,9 @@ export default function BusinessProfileScreen() {
           address={business?.address}
           isDiscoverable={business?.isDiscoverable}
           name={business?.name ?? activeMembership.barbershop.name}
-          onPress={() => router.push('/(business)/management/business')}
+          onPress={can('MANAGE_BUSINESS_PROFILE')
+            ? () => router.push('/(business)/management/business')
+            : undefined}
           profileImageUrl={business?.profileImageUrl ?? activeMembership.barbershop.profileImageUrl}
         />
         <ProfileMenuGroup items={quickActions} title="Profil Kısayolları" />

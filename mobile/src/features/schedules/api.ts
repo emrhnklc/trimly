@@ -12,6 +12,14 @@ export function getBusinessWorkingHours(barbershopId: string) {
   );
 }
 
+export function getMyMemberWorkingHours(barbershopId: string, accessToken: string) {
+  return apiGet<BusinessWorkingHours[]>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/working-hours/me`,
+    undefined,
+    accessToken,
+  );
+}
+
 export function updateBusinessWorkingHours(
   barbershopId: string,
   input: UpdateBusinessWorkingHoursInput,

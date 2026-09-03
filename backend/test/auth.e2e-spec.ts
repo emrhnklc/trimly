@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -13,6 +14,7 @@ type AuthResponseBody = {
     email: string;
     firstName: string;
     lastName: string;
+    phone: string | null;
     businessMemberships: BusinessMembershipBody[];
     passwordHash?: string;
   };
@@ -66,8 +68,12 @@ describe('Authentication flow (e2e)', () => {
   let accessToken: string;
   const email = `e2e-${randomUUID()}@trimly.test`;
   const employeeEmail = `e2e-employee-${randomUUID()}@trimly.test`;
+  const accessCustomerEmail = `e2e-access-${randomUUID()}@trimly.test`;
+  const bookingCustomerEmail = `e2e-booking-access-${randomUUID()}@trimly.test`;
+  const phoneOwnerEmail = `e2e-phone-owner-${randomUUID()}@trimly.test`;
+  const phoneDuplicateEmail = `e2e-phone-duplicate-${randomUUID()}@trimly.test`;
   const barbershopSlug = `e2e-${randomUUID()}`;
-  const password = 'very-safe-test-password';
+  const password = 'Very-safe-test-password1';
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -148,8 +154,41 @@ describe('Authentication flow (e2e)', () => {
 
     expect(asUserProfileBody(updateResponse.body)).toMatchObject({
       firstName: 'Updated',
-      phone: '5551234567',
+      phone: '+905551234567',
     });
+  });
+
+  it('normalizes phone numbers and explains duplicate phone conflicts', async () => {
+    const firstResponse = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: phoneOwnerEmail,
+        password,
+        firstName: 'Phone',
+        lastName: 'Owner',
+        phone: '0532 987 65 43',
+      })
+      .expect(201);
+
+    expect(asAuthResponseBody(firstResponse.body).user.phone).toBe(
+      '+905329876543',
+    );
+
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: phoneDuplicateEmail,
+        password,
+        firstName: 'Phone',
+        lastName: 'Duplicate',
+        phone: '+90 (532) 987 65 43',
+      })
+      .expect(409)
+      .expect(({ body }: { body: { message: string } }) => {
+        expect(body.message).toBe(
+          'Bu telefon numarası başka bir hesapta kayıtlı.',
+        );
+      });
   });
 
   it('creates a barbershop and finds it in public search', async () => {
@@ -186,9 +225,7 @@ describe('Authentication flow (e2e)', () => {
     if (!ownerMembership) throw new Error('Test owner üyeliği oluşturulamadı.');
 
     const bookingSettingsResponse = await request(app.getHttpServer())
-      .put(
-        `/barbershops/${ownerMembership.barbershop.id}/booking-settings`,
-      )
+      .put(`/barbershops/${ownerMembership.barbershop.id}/booking-settings`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         minBookingNoticeMinutes: 90,
@@ -208,9 +245,7 @@ describe('Authentication flow (e2e)', () => {
     });
 
     await request(app.getHttpServer())
-      .put(
-        `/barbershops/${ownerMembership.barbershop.id}/booking-settings`,
-      )
+      .put(`/barbershops/${ownerMembership.barbershop.id}/booking-settings`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ slotIntervalMinutes: 7 })
       .expect(400);
@@ -232,7 +267,10 @@ describe('Authentication flow (e2e)', () => {
       price: string;
     };
 
-    expect(createdService).toMatchObject({ durationMinutes: 30, isActive: true });
+    expect(createdService).toMatchObject({
+      durationMinutes: 30,
+      isActive: true,
+    });
     expect(Number(createdService.price)).toBe(450.5);
 
     await request(app.getHttpServer())
@@ -257,7 +295,9 @@ describe('Authentication flow (e2e)', () => {
       durationMinutes: 45,
       isActive: false,
     });
-    expect(Number((updateServiceResponse.body as { price: string }).price)).toBe(500.25);
+    expect(
+      Number((updateServiceResponse.body as { price: string }).price),
+    ).toBe(500.25);
 
     await request(app.getHttpServer())
       .post(`/barbershops/${ownerMembership.barbershop.id}/invitations`)
@@ -294,7 +334,15 @@ describe('Authentication flow (e2e)', () => {
       role: string;
       isBookable: boolean;
     };
-    expect(employeeMembership).toMatchObject({ role: 'APPRENTICE', isBookable: false });
+    expect(employeeMembership).toMatchObject({
+      role: 'APPRENTICE',
+      isBookable: false,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/appointments/mine`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .expect(403);
 
     await request(app.getHttpServer())
       .patch(
@@ -316,9 +364,7 @@ describe('Authentication flow (e2e)', () => {
       .put(`/barbershops/${ownerMembership.barbershop.id}/working-hours`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
-        hours: [
-          { weekday: 'MONDAY', startTime: '09:00', endTime: '19:00' },
-        ],
+        hours: [{ weekday: 'MONDAY', startTime: '09:00', endTime: '19:00' }],
       })
       .expect(200);
 
@@ -328,9 +374,7 @@ describe('Authentication flow (e2e)', () => {
       )
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
-        hours: [
-          { weekday: 'MONDAY', startTime: '10:00', endTime: '18:00' },
-        ],
+        hours: [{ weekday: 'MONDAY', startTime: '10:00', endTime: '18:00' }],
       })
       .expect(200);
     expect(memberHoursResponse.body).toEqual([
@@ -338,14 +382,29 @@ describe('Authentication flow (e2e)', () => {
     ]);
 
     await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/working-hours/me`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .expect(200)
+      .expect([{ weekday: 'MONDAY', startTime: '10:00', endTime: '18:00' }]);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/appointments/mine`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .expect(200)
+      .expect([]);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/appointments`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
       .put(
         `/barbershops/${ownerMembership.barbershop.id}/working-hours/members/${employeeMembership.id}`,
       )
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
-        hours: [
-          { weekday: 'MONDAY', startTime: '08:00', endTime: '18:00' },
-        ],
+        hours: [{ weekday: 'MONDAY', startTime: '08:00', endTime: '18:00' }],
       })
       .expect(400);
 
@@ -409,9 +468,13 @@ describe('Authentication flow (e2e)', () => {
       )
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
-    expect(memberResponse.body).toMatchObject({ role: 'BARBER', isBookable: true });
+    expect(memberResponse.body).toMatchObject({
+      role: 'BARBER',
+      isBookable: true,
+    });
     expect(
-      (memberResponse.body as BusinessMemberBody).serviceAssignments[0].service.id,
+      (memberResponse.body as BusinessMemberBody).serviceAssignments[0].service
+        .id,
     ).toBe(createdService.id);
 
     const apprenticeResponse = await request(app.getHttpServer())
@@ -485,7 +548,228 @@ describe('Authentication flow (e2e)', () => {
           barbershop.name === 'E2E Discovery Barber',
       ),
     ).toBe(true);
-  });
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/access-settings`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect(({ body }: { body: unknown }) => {
+        expect(body).toEqual(
+          expect.objectContaining({
+            accessMode: 'PUBLIC',
+            hasAccessCode: false,
+            accessCodeUpdatedAt: null,
+          }),
+        );
+      });
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/access-code/rotate`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .send({})
+      .expect(403);
+
+    const firstCodeResponse = await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/access-code/rotate`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({})
+      .expect(201);
+    const firstAccessCode = (firstCodeResponse.body as { code: string }).code;
+    expect(firstAccessCode).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+
+    const storedAccessCode =
+      await prisma.barbershopAccessCode.findUniqueOrThrow({
+        where: { barbershopId: ownerMembership.barbershop.id },
+      });
+    expect(storedAccessCode.codeHash).not.toBe(firstAccessCode);
+    await expect(
+      bcrypt.compare(firstAccessCode, storedAccessCode.codeHash),
+    ).resolves.toBe(true);
+
+    const secondCodeResponse = await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/access-code/rotate`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({})
+      .expect(201);
+    const secondAccessCode = (secondCodeResponse.body as { code: string }).code;
+    const rotatedAccessCode =
+      await prisma.barbershopAccessCode.findUniqueOrThrow({
+        where: { barbershopId: ownerMembership.barbershop.id },
+      });
+
+    expect(secondAccessCode).not.toBe(firstAccessCode);
+    await expect(
+      bcrypt.compare(firstAccessCode, rotatedAccessCode.codeHash),
+    ).resolves.toBe(false);
+    await expect(
+      bcrypt.compare(secondAccessCode, rotatedAccessCode.codeHash),
+    ).resolves.toBe(true);
+
+    const accessSettingsResponse = await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}/access-settings`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ accessMode: 'CODE_REQUIRED' })
+      .expect(200);
+    expect(accessSettingsResponse.body).toMatchObject({
+      accessMode: 'CODE_REQUIRED',
+      isDiscoverable: true,
+    });
+
+    const codeRequiredSearchResponse = await request(app.getHttpServer())
+      .get('/barbershops?search=discovery')
+      .expect(200);
+    expect(
+      asPublicBarbershopsBody(codeRequiredSearchResponse.body).some(
+        (barbershop) => barbershop.slug === barbershopSlug,
+      ),
+    ).toBe(false);
+
+    const bookingCustomerResponse = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: bookingCustomerEmail,
+        password,
+        firstName: 'Booking',
+        lastName: 'Access',
+      })
+      .expect(201);
+    const bookingCustomer = asAuthResponseBody(bookingCustomerResponse.body);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/services`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .expect(403)
+      .expect(({ body }: { body: { code: string } }) => {
+        expect(body.code).toBe('BARBERSHOP_ACCESS_REQUIRED');
+      });
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/availability`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .query({
+        memberId: employeeMembership.id,
+        serviceId: createdService.id,
+        date: '2099-01-05',
+      })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/barbers`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${ownerMembership.barbershop.id}/appointments`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .send({})
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${barbershopSlug}/access`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .send({ code: secondAccessCode })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/services`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/barbers`)
+      .set('Authorization', `Bearer ${bookingCustomer.accessToken}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${barbershopSlug}/access`)
+      .send({ code: secondAccessCode })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${barbershopSlug}/access`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .send({ code: firstAccessCode })
+      .expect(403);
+
+    const grantedAccessResponse = await request(app.getHttpServer())
+      .post(`/barbershops/${barbershopSlug}/access`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .send({ code: secondAccessCode.toLowerCase() })
+      .expect(201);
+    expect(grantedAccessResponse.body).toMatchObject({
+      barbershopId: ownerMembership.barbershop.id,
+      slug: barbershopSlug,
+      accessGranted: true,
+      alreadyGranted: false,
+    });
+
+    const storedCustomerAccess =
+      await prisma.customerBarbershopAccess.findUniqueOrThrow({
+        where: {
+          userId_barbershopId: {
+            userId: employee.user.id,
+            barbershopId: ownerMembership.barbershop.id,
+          },
+        },
+      });
+    expect(storedCustomerAccess.revokedAt).toBeNull();
+
+    const accessCustomerResponse = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({
+        email: accessCustomerEmail,
+        password,
+        firstName: 'Access',
+        lastName: 'Limit',
+      })
+      .expect(201);
+    const accessCustomer = asAuthResponseBody(accessCustomerResponse.body);
+    const wrongAccessCode =
+      secondAccessCode === 'AAAAAAAA' ? 'BBBBBBBB' : 'AAAAAAAA';
+
+    for (let attemptNumber = 1; attemptNumber < 5; attemptNumber += 1) {
+      await request(app.getHttpServer())
+        .post(`/barbershops/${barbershopSlug}/access`)
+        .set('Authorization', `Bearer ${accessCustomer.accessToken}`)
+        .send({ code: wrongAccessCode })
+        .expect(403);
+    }
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${barbershopSlug}/access`)
+      .set('Authorization', `Bearer ${accessCustomer.accessToken}`)
+      .send({ code: wrongAccessCode })
+      .expect(429);
+
+    await request(app.getHttpServer())
+      .post(`/barbershops/${barbershopSlug}/access`)
+      .set('Authorization', `Bearer ${accessCustomer.accessToken}`)
+      .send({ code: secondAccessCode })
+      .expect(429);
+
+    await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}/access-settings`)
+      .set('Authorization', `Bearer ${employee.accessToken}`)
+      .send({ accessMode: 'PUBLIC' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}/access-settings`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ accessMode: 'PRIVATE' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}/access-settings`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ accessMode: 'PUBLIC' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/barbershops/${ownerMembership.barbershop.id}/services`)
+      .set('Authorization', `Bearer ${accessCustomer.accessToken}`)
+      .expect(200);
+  }, 15_000);
 
   it('rejects an invalid registration body', () => {
     return request(app.getHttpServer())
@@ -508,7 +792,20 @@ describe('Authentication flow (e2e)', () => {
       where: { barbershop: { slug: barbershopSlug } },
     });
     await prisma.barbershop.deleteMany({ where: { slug: barbershopSlug } });
-    await prisma.user.deleteMany({ where: { email: { in: [email, employeeEmail] } } });
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          in: [
+            email,
+            employeeEmail,
+            accessCustomerEmail,
+            bookingCustomerEmail,
+            phoneOwnerEmail,
+            phoneDuplicateEmail,
+          ],
+        },
+      },
+    });
     await app.close();
   });
 });

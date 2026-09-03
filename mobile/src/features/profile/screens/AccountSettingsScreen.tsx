@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
@@ -9,17 +9,63 @@ import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
+import {
+  getNotificationPreferences,
+  type NotificationPreferences,
+  updateNotificationPreferences,
+} from '@/features/notifications/api';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export function AccountSettingsScreen() {
   const router = useRouter();
-  const { signOut, user } = useAuth();
-  const [remindersEnabled, setRemindersEnabled] = useState(true);
-  const [campaignsEnabled, setCampaignsEnabled] = useState(false);
-  const [recommendationsEnabled, setRecommendationsEnabled] = useState(true);
+  const { signOut, token, user } = useAuth();
+  const [preferences, setPreferences] = useState<NotificationPreferences>({
+    appointmentRemindersEnabled: true,
+    campaignsEnabled: false,
+    recommendationsEnabled: true,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+
+      let isActive = true;
+      void getNotificationPreferences(token)
+        .then((nextPreferences) => {
+          if (isActive) setPreferences(nextPreferences);
+        })
+        .catch(() => undefined);
+
+      return () => {
+        isActive = false;
+      };
+    }, [token]),
+  );
 
   if (!user) return null;
+
+  async function changePreference(
+    key: keyof NotificationPreferences,
+    value: boolean,
+  ) {
+    if (!token) return;
+
+    const previousPreferences = preferences;
+    const nextPreferences = { ...preferences, [key]: value };
+    setPreferences(nextPreferences);
+
+    try {
+      const savedPreferences = await updateNotificationPreferences({ [key]: value }, token);
+      setPreferences(savedPreferences);
+    } catch (reason) {
+      setPreferences(previousPreferences);
+      Alert.alert(
+        'Tercih kaydedilemedi',
+        reason instanceof Error ? reason.message : 'Lütfen tekrar dene.',
+      );
+    }
+  }
 
   return (
     <Screen>
@@ -62,9 +108,22 @@ export function AccountSettingsScreen() {
         </SettingsGroup>
 
         <SettingsGroup title="Tercihler">
-          <PreferenceRow label="Randevu Hatırlatmaları" onValueChange={setRemindersEnabled} value={remindersEnabled} />
-          <PreferenceRow label="Kampanya & Duyurular" onValueChange={setCampaignsEnabled} value={campaignsEnabled} />
-          <PreferenceRow isLast label="Kişiselleştirilmiş Öneriler" onValueChange={setRecommendationsEnabled} value={recommendationsEnabled} />
+          <PreferenceRow
+            label="Randevu Hatırlatmaları"
+            onValueChange={(value) => void changePreference('appointmentRemindersEnabled', value)}
+            value={preferences.appointmentRemindersEnabled}
+          />
+          <PreferenceRow
+            label="Kampanya & Duyurular"
+            onValueChange={(value) => void changePreference('campaignsEnabled', value)}
+            value={preferences.campaignsEnabled}
+          />
+          <PreferenceRow
+            isLast
+            label="Kişiselleştirilmiş Öneriler"
+            onValueChange={(value) => void changePreference('recommendationsEnabled', value)}
+            value={preferences.recommendationsEnabled}
+          />
         </SettingsGroup>
 
         <View style={styles.signOut}>

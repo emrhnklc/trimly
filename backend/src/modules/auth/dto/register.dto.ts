@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -13,6 +14,10 @@ export class RegisterDto {
   @IsString()
   @MinLength(8)
   @MaxLength(72)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])\S+$/, {
+    message:
+      'Şifre en az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter içermelidir.',
+  })
   password: string;
 
   @IsString()
@@ -27,6 +32,6 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(30)
+  @MaxLength(25)
   phone?: string;
 }

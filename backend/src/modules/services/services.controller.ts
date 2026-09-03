@@ -10,6 +10,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { BarbershopBookingAccessGuard } from '../../common/guards/barbershop-booking-access.guard';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -22,6 +23,7 @@ export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard, BarbershopBookingAccessGuard)
   findActiveByBarbershop(@Param('barbershopId') barbershopId: string) {
     return this.servicesService.findActiveByBarbershop(barbershopId);
   }

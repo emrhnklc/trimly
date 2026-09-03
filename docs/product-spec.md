@@ -42,8 +42,17 @@ Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: 
 
 ### Şimdi netleşen ürün kararları
 
+- Hesap şifresi 8–72 karakter olmalı; en az bir büyük harf, bir küçük harf, bir rakam ve bir özel karakter içermeli, boşluk içermemelidir. Mobil kayıt ekranı bu şartları kullanıcı yazdıkça ayrı ayrı işaretler; aynı kurallar backend tarafından da zorunlu olarak doğrulanır.
+- Türkiye cep telefonu numaraları mobilde `+90 5xx xxx xx xx` biçiminde gösterilir ve backend'de E.164 (`+905xxxxxxxxx`) biçiminde saklanır. Biçimin doğru olması numaranın kullanıcıya ait olduğunu kanıtlamaz; sahiplik doğrulaması ancak SMS koduyla yapılabilir.
+- MVP hesap aktivasyonunda önce e-posta doğrulaması kullanılacaktır. Kayıt sonrası gönderilen kısa ömürlü tek kullanımlık kod hash'li saklanacak, tekrar gönderme ve hatalı deneme sınırı uygulanacaktır. SMS doğrulaması maliyet ve sağlayıcı bağımlılığı nedeniyle telefon zorunlu hale gelirse sonraki aşamada eklenir.
+- “Şifremi unuttum” cevabı bir hesabın kayıtlı olup olmadığını dışarıya açıklamayacaktır. Kayıtlı hesaba kısa ömürlü, tek kullanımlık ve hash'li sıfırlama kodu/linki gönderilecek; başarılı sıfırlamada token geçersiz kılınacaktır. Gerçek gönderim için production e-posta sağlayıcısı seçildikten sonra aktif edilir.
+- Doğum tarihi randevu için gerekli olmadığı için kayıt sırasında zorunlu tutulmaz. İleride doğum günü kampanyaları açılırsa açık amaç belirtilerek isteğe bağlı profil alanı olarak eklenir.
+- İşletme kurulurken fotoğraf yüklemek taslak oluşturmayı engellemez. Ancak işletmenin keşfette yayınlanabilmesi için en az üç galeri görseli, profil görseli ve kapak görseli istenir. Böylece kaliteli vitrin korunurken owner'ın ilk kurulumda uygulamayı terk etme riski azaltılır.
 - Saç modeliyle berber keşfi herkes için ücretsiz olacaktır. Kullanıcı örneğin `taper fade`, `low fade` veya `sakal` aradığında bu modeli portföyünde gösteren yakın/istenen konumdaki berberleri bulabilmelidir. Bu, Trimly'nin temel keşif değeridir; Plus paywall arkasına konmaz.
 - İşletme sahibi, müşteri erişimini `PUBLIC` veya `CODE_REQUIRED` olarak seçebilir. `PUBLIC` işletmeler genel keşifte görünür ve giriş yapmış herkes randevu akışına girebilir. `CODE_REQUIRED` işletmeler genel keşifte görünmez; müşteri işletmenin paylaştığı kod, QR veya özel link ile bir kez erişim kazanır ve sonrasında normal randevu akışını kullanır.
+- Owner/manager erişim biçimini `PATCH /barbershops/:barbershopId/access-settings` ile günceller. `isDiscoverable` keşfet görünürlüğünü, `accessMode` ise randevu erişim kuralını ayrı ayrı yönetir.
+- Owner/manager erişim ayarlarını `GET /barbershops/:barbershopId/access-settings` ile görür ve `POST /barbershops/:barbershopId/access-code/rotate` ile yeni paylaşım kodu üretir. Kod yalnız bu cevabın içinde açık şekilde döner; veritabanında bcrypt hash'i saklanır ve yenileme eski kodu geçersiz kılar.
+- Giriş yapmış müşteri kodu `POST /barbershops/:slug/access` ile bir kez doğrular. Başarılı doğrulama `CustomerBarbershopAccess` kaydını açar; 15 dakika içinde 5 hatalı deneme kullanıcı–işletme çiftini 15 dakika kilitler ve sayaç PostgreSQL'de tutulur.
 - Kod, her randevuda yeniden istenen bir parola değildir. Başarılı kullanım kullanıcı-işletme erişimi olarak kaydedilir. İşletme kodunu yenileyebilir ve daha önce verilmiş müşteri erişimini kaldırabilir. Tahmin edilebilir kısa kod tek başına kalıcı yetki taşımaz; backend deneme sınırı ve güvenli doğrulama uygular.
 - Berber portföyü, müşterinin özel tıraş geçmişinden tamamen ayrı tutulacaktır. Berber kendi portföyüne fotoğraf, başlık ve model etiketleri ekler. Müşteri geçmişindeki fotoğraf, yalnız açık rızayla ayrı bir portföy kaydına dönüştürülebilir.
 - İşletme oluştururken konum zorunlu ürün verisidir. Adres, koordinat, il ve ilçe ile desteklenir. Önce mevcut adres alanı korunur; koordinat/mesafe sorgusu için veritabanı ve harita/geocoding altyapısı ayrı teknik adımda eklenir.
@@ -94,12 +103,12 @@ Müşterinin tıraş fotoğrafları ve notları berberin profiline ya da başka 
 
 Roller işletme üyeliği üzerinde tutulur; kullanıcı üzerinde global rol yoktur.
 
-| Rol | Ana yetki |
-| --- | --- |
-| `OWNER` | İşletmenin tamamını ve çalışanları yönetir. |
-| `MANAGER` | Operasyonu ve tüm randevuları yönetir; sahiplik/kritik işletme ayarları sınırlandırılabilir. |
-| `BARBER` | Kendi randevularını, uygun olduğu müşterileri ve tıraş kayıtlarını yönetir. |
-| `APPRENTICE` | Varsayılan olarak programı/hizmetleri görüntüler; düzenleme ve iptal yapamaz. |
+| Rol          | Ana yetki                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| `OWNER`      | İşletmenin tamamını ve çalışanları yönetir.                                                  |
+| `MANAGER`    | Operasyonu ve tüm randevuları yönetir; sahiplik/kritik işletme ayarları sınırlandırılabilir. |
+| `BARBER`     | Kendi randevularını, uygun olduğu müşterileri ve tıraş kayıtlarını yönetir.                  |
+| `APPRENTICE` | Varsayılan olarak programı/hizmetleri görüntüler; düzenleme ve iptal yapamaz.                |
 
 MVP'de rollerden türetilen sabit bir permission haritası kullanılacak. Özel rol ve veritabanından düzenlenebilir permission sistemi sonraki aşamadır. Bu, ilk sürümün yönetimini ve güvenlik denetimini daha sade tutar.
 
@@ -117,6 +126,13 @@ Her `BusinessMember` için `isBookable` alanı bulunur:
 `APPRENTICE` varsayılan olarak bookable değildir; ancak bu yalnız rolün zorunlu sonucu değildir. İşletme isterse bir çırağı bookable yapabilir.
 
 Owner veya manager, `PUT /barbershops/:barbershopId/members/:memberId/bookable` çağrısında `{ "isBookable": true | false }` göndererek bu durumu değiştirir. Pasif çalışanın `isBookable` değeri `true` yapılamaz.
+
+İşletme profilindeki kısayollar iki farklı davet amacını açıkça ayırır:
+
+- **Müşteri Davet Kodum:** Müşterinin özel işletme erişimi kazanması için kod, QR ve deep link ekranını açar.
+- **Çalışan Davet Kodum:** Ekibe `MANAGER`, `BARBER` veya `APPRENTICE` olarak katılım için süreli, tek kullanımlık davet bağlantısı oluşturur.
+
+Çalışan davet ekranına hem `Yönetim > Çalışanlar` içinden hem de işletme profilindeki kısayoldan ulaşılır. Bu iki yönetim kısayolu yalnız gerekli yetkileri bulunan owner ve manager rollerinde gösterilir.
 
 Owner, `PATCH /barbershops/:barbershopId/members/:memberId` ile owner olmayan bir çalışanın rolünü değiştirebilir veya üyeliğini pasife alabilir. Pasife alınan kişi otomatik olarak müşteri randevusuna kapatılır. Owner rolünü değiştirmek ya da devretmek daha hassas olduğu için ayrı bir sahiplik devri akışında ele alınır.
 
@@ -219,9 +235,13 @@ Expo cihaz token'ları kullanıcıya bağlı `PushDevice` kayıtlarında tutulur
 
 Randevu PostgreSQL'e başarıyla yazıldıktan sonra backend, atanan berberin tüm kayıtlı Expo cihazlarına “Yeni randevu” push mesajı gönderir. Push hatası yakalanır ve yalnız loglanır; randevu oluşturma başarılı kalır. Mobilde token alma/izin ve Android-iOS credential ayarları ayrı Expo adımıdır.
 
+Müşteri randevu hatırlatmaları varsayılan olarak randevudan yaklaşık 24 saat ve 2 saat önce hazırlanır. Kullanıcı, Hesap Ayarları içindeki “Randevu Hatırlatmaları” anahtarıyla bu bildirimleri kapatabilir. Her hatırlatma randevu üzerinde gönderim zamanı ile işaretlenir; böylece backend yeniden başlasa veya kontrol döngüsü tekrar çalışsa bile aynı hatırlatma ikinci kez gönderilmez. Hatırlatma hem Bildirim Merkezi'nde kalıcı kayıt olur hem de cihaz tokenı varsa normal telefon bildirimi olarak iletilir.
+
 ## Favoriler ve deep link
 
 Favoriler, `User` ile `Barbershop` arasında ayrı bağlantı modeli olarak tutulur. Deep link/QR kod, uygulama yüklüyse ilgili işletme ekranını; değilse web yönlendirme/fallback ekranını açmalıdır.
+
+Özel erişimli işletmenin owner veya manager'ı yeni kod ürettiğinde mobil uygulama `access/:slug?code=...` deep link'ini içeren bir QR gösterir. QR'ı okutan kullanıcı giriş yapmamışsa işletme ve kod bilgisi giriş/kayıt boyunca korunur; oturum açıldıktan sonra kod otomatik doğrulanır ve kullanıcı işletme profiline yönlendirilir. Kod veritabanında hash olarak tutulduğu için eski kod sonradan görüntülenemez; QR yeniden hazırlanacaksa yeni kod üretilir ve önceki kod geçersiz olur. Daha önce erişim kazanmış müşterilerin kaydı korunur.
 
 Favori API'leri giriş gerektirir: `GET /favorites/barbershops`, `PUT /favorites/barbershops/:barbershopId` ve `DELETE /favorites/barbershops/:barbershopId`. Ekleme için `PUT` seçilmiştir; kullanıcı aynı isteği tekrar gönderse bile sonuç değişmez (idempotent).
 
@@ -253,6 +273,12 @@ Local backend çalışırken Swagger arayüzü `http://localhost:3000/api/docs` 
 
 Local geliştirme verisi `backend` klasöründe `npm run prisma:seed` komutuyla oluşturulur. Seed tekrar çalıştırılabilir; Trimly'nin sabit örnek işletmelerini günceller, kopyalamaz ve diğer kullanıcı kayıtlarını silmez. Örnek owner girişi: `owner.alsancak@trimly.dev` / `Trimly123!`.
 
+Rol bazlı işletme ekranlarını localde denemek için örnek manager girişi: `manager.alsancak@trimly.dev` / `Trimly123!`.
+
+Yalnız kendi randevu ve takvimini gören örnek barber girişi: `barber.alsancak@trimly.dev` / `Trimly123!`.
+
+Salt okunur takvim, hizmet kataloğu ve profil ekranlarını deneyen örnek apprentice girişi: `apprentice.alsancak@trimly.dev` / `Trimly123!`.
+
 ## MVP sonrası
 
 - Konuma göre keşif
@@ -263,6 +289,23 @@ Local geliştirme verisi `backend` klasöründe `npm run prisma:seed` komutuyla 
 - Online ödeme
 - SMS/WhatsApp hatırlatma
 - Yorum/puanlama, kampanyalar, kuponlar ve gelişmiş analytics
+
+## Bundan sonraki ilerleme sırası
+
+Yeni büyüme özelliklerine geçmeden önce mevcut MVP aşağıdaki sırayla tamamlanıp sağlamlaştırılır:
+
+1. **Auth güvenliği:** E-posta doğrulama, şifremi unuttum/sıfırlama akışı ve gerçek mail servisi. Telefon numarası doğrulaması daha sonra SMS sağlayıcısıyla eklenebilir.
+2. **Kullanıcı profili:** Doğum tarihi gibi kayıt alanlarını veritabanına bağlama; profil fotoğrafını URL yazmak yerine güvenli yükleme akışına taşıma.
+3. **İşletme kurulumu ve galeri:** İşletme oluştururken en az üç görsel alma, kapak/profil/galeri ayrımı ve görsel yönetimi.
+4. **Konum tabanlı keşif:** İşletme koordinatları, cihaz konum izni, gerçek mesafe hesabı ve “Yakındaki Berberler” filtresi.
+5. **Production dosya saklama:** Local `uploads` yerine private Supabase Storage/S3, imzalı fotoğraf erişimi, sıkıştırma ve silme politikası.
+6. **Gerçek cihaz bildirimleri:** Apple/Android imzalı build, push credential ayarları ve iOS/Android cihaz testleri.
+7. **MVP kalite turu:** Rol/yetki, eşzamanlı randevu, saat dilimi, izin, iptal, no-show ve fotoğraf gizliliği senaryolarının uçtan uca testi.
+8. **Canlıya hazırlık:** Backend ve PostgreSQL deployment, secret yönetimi, loglama, hata izleme, yedekleme, gizlilik metinleri ve mağaza hazırlıkları.
+9. **Sosyal özellikler:** Gerçek yorum/puanlama, işletme portföyü ve stil/model araması.
+10. **Gelir özellikleri:** Trimly Plus, tekrarlayan randevu, referral/ödül sistemi ve online ödeme.
+
+Apple ve Google ile giriş, temel e-posta/şifre auth akışı tamamlanıp production kimlik bilgileri hazırlandıktan sonra eklenir. İş ilanları ve Trimly Mağaza ise çekirdek randevu ürünü gerçek kullanıcılarla doğrulandıktan sonraki en ileri aşamadır.
 
 ### En ileri aşama — Trimly platform modülleri
 

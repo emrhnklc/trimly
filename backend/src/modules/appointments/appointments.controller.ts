@@ -11,6 +11,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { BarbershopBookingAccessGuard } from '../../common/guards/barbershop-booking-access.guard';
 import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -58,6 +59,15 @@ export class AppointmentsController {
     );
   }
 
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  findForCurrentMember(
+    @Param('barbershopId') barbershopId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.findForCurrentMember(barbershopId, user.id);
+  }
+
   @Get('next-for-me')
   @UseGuards(JwtAuthGuard)
   findNextForCurrentMember(
@@ -85,7 +95,7 @@ export class AppointmentsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, BarbershopBookingAccessGuard)
   create(
     @Param('barbershopId') barbershopId: string,
     @CurrentUser() user: AuthenticatedUser,

@@ -48,6 +48,8 @@ export class BusinessRolesGuard implements CanActivate {
       },
     });
 
-    return Boolean(membership && allowedRoles.includes(membership.role));
+    return Boolean(
+      membership?.isActive && allowedRoles.includes(membership.role),
+    );
   }
 }

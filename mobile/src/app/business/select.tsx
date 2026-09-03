@@ -61,11 +61,20 @@ export default function BusinessSelectionScreen() {
             Kendi salonunu oluşturabilir ya da işletme sahibinin gönderdiği davetle ekibe katılabilirsin.
           </AppText>
           <View style={styles.action}>
-            <AppButton onPress={() => router.push('/onboarding/business')}>
+            <AppButton
+              onPress={() => router.push({
+                pathname: '/onboarding/business',
+                params: { source: 'business-select' },
+              })}>
               İşletme Oluştur
             </AppButton>
           </View>
-          <AppButton onPress={() => router.push('/onboarding/invitation')} variant="ghost">
+          <AppButton
+            onPress={() => router.push({
+              pathname: '/onboarding/invitation',
+              params: { source: 'business-select' },
+            })}
+            variant="ghost">
             Çalışan Davetine Katıl
           </AppButton>
         </AppCard>

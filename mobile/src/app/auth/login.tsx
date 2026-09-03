@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
@@ -17,6 +17,10 @@ import { radius, spacing } from '@/theme/spacing';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { accessCode, accessSlug } = useLocalSearchParams<{
+    accessCode?: string;
+    accessSlug?: string;
+  }>();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +39,14 @@ export default function LoginScreen() {
       setIsSubmitting(true);
       setError(null);
       await signIn(await login(email.trim(), password), rememberMe);
-      router.replace('/');
+      if (accessSlug && accessCode) {
+        router.replace({
+          pathname: '/access/[slug]',
+          params: { code: accessCode, slug: accessSlug },
+        });
+      } else {
+        router.replace('/');
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Giriş yapılamadı.');
     } finally {
@@ -106,7 +117,10 @@ export default function LoginScreen() {
         <Pressable
           accessibilityRole="button"
           disabled={isSubmitting}
-          onPress={() => router.replace('/auth/register')}
+          onPress={() => router.replace({
+            pathname: '/auth/register',
+            params: accessSlug && accessCode ? { accessCode, accessSlug } : {},
+          })}
           style={({ pressed }) => [styles.registerAction, pressed && styles.pressed]}>
           <AppText color="textMuted" variant="bodySmall">Hesabın yok mu? </AppText>
           <AppText color="primary" variant="bodySmall">Kayıt Ol</AppText>

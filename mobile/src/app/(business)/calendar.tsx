@@ -10,7 +10,10 @@ import {
 
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { getBusinessAppointments } from '@/features/appointments/api';
+import {
+  getBusinessAppointments,
+  getMyBusinessAppointments,
+} from '@/features/appointments/api';
 import type { BusinessAppointment } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { BusinessAppointmentState } from '@/features/business-appointments/components/BusinessAppointmentState';
@@ -28,14 +31,17 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessScreenHeader } from '@/features/business/components/BusinessScreenHeader';
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
-import { getBusinessWorkingHours } from '@/features/schedules/api';
+import {
+  getBusinessWorkingHours,
+  getMyMemberWorkingHours,
+} from '@/features/schedules/api';
 import type { BusinessWorkingHours } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
 export default function BusinessCalendarScreen() {
   const { token } = useAuth();
-  const { activeMembership } = useBusiness();
+  const { activeMembership, can } = useBusiness();
   const timeZone = activeMembership?.barbershop.timezone ?? 'Europe/Istanbul';
   const todayKey = getDateKey(new Date(), timeZone);
   const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
@@ -56,10 +62,23 @@ export default function BusinessCalendarScreen() {
       setError(null);
 
       try {
+        const canViewAllAppointments = can('VIEW_ALL_APPOINTMENTS');
+        const canViewOwnAppointments = can('VIEW_OWN_APPOINTMENTS');
+        const appointmentsRequest = canViewAllAppointments
+          ? getBusinessAppointments(activeMembership.barbershop.id, token)
+          : canViewOwnAppointments
+            ? getMyBusinessAppointments(activeMembership.barbershop.id, token)
+            : Promise.resolve([] as BusinessAppointment[]);
+        const membersRequest = canViewAllAppointments
+          ? getBusinessMembers(activeMembership.barbershop.id, token)
+          : Promise.resolve([] as BusinessMember[]);
+        const workingHoursRequest = canViewAllAppointments
+          ? getBusinessWorkingHours(activeMembership.barbershop.id)
+          : getMyMemberWorkingHours(activeMembership.barbershop.id, token);
         const [nextAppointments, nextMembers, nextWorkingHours] = await Promise.all([
-          getBusinessAppointments(activeMembership.barbershop.id, token),
-          getBusinessMembers(activeMembership.barbershop.id, token),
-          getBusinessWorkingHours(activeMembership.barbershop.id),
+          appointmentsRequest,
+          membersRequest,
+          workingHoursRequest,
         ]);
 
         setAppointments(nextAppointments);
@@ -78,7 +97,7 @@ export default function BusinessCalendarScreen() {
         setRefreshing(false);
       }
     },
-    [activeMembership, token],
+    [activeMembership, can, token],
   );
 
   useFocusEffect(
@@ -158,19 +177,21 @@ export default function BusinessCalendarScreen() {
 
         {!isLoading && !error ? (
           <>
-            <View style={styles.filterSection}>
-              <View style={styles.sectionHeading}>
-                <AppText variant="label">Çalışan</AppText>
-                <AppText color="textMuted" style={styles.memberCount} variant="bodySmall">
-                  {members.length} aktif çalışan
-                </AppText>
+            {can('VIEW_ALL_APPOINTMENTS') ? (
+              <View style={styles.filterSection}>
+                <View style={styles.sectionHeading}>
+                  <AppText variant="label">Çalışan</AppText>
+                  <AppText color="textMuted" style={styles.memberCount} variant="bodySmall">
+                    {members.length} aktif çalışan
+                  </AppText>
+                </View>
+                <BusinessMemberFilter
+                  members={members}
+                  onChange={setSelectedMemberId}
+                  selectedMemberId={selectedMemberId}
+                />
               </View>
-              <BusinessMemberFilter
-                members={members}
-                onChange={setSelectedMemberId}
-                selectedMemberId={selectedMemberId}
-              />
-            </View>
+            ) : null}
 
             <View style={styles.dayHeading}>
               <View style={styles.dayTitleArea}>
@@ -201,7 +222,7 @@ export default function BusinessCalendarScreen() {
               <DailyScheduleTimeline
                 appointments={selectedAppointments}
                 endMinute={scheduleBounds.endMinute}
-                showBarber={!selectedMemberId}
+                showBarber={can('VIEW_ALL_APPOINTMENTS') && !selectedMemberId}
                 startMinute={scheduleBounds.startMinute}
                 timeZone={timeZone}
               />

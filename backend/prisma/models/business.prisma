@@ -5,27 +5,74 @@ enum BusinessRole {
   APPRENTICE
 }
 
+enum BarbershopAccessMode {
+  PUBLIC
+  CODE_REQUIRED
+}
+
 model Barbershop {
-  id              String   @id @default(cuid())
+  id              String               @id @default(cuid())
   name            String
-  slug            String   @unique
+  slug            String               @unique
   description     String?
   profileImageUrl String?
   coverImageUrl   String?
   phone           String?
   address         String?
-  timezone        String   @default("Europe/Istanbul")
-  isDiscoverable  Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  timezone        String               @default("Europe/Istanbul")
+  isDiscoverable  Boolean              @default(true)
+  accessMode      BarbershopAccessMode @default(PUBLIC)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
-  members         BusinessMember[]
-  services        Service[]
-  workingHours    WorkingHours[]
-  bookingSettings BookingSettings?
-  appointments    Appointment[]
-  invitations     BusinessInvitation[]
-  favorites       FavoriteBarbershop[]
+  members                BusinessMember[]
+  services               Service[]
+  workingHours           WorkingHours[]
+  bookingSettings        BookingSettings?
+  appointments           Appointment[]
+  invitations            BusinessInvitation[]
+  favorites              FavoriteBarbershop[]
+  customerAccesses       CustomerBarbershopAccess[]
+  customerAccessAttempts CustomerBarbershopAccessAttempt[]
+  accessCode             BarbershopAccessCode?
+  notifications          AppNotification[]
+}
+
+model BarbershopAccessCode {
+  barbershopId String   @id
+  codeHash     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+}
+
+model CustomerBarbershopAccess {
+  userId       String
+  barbershopId String
+  grantedAt    DateTime  @default(now())
+  revokedAt    DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  @@id([userId, barbershopId])
+  @@index([barbershopId, revokedAt])
+}
+
+model CustomerBarbershopAccessAttempt {
+  userId          String
+  barbershopId    String
+  failedAttempts  Int       @default(0)
+  windowStartedAt DateTime  @default(now())
+  lockedUntil     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+
+  @@id([userId, barbershopId])
+  @@index([lockedUntil])
 }
 
 model FavoriteBarbershop {

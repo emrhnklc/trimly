@@ -65,6 +65,11 @@ const defaultCancellationSettings = {
   cancellationNoticeMinutes: 120,
 };
 
+// İşletmenin "Müşteri geldi" işaretini atlaması durumunda randevu, planlanan
+// bitişinden bir saat sonra aktif listede takılı kalmasın. Bu süre dolmadan
+// owner/manager randevuyu "Gelmedi" olarak işaretleyebilir.
+const unmarkedAppointmentCompletionGraceMinutes = 60;
+
 function getCancellationPolicy(
   status: AppointmentStatus,
   startsAt: Date,
@@ -163,12 +168,23 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     customerId?: string;
   }) {
     const now = new Date();
+    const unmarkedAppointmentCompletionDeadline = new Date(
+      now.getTime() - unmarkedAppointmentCompletionGraceMinutes * 60 * 1000,
+    );
 
     await this.prisma.appointment.updateMany({
       where: {
         ...where,
-        status: AppointmentStatus.ARRIVED,
-        autoCompleteAt: { lte: now },
+        OR: [
+          {
+            status: AppointmentStatus.ARRIVED,
+            autoCompleteAt: { lte: now },
+          },
+          {
+            status: AppointmentStatus.CONFIRMED,
+            endsAt: { lte: unmarkedAppointmentCompletionDeadline },
+          },
+        ],
       },
       data: {
         status: AppointmentStatus.COMPLETED,
@@ -381,6 +397,51 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async findForCurrentMember(barbershopId: string, userId: string) {
+    await this.reconcileAutoCompletedAppointments({ barbershopId });
+
+    const membership = await this.prisma.businessMember.findUnique({
+      where: { userId_barbershopId: { userId, barbershopId } },
+      select: { id: true, isActive: true, role: true },
+    });
+
+    if (!membership?.isActive || membership.role === 'APPRENTICE') {
+      throw new ForbiddenException('Randevuları görüntüleme yetkin yok.');
+    }
+
+    return this.prisma.appointment.findMany({
+      where: { barbershopId, businessMemberId: membership.id },
+      orderBy: { startsAt: 'desc' },
+      select: {
+        id: true,
+        startsAt: true,
+        endsAt: true,
+        status: true,
+        arrivedAt: true,
+        autoCompleteAt: true,
+        completedAt: true,
+        serviceNameSnapshot: true,
+        priceSnapshot: true,
+        durationMinutes: true,
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            profileImageUrl: true,
+          },
+        },
+        businessMember: {
+          select: {
+            id: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    });
+  }
+
   async findOneForBusiness(
     barbershopId: string,
     appointmentId: string,
@@ -439,12 +500,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { role: true },
+      select: { isActive: true, role: true },
     });
     const canView =
-      membership?.role === 'OWNER' ||
-      membership?.role === 'MANAGER' ||
-      appointment.businessMember.userId === userId;
+      membership?.isActive &&
+      (membership.role === 'OWNER' ||
+        membership.role === 'MANAGER' ||
+        (membership.role === 'BARBER' &&
+          appointment.businessMember.userId === userId));
 
     if (!canView) {
       throw new ForbiddenException('Bu randevuyu görüntüleme yetkin yok.');
@@ -457,8 +520,10 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         status: AppointmentStatus.COMPLETED,
       },
     });
-    const { userId: _assignedUserId, ...businessMember } =
-      appointment.businessMember;
+    const businessMember = {
+      id: appointment.businessMember.id,
+      user: appointment.businessMember.user,
+    };
 
     return { ...appointment, businessMember, completedVisitCount };
   }
@@ -813,10 +878,10 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, role: true },
     });
 
-    if (!membership?.isActive) {
+    if (!membership?.isActive || membership.role === 'APPRENTICE') {
       throw new ForbiddenException('Bu işletmenin aktif çalışanı değilsin.');
     }
 
@@ -886,12 +951,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { role: true },
+      select: { isActive: true, role: true },
     });
     const canComplete =
-      membership?.role === 'OWNER' ||
-      membership?.role === 'MANAGER' ||
-      appointment.businessMember.userId === userId;
+      membership?.isActive &&
+      (membership.role === 'OWNER' ||
+        membership.role === 'MANAGER' ||
+        (membership.role === 'BARBER' &&
+          appointment.businessMember.userId === userId));
 
     if (!canComplete) {
       throw new ForbiddenException('Bu randevuyu tamamlama yetkin yok.');
@@ -1121,12 +1188,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { role: true },
+      select: { isActive: true, role: true },
     });
     const canMarkNoShow =
-      membership?.role === 'OWNER' ||
-      membership?.role === 'MANAGER' ||
-      appointment.businessMember.userId === userId;
+      membership?.isActive &&
+      (membership.role === 'OWNER' ||
+        membership.role === 'MANAGER' ||
+        (membership.role === 'BARBER' &&
+          appointment.businessMember.userId === userId));
 
     if (!canMarkNoShow) {
       throw new ForbiddenException(
@@ -1174,12 +1243,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const membership = await this.prisma.businessMember.findUnique({
       where: { userId_barbershopId: { userId, barbershopId } },
-      select: { role: true },
+      select: { isActive: true, role: true },
     });
     const canManage =
-      membership?.role === 'OWNER' ||
-      membership?.role === 'MANAGER' ||
-      appointment.businessMember.userId === userId;
+      membership?.isActive &&
+      (membership.role === 'OWNER' ||
+        membership.role === 'MANAGER' ||
+        (membership.role === 'BARBER' &&
+          appointment.businessMember.userId === userId));
 
     if (!canManage) {
       throw new ForbiddenException('Bu randevuyu yönetme yetkin yok.');

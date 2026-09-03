@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -61,6 +62,19 @@ export class SchedulesService {
     });
   }
 
+  async findCurrentMemberWorkingHours(barbershopId: string, userId: string) {
+    const membership = await this.prisma.businessMember.findUnique({
+      where: { userId_barbershopId: { userId, barbershopId } },
+      select: { id: true, isActive: true },
+    });
+
+    if (!membership?.isActive) {
+      throw new ForbiddenException('Bu işletmenin aktif çalışanı değilsin.');
+    }
+
+    return this.findMemberWorkingHours(barbershopId, membership.id);
+  }
+
   async replaceMemberWorkingHours(
     barbershopId: string,
     memberId: string,
@@ -68,10 +82,7 @@ export class SchedulesService {
   ) {
     await this.ensureMemberBelongsToBarbershop(barbershopId, memberId);
     this.validateWorkingHours(dto.hours);
-    await this.validateMemberHoursAgainstBusinessHours(
-      barbershopId,
-      dto.hours,
-    );
+    await this.validateMemberHoursAgainstBusinessHours(barbershopId, dto.hours);
 
     await this.prisma.$transaction([
       this.prisma.memberWorkingHours.deleteMany({

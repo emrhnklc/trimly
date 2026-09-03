@@ -175,7 +175,7 @@ export default function HomeScreen() {
           />
         }
         showsVerticalScrollIndicator={false}>
-        <HomeHeader />
+        <HomeHeader onNotificationsPress={() => router.push('/notifications')} />
         <HomeGreeting user={user} />
 
         <NextAppointmentCard
