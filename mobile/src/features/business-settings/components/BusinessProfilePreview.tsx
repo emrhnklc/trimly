@@ -3,8 +3,8 @@ import { SymbolView } from "expo-symbols";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/ui/AppText";
-import { colors } from "@/theme/colors";
 import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 function isImageUrl(value: string) {
   return /^https?:\/\//i.test(value.trim());
@@ -27,6 +27,7 @@ export function BusinessProfilePreview({
   onPressProfileImage?: () => void;
   profileImageUrl: string;
 }) {
+  const colors = useThemeColors();
   const initial = name.trim().slice(0, 1).toUpperCase() || "?";
 
   return (
@@ -35,7 +36,11 @@ export function BusinessProfilePreview({
         accessibilityLabel="Kapak fotoğrafını değiştir"
         disabled={!onPressCoverImage}
         onPress={onPressCoverImage}
-        style={({ pressed }) => [styles.cover, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.cover,
+          { backgroundColor: colors.darkSurface },
+          pressed && styles.pressed,
+        ]}
       >
         {isImageUrl(coverImageUrl) ? (
           <Image
@@ -66,13 +71,14 @@ export function BusinessProfilePreview({
         ) : null}
       </Pressable>
 
-      <View style={styles.summary}>
+      <View style={[styles.summary, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Pressable
           accessibilityLabel="Profil fotoğrafını değiştir"
           disabled={!onPressProfileImage}
           onPress={onPressProfileImage}
           style={({ pressed }) => [
             styles.avatarFrame,
+            { backgroundColor: colors.surface },
             pressed && styles.pressed,
           ]}
         >
@@ -83,7 +89,7 @@ export function BusinessProfilePreview({
               style={styles.avatar}
             />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.surfaceMuted }]}>
               <AppText color="primary" style={styles.initial} variant="heading">
                 {initial}
               </AppText>
@@ -98,7 +104,7 @@ export function BusinessProfilePreview({
             {address.trim() || "Adres bilgisi bekleniyor"}
           </AppText>
         </View>
-        <View style={[styles.badge, !isDiscoverable && styles.hiddenBadge]}>
+        <View style={[styles.badge, { backgroundColor: colors.surfaceMuted }]}>
           <AppText
             color={isDiscoverable ? "primary" : "textMuted"}
             variant="bodySmall"
@@ -114,7 +120,6 @@ export function BusinessProfilePreview({
 const styles = StyleSheet.create({
   card: { marginTop: spacing.md },
   cover: {
-    backgroundColor: colors.darkSurface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     height: 140,
@@ -134,10 +139,8 @@ const styles = StyleSheet.create({
   },
   summary: {
     alignItems: "center",
-    backgroundColor: colors.surface,
     borderBottomLeftRadius: radius.lg,
     borderBottomRightRadius: radius.lg,
-    borderColor: colors.border,
     borderTopWidth: 0,
     borderWidth: 1,
     flexDirection: "row",
@@ -146,7 +149,6 @@ const styles = StyleSheet.create({
     paddingRight: spacing.sm,
   },
   avatarFrame: {
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     height: 70,
     left: spacing.md,
@@ -158,18 +160,15 @@ const styles = StyleSheet.create({
   avatar: { borderRadius: radius.pill, height: "100%", width: "100%" },
   avatarPlaceholder: {
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
     justifyContent: "center",
   },
   initial: { fontSize: 24, lineHeight: 30 },
   copy: { flex: 1, paddingRight: spacing.xs },
   name: { fontSize: 15, lineHeight: 20 },
   badge: {
-    backgroundColor: "#FBF3DE",
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  hiddenBadge: { backgroundColor: colors.background },
   pressed: { opacity: 0.72 },
 });

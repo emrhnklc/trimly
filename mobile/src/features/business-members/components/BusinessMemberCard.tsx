@@ -5,8 +5,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { businessRoleLabels } from '@/features/business/role-labels';
 import type { BusinessMember } from '@/features/members/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function BusinessMemberCard({
   member,
@@ -15,6 +15,7 @@ export function BusinessMemberCard({
   member: BusinessMember;
   onPress?: () => void;
 }) {
+  const colors = useThemeColors();
   const fullName = `${member.user.firstName} ${member.user.lastName}`;
   const initials = `${member.user.firstName[0] ?? ''}${member.user.lastName[0] ?? ''}`;
 
@@ -23,7 +24,12 @@ export function BusinessMemberCard({
       accessibilityRole={onPress ? 'button' : undefined}
       disabled={!onPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, !member.isActive && styles.inactive, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        !member.isActive && styles.inactive,
+        pressed && styles.pressed,
+      ]}>
       {member.user.profileImageUrl ? (
         <Image
           accessibilityLabel={`${fullName} profil fotoğrafı`}
@@ -32,7 +38,7 @@ export function BusinessMemberCard({
           style={styles.avatar}
         />
       ) : (
-        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+        <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.surfaceMuted }]}>
           <AppText color="primary" variant="label">{initials}</AppText>
         </View>
       )}
@@ -41,7 +47,7 @@ export function BusinessMemberCard({
         <View style={styles.nameRow}>
           <AppText numberOfLines={1} style={styles.name} variant="label">{fullName}</AppText>
           {member.role === 'OWNER' ? (
-            <View style={styles.ownerBadge}>
+            <View style={[styles.ownerBadge, { backgroundColor: colors.surfaceMuted }]}>
               <AppText color="primary" style={styles.ownerLabel} variant="label">Sahip</AppText>
             </View>
           ) : null}
@@ -50,13 +56,16 @@ export function BusinessMemberCard({
           {businessRoleLabels[member.role]}
         </AppText>
         <View style={styles.metaRow}>
-          <View style={[styles.statusDot, !member.isActive && styles.inactiveDot]} />
+          <View style={[
+            styles.statusDot,
+            { backgroundColor: member.isActive ? colors.success : colors.textMuted },
+          ]} />
           <AppText color="textMuted" style={styles.meta} variant="bodySmall">
             {member.isActive ? 'Aktif' : 'Pasif'}
           </AppText>
           {member.isActive && member.isBookable ? (
             <>
-              <View style={styles.metaSeparator} />
+              <View style={[styles.metaSeparator, { backgroundColor: colors.border }]} />
               <AppText color="primary" style={styles.meta} variant="bodySmall">
                 Randevuya açık
               </AppText>
@@ -79,8 +88,6 @@ export function BusinessMemberCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
@@ -93,14 +100,12 @@ const styles = StyleSheet.create({
   avatar: { borderRadius: radius.pill, height: 46, width: 46 },
   avatarPlaceholder: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
   },
   content: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   nameRow: { alignItems: 'center', flexDirection: 'row' },
   name: { flexShrink: 1, fontSize: 16, lineHeight: 21 },
   ownerBadge: {
-    backgroundColor: '#FBF3DE',
     borderRadius: radius.pill,
     marginLeft: spacing.xs,
     paddingHorizontal: 7,
@@ -109,11 +114,9 @@ const styles = StyleSheet.create({
   ownerLabel: { fontSize: 8, lineHeight: 11 },
   role: { fontSize: 10, lineHeight: 14, marginTop: 2 },
   metaRow: { alignItems: 'center', flexDirection: 'row', marginTop: 5 },
-  statusDot: { backgroundColor: colors.success, borderRadius: radius.pill, height: 5, width: 5 },
-  inactiveDot: { backgroundColor: colors.textMuted },
+  statusDot: { borderRadius: radius.pill, height: 5, width: 5 },
   meta: { fontSize: 9, lineHeight: 12, marginLeft: 4 },
   metaSeparator: {
-    backgroundColor: colors.border,
     borderRadius: radius.pill,
     height: 3,
     marginLeft: spacing.xs,

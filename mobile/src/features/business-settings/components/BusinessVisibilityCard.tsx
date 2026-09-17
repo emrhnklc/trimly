@@ -2,8 +2,8 @@ import { SymbolView } from 'expo-symbols';
 import { StyleSheet, Switch, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function BusinessVisibilityCard({
   onChange,
@@ -12,9 +12,10 @@ export function BusinessVisibilityCard({
   onChange: (value: boolean) => void;
   value: boolean;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.card}>
-      <View style={styles.iconShell}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.iconShell, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView
           name={{ ios: value ? 'eye' : 'eye.slash', android: value ? 'visibility' : 'visibility_off', web: value ? 'visibility' : 'visibility_off' }}
           size={21}
@@ -42,8 +43,6 @@ export function BusinessVisibilityCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -51,7 +50,6 @@ const styles = StyleSheet.create({
   },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.sm,
     height: 42,
     justifyContent: 'center',

@@ -2,8 +2,8 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import type { WorkingDayDraft } from '../types';
 
 export function WorkingHoursDayCard({
@@ -21,8 +21,16 @@ export function WorkingHoursDayCard({
   onChangeTime: (field: 'startTime' | 'endTime') => void;
   onToggle: (isOpen: boolean) => void;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={[styles.card, day.isOpen && styles.cardOpen, disabled && styles.disabled]}>
+    <View style={[
+      styles.card,
+      {
+        backgroundColor: colors.surface,
+        borderColor: day.isOpen ? colors.primary : colors.border,
+      },
+      disabled && styles.disabled,
+    ]}>
       <View style={styles.topRow}>
         <View style={styles.dayCopy}>
           <AppText style={styles.dayLabel} variant="label">{label}</AppText>
@@ -44,6 +52,7 @@ export function WorkingHoursDayCard({
       {day.isOpen ? (
         <View style={styles.timeRow}>
           <TimeButton
+            colors={colors}
             disabled={disabled}
             label="Açılış"
             onPress={() => onChangeTime('startTime')}
@@ -55,6 +64,7 @@ export function WorkingHoursDayCard({
             tintColor={colors.textMuted}
           />
           <TimeButton
+            colors={colors}
             disabled={disabled}
             label="Kapanış"
             onPress={() => onChangeTime('endTime')}
@@ -67,11 +77,13 @@ export function WorkingHoursDayCard({
 }
 
 function TimeButton({
+  colors,
   disabled,
   label,
   onPress,
   value,
 }: {
+  colors: ReturnType<typeof useThemeColors>;
   disabled: boolean;
   label: string;
   onPress: () => void;
@@ -83,7 +95,11 @@ function TimeButton({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.timeButton, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.timeButton,
+        { backgroundColor: colors.background },
+        pressed && styles.pressed,
+      ]}>
       <AppText color="textMuted" variant="bodySmall">{label}</AppText>
       <AppText style={styles.timeValue} variant="label">{value}</AppText>
     </Pressable>
@@ -92,21 +108,17 @@ function TimeButton({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
-  cardOpen: { borderColor: '#DCC796' },
   disabled: { opacity: 0.58 },
   topRow: { alignItems: 'center', flexDirection: 'row' },
   dayCopy: { flex: 1, minWidth: 0 },
   dayLabel: { fontSize: 15, lineHeight: 20, marginBottom: 2 },
   timeRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   timeButton: {
-    backgroundColor: colors.background,
     borderRadius: radius.md,
     flex: 1,
     minWidth: 0,

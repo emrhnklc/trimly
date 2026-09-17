@@ -21,12 +21,14 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 function serializeSettings(settings: BookingSettings | null) {
   return settings ? JSON.stringify(settings) : '';
 }
 
 export default function BookingSettingsScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
@@ -168,7 +170,7 @@ export default function BookingSettingsScreen() {
               value={settings.slotIntervalMinutes}
             />
 
-            <View style={styles.infoCard}>
+            <View style={[styles.infoCard, { backgroundColor: themeColors.surfaceMuted }]}>
               <AppText variant="label">Slot aralığı ve hizmet süresi farklıdır</AppText>
               <AppText color="textMuted" style={styles.infoDescription} variant="bodySmall">
                 Örneğin 15 dakikalık slot düzeninde 45 dakikalık Saç + Sakal hizmeti üç aralığı kaplar.
@@ -213,7 +215,6 @@ const styles = StyleSheet.create({
   sectionHeading: { marginBottom: spacing.sm, marginTop: layout.sectionGap },
   sectionTitle: { fontSize: 22, lineHeight: 28 },
   infoCard: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     marginTop: spacing.sm,
     padding: spacing.md,

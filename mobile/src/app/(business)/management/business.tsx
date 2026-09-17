@@ -59,6 +59,7 @@ function isValidOptionalUrl(value: string) {
 }
 
 export default function BusinessSettingsScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { source } = useLocalSearchParams<{ source?: string }>();
   const { refreshUser, token } = useAuth();
@@ -634,6 +635,10 @@ export default function BusinessSettingsScreen() {
                     style={({ pressed }) => [
                       styles.galleryMediaCard,
                       styles.addGalleryTile,
+                      {
+                        backgroundColor: themeColors.surfaceMuted,
+                        borderColor: themeColors.border,
+                      },
                       pressed && styles.pressed,
                     ]}
                   >
@@ -650,6 +655,7 @@ export default function BusinessSettingsScreen() {
                   onPress={() => void chooseBusinessPhotos("gallery")}
                   style={({ pressed }) => [
                     styles.addMediaButton,
+                    { borderColor: themeColors.border },
                     pressed && styles.pressed,
                   ]}
                 >
@@ -687,10 +693,14 @@ export default function BusinessSettingsScreen() {
                 }
                 style={({ pressed }) => [
                   styles.accessCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
                   pressed && styles.pressed,
                 ]}
               >
-                <View style={styles.identityIcon}>
+                <View style={[styles.identityIcon, { backgroundColor: themeColors.surfaceMuted }]}>
                   <SymbolView
                     name={{ ios: "key", android: "key", web: "key" }}
                     size={21}
@@ -714,12 +724,12 @@ export default function BusinessSettingsScreen() {
                     web: "chevron_right",
                   }}
                   size={18}
-                  tintColor={colors.textMuted}
+                  tintColor={themeColors.textMuted}
                 />
               </Pressable>
 
-              <View style={styles.identityCard}>
-                <View style={styles.identityIcon}>
+              <View style={[styles.identityCard, { backgroundColor: themeColors.surfaceMuted }]}>
+                <View style={[styles.identityIcon, { backgroundColor: themeColors.surface }]}>
                   <SymbolView
                     name={{ ios: "link", android: "link", web: "link" }}
                     size={20}
@@ -896,20 +906,16 @@ const styles = StyleSheet.create({
   mediaFill: { height: "100%", width: "100%" },
   mediaPlaceholder: {
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
     justifyContent: "center",
   },
   addGalleryTile: {
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
     borderStyle: "dashed",
     borderWidth: 1,
     justifyContent: "center",
   },
   addMediaButton: {
     alignItems: "center",
-    borderColor: colors.border,
     borderRadius: radius.smallCard,
     borderStyle: "dashed",
     borderWidth: 1,
@@ -921,7 +927,6 @@ const styles = StyleSheet.create({
   },
   identityCard: {
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     flexDirection: "row",
     marginBottom: spacing.sm,
@@ -930,8 +935,6 @@ const styles = StyleSheet.create({
   },
   accessCard: {
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -940,7 +943,6 @@ const styles = StyleSheet.create({
   },
   identityIcon: {
     alignItems: "center",
-    backgroundColor: colors.surface,
     borderRadius: radius.sm,
     height: 42,
     justifyContent: "center",

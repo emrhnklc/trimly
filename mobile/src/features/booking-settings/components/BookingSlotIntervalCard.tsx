@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 const intervals = [5, 10, 15, 30] as const;
 
@@ -13,8 +13,9 @@ export function BookingSlotIntervalCard({
   onChange: (value: number) => void;
   value: number;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <AppText variant="label">Randevu başlangıç aralığı</AppText>
       <AppText color="textMuted" style={styles.description} variant="bodySmall">
         Müşteriye gösterilecek başlangıç saatlerinin kaç dakikada bir üretileceğini belirler.
@@ -30,7 +31,10 @@ export function BookingSlotIntervalCard({
               onPress={() => onChange(interval)}
               style={({ pressed }) => [
                 styles.option,
-                selected && styles.selectedOption,
+                {
+                  backgroundColor: selected ? colors.primary : colors.background,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
                 pressed && styles.pressed,
               ]}>
               <AppText color={selected ? 'onPrimary' : 'text'} variant="label">
@@ -46,8 +50,6 @@ export function BookingSlotIntervalCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     padding: spacing.md,
@@ -56,14 +58,11 @@ const styles = StyleSheet.create({
   options: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md },
   option: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
     minHeight: 44,
   },
-  selectedOption: { backgroundColor: colors.primary, borderColor: colors.primary },
   pressed: { opacity: 0.68 },
 });

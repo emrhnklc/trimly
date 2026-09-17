@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import type { RevenuePeriod } from '../types';
 
 const options: { label: string; value: RevenuePeriod }[] = [
@@ -18,8 +18,9 @@ export function RevenuePeriodSelector({
   onChange: (value: RevenuePeriod) => void;
   value: RevenuePeriod;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surfaceMuted }]}>
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -30,7 +31,7 @@ export function RevenuePeriodSelector({
             onPress={() => onChange(option.value)}
             style={({ pressed }) => [
               styles.option,
-              selected && styles.selectedOption,
+              selected && { backgroundColor: colors.primary },
               pressed && styles.pressed,
             ]}>
             <AppText color={selected ? 'onPrimary' : 'textMuted'} variant="label">
@@ -45,7 +46,6 @@ export function RevenuePeriodSelector({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     flexDirection: 'row',
     gap: spacing.xxs,
@@ -59,6 +59,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 42,
   },
-  selectedOption: { backgroundColor: colors.primary },
   pressed: { opacity: 0.7 },
 });

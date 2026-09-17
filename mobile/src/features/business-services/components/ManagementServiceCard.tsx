@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { formatTurkishPrice } from '@/features/business-management/format';
 import type { ManagementService } from '@/features/business-management/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function ManagementServiceCard({
   onPress,
@@ -14,12 +14,18 @@ export function ManagementServiceCard({
   onPress: () => void;
   service: ManagementService;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, !service.isActive && styles.inactive, pressed && styles.pressed]}>
-      <View style={styles.iconShell}>
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        !service.isActive && styles.inactive,
+        pressed && styles.pressed,
+      ]}>
+      <View style={[styles.iconShell, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView
           name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
           size={20}
@@ -30,8 +36,14 @@ export function ManagementServiceCard({
       <View style={styles.content}>
         <View style={styles.titleRow}>
           <AppText numberOfLines={1} style={styles.name} variant="label">{service.name}</AppText>
-          <View style={[styles.statusBadge, !service.isActive && styles.inactiveBadge]}>
-            <View style={[styles.statusDot, !service.isActive && styles.inactiveDot]} />
+          <View style={[
+            styles.statusBadge,
+            { backgroundColor: service.isActive ? colors.successSurface : colors.surfaceMuted },
+          ]}>
+            <View style={[
+              styles.statusDot,
+              { backgroundColor: service.isActive ? colors.success : colors.textMuted },
+            ]} />
             <AppText
               color={service.isActive ? 'success' : 'textMuted'}
               style={styles.statusLabel}
@@ -49,7 +61,7 @@ export function ManagementServiceCard({
           <AppText color="textMuted" style={styles.meta} variant="bodySmall">
             {service.durationMinutes} dk
           </AppText>
-          <View style={styles.metaDot} />
+          <View style={[styles.metaDot, { backgroundColor: colors.border }]} />
           <AppText color="primary" style={styles.price} variant="label">
             {formatTurkishPrice(service.price)}
           </AppText>
@@ -68,8 +80,6 @@ export function ManagementServiceCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
@@ -81,7 +91,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.68 },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.background,
     borderRadius: radius.smallCard,
     height: 44,
     justifyContent: 'center',
@@ -92,7 +101,6 @@ const styles = StyleSheet.create({
   name: { flex: 1, fontSize: 16, lineHeight: 21, minWidth: 0 },
   statusBadge: {
     alignItems: 'center',
-    backgroundColor: colors.successSurface,
     borderRadius: radius.pill,
     flexDirection: 'row',
     gap: 4,
@@ -100,15 +108,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  inactiveBadge: { backgroundColor: colors.surfaceMuted },
-  statusDot: { backgroundColor: colors.success, borderRadius: radius.pill, height: 5, width: 5 },
-  inactiveDot: { backgroundColor: colors.textMuted },
+  statusDot: { borderRadius: radius.pill, height: 5, width: 5 },
   statusLabel: { fontSize: 8, lineHeight: 11 },
   description: { fontSize: 10, lineHeight: 14, marginTop: 3 },
   metaRow: { alignItems: 'center', flexDirection: 'row', marginTop: 5 },
   meta: { fontSize: 10, lineHeight: 14 },
   metaDot: {
-    backgroundColor: colors.border,
     borderRadius: radius.pill,
     height: 3,
     marginHorizontal: 6,

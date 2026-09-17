@@ -2,8 +2,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { formatTurkishPrice } from '@/features/business-management/format';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import type { MemberRevenueSummary } from '../types';
 
 export function MemberRevenueList({
@@ -13,11 +13,12 @@ export function MemberRevenueList({
   members: MemberRevenueSummary[];
   totalRevenue: string;
 }) {
+  const colors = useThemeColors();
   const total = Number(totalRevenue);
 
   if (members.length === 0) {
     return (
-      <View style={styles.emptyCard}>
+      <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <AppText variant="label">Bu dönemde tamamlanan işlem yok</AppText>
         <AppText color="textMuted" style={styles.emptyDescription} variant="bodySmall">
           Randevular tamamlandıkça çalışan gelir dağılımı burada görünecek.
@@ -27,7 +28,7 @@ export function MemberRevenueList({
   }
 
   return (
-    <View style={styles.list}>
+    <View style={[styles.list, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {members.map((member, index) => {
         const percentage = total > 0 ? (Number(member.completedRevenue) / total) * 100 : 0;
         const progressWidth = Math.min(100, Math.max(3, percentage));
@@ -40,8 +41,11 @@ export function MemberRevenueList({
         return (
           <View
             key={member.memberId}
-            style={[styles.row, index < members.length - 1 && styles.rowBorder]}>
-            <View style={styles.avatar}>
+            style={[
+              styles.row,
+              index < members.length - 1 && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+            ]}>
+            <View style={[styles.avatar, { backgroundColor: colors.surfaceMuted }]}>
               <AppText color="primary" variant="label">{initials}</AppText>
             </View>
             <View style={styles.copy}>
@@ -54,10 +58,11 @@ export function MemberRevenueList({
               <AppText color="textMuted" style={styles.meta} variant="bodySmall">
                 {member.completed} tamamlanan işlem · %{Math.round(percentage)} pay
               </AppText>
-              <View style={styles.progressTrack}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.background }]}>
                 <View
                   style={[
                     styles.progress,
+                    { backgroundColor: colors.primary },
                     { width: `${progressWidth}%` as `${number}%` },
                   ]}
                 />
@@ -72,17 +77,13 @@ export function MemberRevenueList({
 
 const styles = StyleSheet.create({
   list: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     overflow: 'hidden',
   },
   row: { alignItems: 'center', flexDirection: 'row', minHeight: 96, padding: spacing.sm },
-  rowBorder: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
   avatar: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 46,
     justifyContent: 'center',
@@ -93,17 +94,14 @@ const styles = StyleSheet.create({
   name: { flex: 1, paddingRight: spacing.sm },
   meta: { marginTop: 2 },
   progressTrack: {
-    backgroundColor: colors.background,
     borderRadius: radius.pill,
     height: 5,
     marginTop: spacing.xs,
     overflow: 'hidden',
   },
-  progress: { backgroundColor: colors.primary, borderRadius: radius.pill, height: '100%' },
+  progress: { borderRadius: radius.pill, height: '100%' },
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.xl,

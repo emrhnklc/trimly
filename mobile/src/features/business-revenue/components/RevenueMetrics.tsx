@@ -3,8 +3,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { formatTurkishPrice } from '@/features/business-management/format';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import type { RevenueSummary } from '../types';
 
 export function RevenueMetrics({ summary }: { summary: RevenueSummary }) {
@@ -43,9 +43,10 @@ function Metric({
   label: string;
   value: string;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.card}>
-      <View style={styles.iconShell}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.iconShell, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView name={icon} size={18} tintColor={colors.primary} />
       </View>
       <AppText color="textMuted" style={styles.label} variant="bodySmall">{label}</AppText>
@@ -57,8 +58,6 @@ function Metric({
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     minHeight: 112,
@@ -67,7 +66,6 @@ const styles = StyleSheet.create({
   },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.sm,
     height: 36,
     justifyContent: 'center',

@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export type ServiceStatusFilter = 'all' | 'active' | 'inactive';
 
@@ -19,8 +19,9 @@ export function ServiceStatusFilters({
   onChange: (value: ServiceStatusFilter) => void;
   value: ServiceStatusFilter;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderColor: colors.border }]}>
       {filters.map((filter) => {
         const selected = value === filter.value;
 
@@ -32,7 +33,7 @@ export function ServiceStatusFilters({
             onPress={() => onChange(filter.value)}
             style={({ pressed }) => [
               styles.filter,
-              selected && styles.selected,
+              selected && { backgroundColor: colors.darkSurface },
               pressed && styles.pressed,
             ]}>
             <AppText
@@ -50,7 +51,6 @@ export function ServiceStatusFilters({
 
 const styles = StyleSheet.create({
   container: {
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     flexDirection: 'row',
@@ -59,7 +59,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   filter: { alignItems: 'center', borderRadius: radius.sm, flex: 1, minHeight: 36, justifyContent: 'center' },
-  selected: { backgroundColor: colors.darkSurface },
   label: { fontSize: 11, lineHeight: 15 },
   pressed: { opacity: 0.7 },
 });

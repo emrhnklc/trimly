@@ -2,8 +2,8 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 function ScheduleShortcut({
   description,
@@ -16,12 +16,17 @@ function ScheduleShortcut({
   onPress: () => void;
   title: string;
 }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={styles.iconShell}>
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        pressed && styles.pressed,
+      ]}>
+      <View style={[styles.iconShell, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView name={icon} size={22} tintColor={colors.primary} />
       </View>
       <View style={styles.copy}>
@@ -70,8 +75,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   card: {
     alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     flex: 1,
@@ -81,7 +84,6 @@ const styles = StyleSheet.create({
   },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     height: 48,
     justifyContent: 'center',

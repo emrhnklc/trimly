@@ -2,8 +2,8 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function RevenueRangeNavigator({
   canGoNext,
@@ -16,13 +16,18 @@ export function RevenueRangeNavigator({
   onNext: () => void;
   onPrevious: () => void;
 }) {
+  const colors = useThemeColors();
   return (
     <View style={styles.row}>
       <Pressable
         accessibilityLabel="Önceki dönem"
         accessibilityRole="button"
         onPress={onPrevious}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+        style={({ pressed }) => [
+          styles.button,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          pressed && styles.pressed,
+        ]}>
         <SymbolView
           name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
           size={18}
@@ -37,6 +42,7 @@ export function RevenueRangeNavigator({
         onPress={onNext}
         style={({ pressed }) => [
           styles.button,
+          { backgroundColor: colors.surface, borderColor: colors.border },
           !canGoNext && styles.disabled,
           pressed && styles.pressed,
         ]}>
@@ -59,8 +65,6 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     height: 40,

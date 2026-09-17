@@ -1,8 +1,8 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { formatCompactRevenue } from '../format';
 import type { RevenuePoint, RevenuePeriod } from '../types';
 
@@ -13,11 +13,12 @@ export function RevenueBarChart({
   period: RevenuePeriod;
   points: RevenuePoint[];
 }) {
+  const colors = useThemeColors();
   const maximum = Math.max(...points.map((point) => Number(point.revenue)), 0);
   const barWidth = period === 'YEAR' ? 34 : period === 'WEEK' ? 38 : 48;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.heading}>
         <View>
           <AppText variant="label">Dönem gelir grafiği</AppText>
@@ -26,7 +27,7 @@ export function RevenueBarChart({
           </AppText>
         </View>
         <View style={styles.legend}>
-          <View style={styles.legendDot} />
+          <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
           <AppText color="textMuted" variant="bodySmall">Gelir</AppText>
         </View>
       </View>
@@ -48,7 +49,7 @@ export function RevenueBarChart({
                 {revenue > 0 ? formatCompactRevenue(point.revenue) : ''}
               </AppText>
               <View style={styles.track}>
-                <View style={[styles.bar, { height }]} />
+                <View style={[styles.bar, { backgroundColor: colors.primary, height }]} />
               </View>
               <AppText style={styles.label} variant="bodySmall">{point.label}</AppText>
             </View>
@@ -61,8 +62,6 @@ export function RevenueBarChart({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: spacing.sm,
@@ -71,12 +70,12 @@ const styles = StyleSheet.create({
   heading: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   description: { marginTop: 2 },
   legend: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-  legendDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 8, width: 8 },
+  legendDot: { borderRadius: radius.pill, height: 8, width: 8 },
   chart: { alignItems: 'flex-end', gap: spacing.sm, minWidth: '100%', paddingTop: spacing.lg },
   spreadChart: { justifyContent: 'space-between' },
   column: { alignItems: 'center' },
   amount: { fontSize: 10, lineHeight: 14, maxWidth: 54, textAlign: 'center' },
   track: { height: 120, justifyContent: 'flex-end', marginTop: spacing.xxs },
-  bar: { backgroundColor: colors.primary, borderRadius: radius.sm, minHeight: 5, width: 24 },
+  bar: { borderRadius: radius.sm, minHeight: 5, width: 24 },
   label: { marginTop: spacing.xs, textAlign: 'center', textTransform: 'capitalize' },
 });

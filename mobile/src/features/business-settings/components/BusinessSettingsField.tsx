@@ -2,8 +2,8 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function BusinessSettingsField({
   helper,
@@ -19,17 +19,23 @@ export function BusinessSettingsField({
   icon: SymbolViewProps['name'];
   label: string;
 }) {
+  const colors = useThemeColors();
+  const inputShellStyle = {
+    backgroundColor: colors.background,
+    borderColor: colors.border,
+  };
+  const inputStyle = { color: colors.text };
   if (horizontal) {
     return (
       <View style={styles.horizontalField}>
         <AppText style={styles.horizontalLabel} variant="label">{label}</AppText>
-        <View style={[styles.inputShell, styles.horizontalInputShell]}>
+        <View style={[styles.inputShell, styles.horizontalInputShell, inputShellStyle]}>
           <SymbolView name={icon} size={18} tintColor={colors.text} />
           <TextInput
             multiline={multiline}
             placeholderTextColor={colors.textMuted}
             selectionColor={colors.primary}
-            style={[styles.input, styles.horizontalInput, style]}
+            style={[styles.input, styles.horizontalInput, inputStyle, style]}
             {...props}
           />
         </View>
@@ -43,13 +49,13 @@ export function BusinessSettingsField({
       {helper ? (
         <AppText color="textMuted" style={styles.helper} variant="bodySmall">{helper}</AppText>
       ) : null}
-      <View style={[styles.inputShell, multiline && styles.multilineShell]}>
+      <View style={[styles.inputShell, inputShellStyle, multiline && styles.multilineShell]}>
         <SymbolView name={icon} size={19} tintColor={colors.primary} />
         <TextInput
           multiline={multiline}
           placeholderTextColor={colors.textMuted}
           selectionColor={colors.primary}
-          style={[styles.input, multiline && styles.multilineInput, style]}
+          style={[styles.input, inputStyle, multiline && styles.multilineInput, style]}
           {...props}
         />
       </View>
@@ -62,8 +68,6 @@ const styles = StyleSheet.create({
   helper: { marginTop: 2 },
   inputShell: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -72,7 +76,6 @@ const styles = StyleSheet.create({
   },
   multilineShell: { alignItems: 'flex-start', paddingTop: spacing.md },
   input: {
-    color: colors.text,
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: 14,

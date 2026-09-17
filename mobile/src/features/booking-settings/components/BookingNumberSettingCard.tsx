@@ -2,8 +2,8 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function BookingNumberSettingCard({
   description,
@@ -24,11 +24,12 @@ export function BookingNumberSettingCard({
   step: number;
   value: number;
 }) {
+  const colors = useThemeColors();
   const canDecrease = value > min;
   const canIncrease = value < max;
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.copy}>
         <AppText variant="label">{label}</AppText>
         <AppText color="textMuted" style={styles.description} variant="bodySmall">
@@ -43,6 +44,7 @@ export function BookingNumberSettingCard({
           onPress={() => onChange(Math.max(min, value - step))}
           style={({ pressed }) => [
             styles.controlButton,
+            { backgroundColor: colors.surfaceMuted },
             !canDecrease && styles.disabled,
             pressed && styles.pressed,
           ]}>
@@ -64,6 +66,7 @@ export function BookingNumberSettingCard({
           onPress={() => onChange(Math.min(max, value + step))}
           style={({ pressed }) => [
             styles.controlButton,
+            { backgroundColor: colors.surfaceMuted },
             !canIncrease && styles.disabled,
             pressed && styles.pressed,
           ]}>
@@ -81,8 +84,6 @@ export function BookingNumberSettingCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -95,7 +96,6 @@ const styles = StyleSheet.create({
   controls: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   controlButton: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 36,
     justifyContent: 'center',

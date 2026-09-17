@@ -27,6 +27,7 @@ import {
 import type { BusinessWorkingHours, Weekday } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type PickerTarget = {
   field: 'startTime' | 'endTime';
@@ -51,6 +52,7 @@ function serializeDays(days: WorkingDayDraft[]) {
 }
 
 export default function BusinessWorkingHoursScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
@@ -194,7 +196,7 @@ export default function BusinessWorkingHoursScreen() {
               <View style={styles.sectionCopy}>
                 <AppText style={styles.sectionTitle} variant="sectionTitle">İşletme saatleri</AppText>
               </View>
-              <View style={styles.openBadge}>
+              <View style={[styles.openBadge, { backgroundColor: themeColors.surfaceMuted }]}>
                 <AppText color="primary" variant="label">{summary.openDayCount}/7 açık</AppText>
               </View>
             </View>
@@ -253,7 +255,6 @@ const styles = StyleSheet.create({
   sectionCopy: { flex: 1, paddingRight: spacing.sm },
   sectionTitle: { fontSize: 22, lineHeight: 28 },
   openBadge: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,

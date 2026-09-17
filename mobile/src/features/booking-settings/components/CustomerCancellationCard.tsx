@@ -1,8 +1,8 @@
 import { StyleSheet, Switch, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { BookingNumberSettingCard } from './BookingNumberSettingCard';
 import { formatMinutes } from '../format';
 
@@ -17,9 +17,10 @@ export function CustomerCancellationCard({
   onChangeEnabled: (value: boolean) => void;
   onChangeNotice: (value: number) => void;
 }) {
+  const colors = useThemeColors();
   return (
     <View>
-      <View style={styles.toggleCard}>
+      <View style={[styles.toggleCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.copy}>
           <AppText variant="label">Müşteri iptal edebilsin</AppText>
           <AppText color="textMuted" style={styles.description} variant="bodySmall">
@@ -55,8 +56,6 @@ export function CustomerCancellationCard({
 const styles = StyleSheet.create({
   toggleCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',

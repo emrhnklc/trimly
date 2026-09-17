@@ -26,8 +26,10 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function BusinessRevenueScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
@@ -139,7 +141,7 @@ export default function BusinessRevenueScreen() {
               totalRevenue={summary.totalRevenue}
             />
 
-            <View style={styles.infoCard}>
+            <View style={[styles.infoCard, { backgroundColor: themeColors.surfaceMuted }]}>
               <AppText variant="label">Gelir nasıl hesaplanıyor?</AppText>
               <AppText color="textMuted" style={styles.infoDescription} variant="bodySmall">
                 Randevu tamamlandığında kayıtlı hizmet fiyatı gelire eklenir. Ödeme ve tahsilat takibi henüz bu hesaba dahil değildir.
@@ -158,7 +160,6 @@ const styles = StyleSheet.create({
   sectionHeading: { marginTop: layout.sectionGap },
   sectionTitle: { fontSize: 22, lineHeight: 28 },
   infoCard: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     marginTop: spacing.lg,
     padding: spacing.md,
