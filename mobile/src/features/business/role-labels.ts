@@ -6,3 +6,10 @@ export const businessRoleLabels: Record<BusinessRole, string> = {
   BARBER: 'Berber',
   APPRENTICE: 'Çırak',
 };
+
+export const businessRoleEnglishLabels: Record<BusinessRole, string> = {
+  OWNER: 'Business Owner',
+  MANAGER: 'Manager',
+  BARBER: 'Barber',
+  APPRENTICE: 'Apprentice',
+};

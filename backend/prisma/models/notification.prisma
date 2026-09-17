@@ -6,6 +6,7 @@ enum DevicePlatform {
 enum AppNotificationType {
   NEW_APPOINTMENT
   APPOINTMENT_REMINDER
+  PORTFOLIO_CONSENT_REQUEST
 }
 
 model PushDevice {

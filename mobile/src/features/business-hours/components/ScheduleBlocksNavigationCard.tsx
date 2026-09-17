@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     marginTop: spacing.sm,
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
-  copy: { flex: 1, marginHorizontal: spacing.sm },
+  copy: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   description: { marginTop: 2 },
   pressed: { opacity: 0.68 },
 });

@@ -40,10 +40,11 @@ import type {
 } from "@/features/barbershops/types";
 import { getFavoriteBarbershops } from "@/features/favorites/api";
 import type { FavoriteBarbershop } from "@/features/favorites/types";
+import { getActiveBarbershopCampaigns } from "@/features/campaigns/api";
+import { getCampaignPrice, type Campaign } from "@/features/campaigns/types";
 import { isApiErrorCode } from "@/lib/api/client";
 import { colors } from "@/theme/colors";
-import { spacing } from "@/theme/spacing";
-import { fontFamily } from "@/theme/typography";
+import { layout, spacing } from "@/theme/spacing";
 
 const defaultBookingSettings: BookingSettings = {
   minBookingNoticeMinutes: 60,
@@ -54,15 +55,19 @@ const defaultBookingSettings: BookingSettings = {
 };
 
 type BookParams = {
+  campaignId?: string;
   memberId?: string;
   serviceId?: string;
   slug?: string;
 };
 
+type BookingFormStep = 1 | 2 | 3;
+
 export default function BookAppointmentScreen() {
   const router = useRouter();
   const { token } = useAuth();
   const {
+    campaignId,
     memberId: repeatedMemberId,
     serviceId: repeatedServiceId,
     slug,
@@ -76,10 +81,11 @@ export default function BookAppointmentScreen() {
 
   const [shop, setShop] = useState<PublicBarbershopDetail | null>(null);
   const [barbers, setBarbers] = useState<BookableBarber[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [settings, setSettings] = useState<BookingSettings>(
     defaultBookingSettings,
   );
-  const [activeStep, setActiveStep] = useState<BookingStep>(1);
+  const [activeStep, setActiveStep] = useState<BookingFormStep>(1);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
     null,
   );
@@ -154,6 +160,7 @@ export default function BookAppointmentScreen() {
   );
   const selectedService =
     shop?.services.find((service) => service.id === selectedServiceId) ?? null;
+  const selectedCampaign = campaigns.find((campaign) => campaign.id === campaignId) ?? null;
   const compatibleBarbers = useMemo(
     () =>
       selectedServiceId
@@ -178,6 +185,7 @@ export default function BookAppointmentScreen() {
         setShop(null);
         setSelectedServiceId(null);
         setSelectedMemberId(null);
+        setCampaigns([]);
         setSelectedDate(toDateKey(new Date()));
         setSlots([]);
         setSelectedHour(null);
@@ -195,12 +203,14 @@ export default function BookAppointmentScreen() {
           let nextServices: PublicService[];
           let nextBarbers: BookableBarber[];
           let nextSettings: BookingSettings;
+          let nextCampaigns: Campaign[];
 
           try {
-            [nextServices, nextBarbers, nextSettings] = await Promise.all([
+            [nextServices, nextBarbers, nextSettings, nextCampaigns] = await Promise.all([
               getActiveServices(nextShop.id, token),
               getBookableBarbers(nextShop.id, token),
               getBookingSettings(nextShop.id),
+              getActiveBarbershopCampaigns(nextShop.id, token),
             ]);
           } catch (reason) {
             if (!isApiErrorCode(reason, "BARBERSHOP_ACCESS_REQUIRED"))
@@ -213,6 +223,7 @@ export default function BookAppointmentScreen() {
           setShop(bookableShop);
           setBarbers(nextBarbers);
           setSettings(nextSettings);
+          setCampaigns(nextCampaigns);
 
           const repeatService = bookableShop.services.find(
             ({ id }) => id === repeatedServiceId,
@@ -229,6 +240,9 @@ export default function BookAppointmentScreen() {
             setSelectedServiceId(repeatService.id);
             setSelectedMemberId(repeatBarber.id);
             setActiveStep(3);
+          } else if (campaignId && repeatService && nextCampaigns.some(({ id }) => id === campaignId)) {
+            setSelectedServiceId(repeatService.id);
+            setActiveStep(2);
           } else {
             setActiveStep(1);
           }
@@ -245,7 +259,7 @@ export default function BookAppointmentScreen() {
     }, 0);
 
     return () => clearTimeout(requestId);
-  }, [accessReloadKey, repeatedMemberId, repeatedServiceId, slug, token]);
+  }, [accessReloadKey, campaignId, repeatedMemberId, repeatedServiceId, slug, token]);
 
   useEffect(() => {
     if (!shop || !selectedServiceId || !selectedMemberId || !selectedDate)
@@ -353,7 +367,7 @@ export default function BookAppointmentScreen() {
       return;
     }
 
-    setActiveStep((activeStep - 1) as BookingStep);
+    setActiveStep((activeStep - 1) as BookingFormStep);
   }
 
   function continueFlow() {
@@ -383,8 +397,18 @@ export default function BookAppointmentScreen() {
         barbershopId: shop.id,
         date: selectedDate,
         durationMinutes: String(selectedService.durationMinutes),
+        ...(selectedCampaign ? {
+          campaignId: selectedCampaign.id,
+          campaignBenefit: selectedCampaign.rewardType === "GIFT"
+            ? selectedCampaign.giftDescription ?? "Hediye dahil"
+            : selectedCampaign.discountType === "PERCENTAGE"
+              ? `%${selectedCampaign.discountValue} indirim`
+              : `₺${selectedCampaign.discountValue} indirim`,
+          campaignTitle: selectedCampaign.title,
+          ...(selectedCampaign.rewardType === "DISCOUNT" ? { originalPrice: selectedService.price } : {}),
+        } : {}),
         memberId: selectedBarber.id,
-        price: selectedService.price,
+        price: String(selectedCampaign ? getCampaignPrice(selectedService.price, selectedCampaign) : selectedService.price),
         serviceId: selectedService.id,
         serviceName: selectedService.name,
         shopName: shop.name,
@@ -397,7 +421,7 @@ export default function BookAppointmentScreen() {
   if (!slug) {
     return (
       <Screen>
-        <BookingFlowHeader onClose={closeFlow} />
+        <BookingFlowHeader activeStep={1} onClose={closeFlow} />
         <BookingStartScreen
           error={startError}
           favorites={favorites}
@@ -406,10 +430,6 @@ export default function BookAppointmentScreen() {
           lastShop={lastShop}
           onAllFavoritesPress={() => router.push("/favorites")}
           onFavoritePress={(favoriteSlug) => openShop(favoriteSlug)}
-          onLastContinue={() => {
-            if (lastCompletedAppointment)
-              openShop(lastCompletedAppointment.barbershop.slug);
-          }}
           onRepeat={() => {
             if (lastCompletedAppointment) {
               openShop(
@@ -428,7 +448,7 @@ export default function BookAppointmentScreen() {
   if (!isLoading && shop && requiresAccess) {
     return (
       <Screen>
-        <BookingFlowHeader onClose={closeFlow} />
+        <BookingFlowHeader activeStep={1} onClose={closeFlow} />
         <ScrollView
           contentContainerStyle={styles.accessContent}
           showsVerticalScrollIndicator={false}
@@ -447,7 +467,10 @@ export default function BookAppointmentScreen() {
 
   return (
     <Screen>
-      <BookingFlowHeader activeStep={activeStep} onClose={closeFlow} />
+      <BookingFlowHeader
+        activeStep={(activeStep + 1) as BookingStep}
+        onClose={closeFlow}
+      />
 
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
@@ -533,7 +556,7 @@ export default function BookAppointmentScreen() {
                 onSelect={selectDate}
                 selectedDate={selectedDate}
               />
-              <AppText style={styles.timeTitle} variant="heading">
+              <AppText style={styles.timeTitle} variant="sectionTitle">
                 Saat Seç
               </AppText>
               {isLoadingSlots ? (
@@ -591,7 +614,7 @@ function SectionIntro({
 }) {
   return (
     <View style={styles.sectionIntro}>
-      <AppText style={styles.sectionTitle} variant="heading">
+      <AppText style={styles.sectionTitle} variant="sectionTitle">
         {title}
       </AppText>
       <AppText
@@ -647,7 +670,7 @@ const styles = StyleSheet.create({
   errorButton: { marginTop: spacing.xl, minWidth: 220 },
   content: {
     paddingBottom: 112,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: layout.screenHorizontalPadding,
     paddingTop: spacing.xs,
   },
   accessContent: {
@@ -656,19 +679,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
-  section: { marginTop: spacing.xl },
+  section: { marginTop: layout.sectionGap },
   sectionIntro: { marginBottom: spacing.sm },
-  sectionTitle: {
-    fontFamily: fontFamily.display,
-    fontSize: 22,
-    lineHeight: 28,
-  },
+  sectionTitle: { fontSize: 22, lineHeight: 28 },
   sectionDescription: { lineHeight: 18, marginTop: spacing.xxs },
   serviceList: { padding: 0 },
   timeTitle: {
-    fontFamily: fontFamily.display,
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 22,
+    lineHeight: 28,
     marginBottom: spacing.sm,
     marginTop: spacing.xl,
   },

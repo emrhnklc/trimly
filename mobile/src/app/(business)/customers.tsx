@@ -17,10 +17,14 @@ import type { BusinessCustomer } from '@/features/business-customers/types';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessScreenHeader } from '@/features/business/components/BusinessScreenHeader';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 
 function normalizeSearchValue(value: string) {
   return value.toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ').trim();
+}
+
+function isBusinessCustomer(value: BusinessCustomer | null): value is BusinessCustomer {
+  return value !== null;
 }
 
 export default function BusinessCustomersScreen() {
@@ -43,9 +47,8 @@ export default function BusinessCustomersScreen() {
       setError(null);
 
       try {
-        setCustomers(
-          await getBusinessCustomers(activeMembership.barbershop.id, token),
-        );
+        const result = await getBusinessCustomers(activeMembership.barbershop.id, token);
+        setCustomers(result.filter(isBusinessCustomer));
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'Müşteriler yüklenemedi.');
       } finally {
@@ -114,7 +117,7 @@ export default function BusinessCustomersScreen() {
 
             {!isLoading && !error ? (
               <View style={styles.listHeading}>
-                <AppText variant="label">Müşteri listesi</AppText>
+                <AppText style={styles.listTitle} variant="sectionTitle">Müşteriler</AppText>
                 <AppText color="textMuted" style={styles.count} variant="bodySmall">
                   {visibleCustomers.length} müşteri
                 </AppText>
@@ -164,14 +167,15 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingBottom: 116,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: layout.screenHorizontalPadding,
   },
   loader: { marginTop: spacing.xxxl },
   listHeading: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.lg,
+    marginTop: layout.sectionGap,
   },
+  listTitle: { fontSize: 22, lineHeight: 28 },
   count: { fontSize: 11, lineHeight: 15 },
 });

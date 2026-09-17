@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
   Alert,
@@ -13,6 +15,7 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
+import { FullscreenImageViewer } from '@/components/ui/FullscreenImageViewer';
 import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
@@ -22,6 +25,10 @@ import type {
   CustomerAppointment,
 } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { uploadCustomerHaircutPhoto } from '@/features/haircut-history/api';
+import { respondToPortfolioRequest } from '@/features/portfolio/api';
+import { AppointmentReviewEditor } from '@/features/reviews/components/AppointmentReviewEditor';
+import { resolveApiUrl } from '@/lib/api/client';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
@@ -41,6 +48,8 @@ export default function AppointmentDetailScreen() {
   const [appointment, setAppointment] = useState<CustomerAppointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [updatingPortfolioId, setUpdatingPortfolioId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadAppointment = useCallback(async () => {
@@ -100,13 +109,72 @@ export default function AppointmentDetailScreen() {
     }
   }
 
+  async function addCustomerPhoto() {
+    if (!appointmentId || !token || isUploadingPhoto) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+
+    const photo = result.assets[0];
+    if (
+      photo.mimeType !== 'image/jpeg' &&
+      photo.mimeType !== 'image/png' &&
+      photo.mimeType !== 'image/webp'
+    ) {
+      setError('JPEG, PNG veya WebP formatında bir fotoğraf seçmelisin.');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setError(null);
+    try {
+      await uploadCustomerHaircutPhoto(
+        appointmentId,
+        { mimeType: photo.mimeType, uri: photo.uri },
+        token,
+      );
+      await loadAppointment();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Fotoğraf yüklenemedi.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  }
+
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/appointments');
+  }
+
+  async function respondToPortfolio(
+    requestId: string,
+    action: 'approve' | 'reject' | 'revoke',
+  ) {
+    if (!token || updatingPortfolioId) return;
+    setUpdatingPortfolioId(requestId);
+    setError(null);
+    try {
+      await respondToPortfolioRequest(requestId, action, token);
+      await loadAppointment();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Portföy izni güncellenemedi.');
+    } finally {
+      setUpdatingPortfolioId(null);
+    }
+  }
+
   return (
     <Screen>
       <View style={styles.topBar}>
         <AppIconButton
           accessibilityLabel="Geri dön"
           icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-          onPress={() => router.back()}
+          onPress={goBack}
         />
         <AppText variant="heading">Randevu Detayı</AppText>
         <View style={styles.topBarSpacer} />
@@ -145,6 +213,13 @@ export default function AppointmentDetailScreen() {
               label="Süre"
               value={`${appointment.durationMinutes} dk`}
             />
+            {appointment.campaignTitleSnapshot ? (
+              <DetailRow
+                icon={{ ios: 'gift.fill', android: 'redeem', web: 'redeem' }}
+                label="Kampanya"
+                value={`${appointment.campaignTitleSnapshot}${appointment.campaignBenefitSnapshot ? ` · ${appointment.campaignBenefitSnapshot}` : ''}`}
+              />
+            ) : null}
             <DetailRow
               icon={{ ios: 'turkishlirasign.circle', android: 'payments', web: 'payments' }}
               isLast
@@ -152,6 +227,27 @@ export default function AppointmentDetailScreen() {
               value={`₺${formatPrice(appointment.priceSnapshot)}`}
             />
           </AppCard>
+
+          {appointment.status === 'COMPLETED' && appointment.haircutRecord ? (
+            <HaircutRecordSection
+              accessToken={token ?? ''}
+              isUploadingPhoto={isUploadingPhoto}
+              onAddPhoto={() => void addCustomerPhoto()}
+              onPortfolioAction={(requestId, action) => void respondToPortfolio(requestId, action)}
+              record={appointment.haircutRecord}
+              updatingPortfolioId={updatingPortfolioId}
+            />
+          ) : null}
+
+          {appointment.status === 'COMPLETED' && token ? (
+            <AppointmentReviewEditor
+              accessToken={token}
+              appointmentId={appointment.id}
+              key={`${appointment.review?.updatedAt ?? 'new'}:${appointment.review?.photos.map(({ id }) => id).join(',') ?? ''}`}
+              onChanged={loadAppointment}
+              review={appointment.review ?? null}
+            />
+          ) : null}
 
           <AppCard style={styles.policyCard}>
             <SymbolView
@@ -196,6 +292,132 @@ export default function AppointmentDetailScreen() {
         </ScrollView>
       ) : null}
     </Screen>
+  );
+}
+
+function HaircutRecordSection({
+  accessToken,
+  isUploadingPhoto,
+  onAddPhoto,
+  onPortfolioAction,
+  record,
+  updatingPortfolioId,
+}: {
+  accessToken: string;
+  isUploadingPhoto: boolean;
+  onAddPhoto: () => void;
+  onPortfolioAction: (requestId: string, action: 'approve' | 'reject' | 'revoke') => void;
+  record: NonNullable<CustomerAppointment['haircutRecord']>;
+  updatingPortfolioId: string | null;
+}) {
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const fullscreenImages = record.photos.map((photo, index) => ({
+    id: photo.id,
+    label: `Tıraş sonucu fotoğrafı ${index + 1}`,
+    source: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      uri: resolveApiUrl(photo.url),
+    },
+  }));
+
+  return (
+    <View>
+      <AppText style={styles.sectionTitle} variant="heading">Tıraş Sonucu</AppText>
+      <AppCard style={styles.haircutCard}>
+        {record.styleName ? (
+          <View style={styles.haircutRow}>
+            <View style={styles.haircutIcon}>
+              <SymbolView
+                name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
+                size={19}
+                tintColor={colors.primary}
+              />
+            </View>
+            <View style={styles.haircutCopy}>
+              <AppText color="textMuted" variant="bodySmall">Stil / model</AppText>
+              <AppText style={styles.haircutValue} variant="label">{record.styleName}</AppText>
+            </View>
+          </View>
+        ) : null}
+
+        {record.notes ? (
+          <View style={[styles.haircutRow, record.styleName && styles.haircutRowDivider]}>
+            <View style={styles.haircutIcon}>
+              <SymbolView
+                name={{ ios: 'note.text', android: 'notes', web: 'notes' }}
+                size={19}
+                tintColor={colors.primary}
+              />
+            </View>
+            <View style={styles.haircutCopy}>
+              <AppText color="textMuted" variant="bodySmall">Berber notu</AppText>
+              <AppText style={styles.haircutNote}>{record.notes}</AppText>
+            </View>
+          </View>
+        ) : null}
+      </AppCard>
+
+      {record.photos.length ? (
+        <ScrollView
+          contentContainerStyle={styles.photoList}
+          horizontal
+          showsHorizontalScrollIndicator={false}>
+          {record.photos.map((photo, index) => (
+            <Pressable
+              accessibilityLabel={`Tıraş sonucu fotoğrafı ${index + 1}`}
+              accessibilityRole="button"
+              key={photo.id}
+              onPress={() => setSelectedPhotoIndex(index)}
+              style={({ pressed }) => [styles.haircutPhoto, pressed && styles.pressed]}>
+              <Image
+                contentFit="cover"
+                source={fullscreenImages[index].source}
+                style={styles.haircutPhotoImage}
+                transition={180}
+              />
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+      {record.photos.map((photo) => {
+        const publication = photo.portfolioItem;
+        if (!publication || publication.status === 'REJECTED' || publication.status === 'REVOKED') return null;
+        const isUpdating = updatingPortfolioId === publication.id;
+        return (
+          <AppCard key={publication.id} style={styles.portfolioConsentCard}>
+            <View style={styles.portfolioConsentCopy}>
+              <AppText variant="label">
+                {publication.status === 'PENDING' ? 'Portföy yayın izni' : 'Portföyde yayınlanıyor'}
+              </AppText>
+              <AppText color="textMuted" style={styles.portfolioConsentText} variant="bodySmall">
+                {publication.status === 'PENDING'
+                  ? 'İşletme bu fotoğrafı herkese açık tıraş portföyünde göstermek istiyor.'
+                  : 'Bu fotoğrafı dilediğin zaman herkese açık portföyden kaldırabilirsin.'}
+              </AppText>
+            </View>
+            {publication.status === 'PENDING' ? (
+              <View style={styles.portfolioActions}>
+                <AppButton disabled={isUpdating} onPress={() => onPortfolioAction(publication.id, 'reject')} variant="secondary">İzin Verme</AppButton>
+                <AppButton disabled={isUpdating} onPress={() => onPortfolioAction(publication.id, 'approve')}>Yayınlanabilir</AppButton>
+              </View>
+            ) : (
+              <AppButton disabled={isUpdating} onPress={() => onPortfolioAction(publication.id, 'revoke')} variant="secondary">Yayından Kaldır</AppButton>
+            )}
+          </AppCard>
+        );
+      })}
+      <View style={styles.customerPhotoButton}>
+        <AppButton disabled={isUploadingPhoto} onPress={onAddPhoto} variant="secondary">
+          {isUploadingPhoto ? 'Fotoğraf Yükleniyor…' : 'Geçmişime Fotoğraf Ekle'}
+        </AppButton>
+      </View>
+      <FullscreenImageViewer
+        images={fullscreenImages}
+        initialIndex={selectedPhotoIndex ?? 0}
+        onClose={() => setSelectedPhotoIndex(null)}
+        visible={selectedPhotoIndex !== null}
+      />
+    </View>
   );
 }
 
@@ -340,6 +562,28 @@ const styles = StyleSheet.create({
   detailDivider: { borderBottomColor: colors.border, borderBottomWidth: 1 },
   detailLabel: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
   detailValue: { flex: 1, marginLeft: spacing.md, textAlign: 'right' },
+  haircutCard: { paddingVertical: spacing.xs },
+  haircutRow: { alignItems: 'flex-start', flexDirection: 'row', paddingVertical: spacing.sm },
+  haircutRowDivider: { borderTopColor: colors.border, borderTopWidth: 1 },
+  haircutIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.pill,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  haircutCopy: { flex: 1, marginLeft: spacing.sm, minWidth: 0 },
+  haircutValue: { marginTop: 2 },
+  haircutNote: { lineHeight: 21, marginTop: 2 },
+  photoList: { gap: spacing.sm, paddingRight: spacing.lg, paddingTop: spacing.sm },
+  haircutPhoto: { borderRadius: radius.card, height: 180, overflow: 'hidden', width: 250 },
+  haircutPhotoImage: { height: '100%', width: '100%' },
+  customerPhotoButton: { marginTop: spacing.sm },
+  portfolioConsentCard: { marginTop: spacing.sm },
+  portfolioConsentCopy: { marginBottom: spacing.sm },
+  portfolioConsentText: { lineHeight: 19, marginTop: 3 },
+  portfolioActions: { gap: spacing.xs },
   policyCard: { alignItems: 'flex-start', flexDirection: 'row', marginTop: spacing.lg },
   policyText: { flex: 1, marginLeft: spacing.sm },
   policyDescription: { marginTop: spacing.xxs },

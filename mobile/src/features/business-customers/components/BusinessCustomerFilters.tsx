@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export type BusinessCustomerFilter = 'all' | 'regular' | 'new';
 
@@ -19,8 +19,9 @@ export function BusinessCustomerFilters({
   onChange: (value: BusinessCustomerFilter) => void;
   value: BusinessCustomerFilter;
 }) {
+  const themeColors = useThemeColors();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { borderColor: themeColors.border }]}>
       {filters.map((filter) => {
         const selected = value === filter.value;
 
@@ -32,11 +33,11 @@ export function BusinessCustomerFilters({
             onPress={() => onChange(filter.value)}
             style={({ pressed }) => [
               styles.filter,
-              selected && styles.selectedFilter,
+              selected && { backgroundColor: themeColors.primary },
               pressed && styles.pressed,
             ]}>
             <AppText
-              color={selected ? 'text' : 'textMuted'}
+              color={selected ? 'onPrimary' : 'textMuted'}
               style={styles.label}
               variant="label">
               {filter.label}
@@ -50,8 +51,8 @@ export function BusinessCustomerFilters({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.xs,
     marginTop: spacing.sm,
@@ -64,7 +65,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 34,
   },
-  selectedFilter: { backgroundColor: colors.surfaceMuted },
   label: { fontSize: 11, lineHeight: 15 },
   pressed: { opacity: 0.7 },
 });

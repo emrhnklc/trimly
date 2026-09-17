@@ -14,6 +14,7 @@ import { BusinessAppointmentDetailContent } from '@/features/business-appointmen
 import { BusinessAppointmentState } from '@/features/business-appointments/components/BusinessAppointmentState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { requestPortfolioPublication } from '@/features/portfolio/api';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -87,6 +88,25 @@ export default function BusinessAppointmentDetailScreen() {
     }
   }
 
+  async function requestPortfolio(photoId: string) {
+    if (!appointmentId || !activeMembership || !token || isUpdating) return;
+    setUpdating(true);
+    try {
+      await requestPortfolioPublication(
+        activeMembership.barbershop.id,
+        appointmentId,
+        photoId,
+        token,
+      );
+      await loadAppointment();
+      Alert.alert('Talep gönderildi', 'Fotoğraf, müşteri onayladığında portföyde yayınlanacak.');
+    } catch (reason) {
+      Alert.alert('Talep gönderilemedi', reason instanceof Error ? reason.message : 'Lütfen tekrar dene.');
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   function confirmCancellation() {
     Alert.alert(
       'Randevu iptal edilsin mi?',
@@ -109,10 +129,15 @@ export default function BusinessAppointmentDetailScreen() {
     );
   }
 
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/calendar');
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
-        <BusinessDetailHeader onBack={() => router.back()} title="Randevu Detayı" />
+        <BusinessDetailHeader onBack={goBack} title="Randevu Detayı" />
       </View>
 
       {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
@@ -130,6 +155,7 @@ export default function BusinessAppointmentDetailScreen() {
 
       {!isLoading && !error && appointment ? (
         <BusinessAppointmentDetailContent
+          accessToken={token ?? ''}
           appointment={appointment}
           canOpenCustomer={can('VIEW_CUSTOMERS')}
           isUpdating={isUpdating}
@@ -141,18 +167,13 @@ export default function BusinessAppointmentDetailScreen() {
               params: { customerId: appointment.customer.id },
             })
           }
-          onOpenCamera={() =>
-            router.push({
-              pathname: '/business-haircut-camera/[appointmentId]',
-              params: { appointmentId: appointment.id },
-            })
-          }
           onOpenHaircutRecord={() =>
             router.push({
               pathname: '/business-haircut-record/[appointmentId]',
               params: { appointmentId: appointment.id },
             })
           }
+          onRequestPortfolio={(photoId) => void requestPortfolio(photoId)}
           onReschedule={() =>
             router.push({
               pathname: '/business-appointment-reschedule/[appointmentId]',

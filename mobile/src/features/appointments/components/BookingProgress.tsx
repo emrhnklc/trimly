@@ -4,13 +4,14 @@ import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
-export type BookingStep = 1 | 2 | 3 | 4;
+export type BookingStep = 1 | 2 | 3 | 4 | 5;
 
 const steps: { label: string; value: BookingStep }[] = [
-  { label: 'Hizmet', value: 1 },
-  { label: 'Çalışan', value: 2 },
-  { label: 'Tarih & Saat', value: 3 },
-  { label: 'Onay', value: 4 },
+  { label: 'Berber', value: 1 },
+  { label: 'Hizmet', value: 2 },
+  { label: 'Çalışan', value: 3 },
+  { label: 'Tarih & Saat', value: 4 },
+  { label: 'Onay', value: 5 },
 ];
 
 export function BookingProgress({ activeStep = 0 }: { activeStep?: 0 | BookingStep }) {

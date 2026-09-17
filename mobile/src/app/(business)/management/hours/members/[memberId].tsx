@@ -37,7 +37,7 @@ import {
 } from '@/features/schedules/api';
 import type { BusinessWorkingHours, Weekday } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 type PickerTarget = {
   field: 'startTime' | 'endTime';
@@ -236,10 +236,6 @@ export default function EmployeeScheduleDetailScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <BusinessDetailHeader onBack={handleBack} title="Vardiyayı Düzenle" />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          Çalışanın müşteriler tarafından seçilebileceği haftalık zamanları belirle.
-        </AppText>
-
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && loadError ? (
@@ -345,19 +341,18 @@ export default function EmployeeScheduleDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   warningCard: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     marginTop: spacing.sm,
     padding: spacing.md,
   },
   warningDescription: { marginTop: 2 },
   sectionHeading: { marginBottom: spacing.sm, marginTop: spacing.xl },
   sectionCopy: { paddingRight: spacing.sm },
-  sectionTitle: { fontSize: 18, lineHeight: 24, marginBottom: 2 },
+  sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: 2 },
   copyButton: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surfaceMuted,
@@ -367,7 +362,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   copyButtonLabel: { fontSize: 12, lineHeight: 16 },
-  message: { borderRadius: radius.md, marginBottom: spacing.sm, padding: spacing.sm },
+  message: { borderRadius: radius.card, marginBottom: spacing.sm, padding: spacing.sm },
   errorMessage: { backgroundColor: '#F8E7E3' },
   successMessage: { backgroundColor: '#E8F1E5' },
   successText: { color: '#4F7653' },

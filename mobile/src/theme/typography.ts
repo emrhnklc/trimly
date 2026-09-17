@@ -9,7 +9,10 @@ export const fontFamily = {
 
 export const typography = {
   displayLarge: { fontFamily: fontFamily.displayBold, fontSize: 36, lineHeight: 43 },
-  displayMedium: { fontFamily: fontFamily.display, fontSize: 28, lineHeight: 35 },
+  displayMedium: { fontFamily: fontFamily.displayBold, fontSize: 32, lineHeight: 39 },
+  pageTitle: { fontFamily: fontFamily.bodyBold, fontSize: 28, lineHeight: 34 },
+  sectionTitle: { fontFamily: fontFamily.bodyBold, fontSize: 22, lineHeight: 28 },
+  cardTitle: { fontFamily: fontFamily.bodySemiBold, fontSize: 16, lineHeight: 21 },
   heading: { fontFamily: fontFamily.bodySemiBold, fontSize: 20, lineHeight: 26 },
   body: { fontFamily: fontFamily.body, fontSize: 15, lineHeight: 22 },
   bodySmall: { fontFamily: fontFamily.body, fontSize: 13, lineHeight: 19 },

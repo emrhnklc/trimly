@@ -7,6 +7,9 @@ export type PublicBarbershop = {
   profileImageUrl: string | null;
   coverImageUrl: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  distanceKm: number | null;
   isDiscoverable: boolean;
   ratingAverage: number | null;
   ratingCount: number;
@@ -37,6 +40,7 @@ export type RotatedBarbershopAccessCode = {
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
+  galleryPhotos: { id: string; sortOrder: number; url: string }[];
   members: PublicBarber[];
   phone: string | null;
   services: PublicService[];
@@ -90,6 +94,8 @@ export type UpdateBarbershopProfileInput = {
   profileImageUrl: string;
   coverImageUrl: string;
   isDiscoverable: boolean;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type EditableBarbershopProfile = {
@@ -102,6 +108,8 @@ export type EditableBarbershopProfile = {
   profileImageUrl: string | null;
   coverImageUrl: string | null;
   isDiscoverable: boolean;
+  latitude: number | null;
+  longitude: number | null;
   timezone: string;
 };
 

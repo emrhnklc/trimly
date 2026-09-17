@@ -20,6 +20,11 @@ export type AuthUser = {
   firstName: string;
   lastName: string;
   phone: string | null;
+  birthDate: string | null;
+  provinceCode: string | null;
+  province: string | null;
+  district: string | null;
+  neighborhood: string | null;
   profileImageUrl: string | null;
   businessMemberships: BusinessMembership[];
 };

@@ -1,7 +1,7 @@
 import {
   IsOptional,
   IsString,
-  IsUrl,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -25,7 +25,8 @@ export class UpdateMyProfileDto {
   phone?: string;
 
   @IsOptional()
-  @IsUrl({ require_protocol: true })
-  @MaxLength(2048)
-  profileImageUrl?: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Doğum tarihi YYYY-MM-DD biçiminde olmalıdır.',
+  })
+  birthDate?: string | null;
 }

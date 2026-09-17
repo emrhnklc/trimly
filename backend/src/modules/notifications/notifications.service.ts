@@ -18,7 +18,11 @@ const appointmentReminderSchedules: Array<{
   leadMinutes: number;
   minimumLeadMinutes: number;
 }> = [
-  { field: 'reminder24hSentAt', leadMinutes: 24 * 60, minimumLeadMinutes: 12 * 60 },
+  {
+    field: 'reminder24hSentAt',
+    leadMinutes: 24 * 60,
+    minimumLeadMinutes: 12 * 60,
+  },
   { field: 'reminder2hSentAt', leadMinutes: 2 * 60, minimumLeadMinutes: 0 },
 ];
 
@@ -123,7 +127,9 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     const now = new Date();
 
     for (const schedule of appointmentReminderSchedules) {
-      const latestStart = new Date(now.getTime() + schedule.leadMinutes * 60 * 1000);
+      const latestStart = new Date(
+        now.getTime() + schedule.leadMinutes * 60 * 1000,
+      );
       const earliestStart = new Date(
         now.getTime() + schedule.minimumLeadMinutes * 60 * 1000,
       );
@@ -152,7 +158,10 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       });
 
       for (const appointment of appointments) {
-        if (appointment.customer.notificationPreference?.appointmentRemindersEnabled === false) {
+        if (
+          appointment.customer.notificationPreference
+            ?.appointmentRemindersEnabled === false
+        ) {
           continue;
         }
 
@@ -187,8 +196,14 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         });
 
         await this.sendExpoPush(
-          appointment.customer.pushDevices.map((device) => device.expoPushToken),
-          { appointmentId: appointment.id, barbershopId: appointment.barbershop.id, type: 'APPOINTMENT_REMINDER' },
+          appointment.customer.pushDevices.map(
+            (device) => device.expoPushToken,
+          ),
+          {
+            appointmentId: appointment.id,
+            barbershopId: appointment.barbershop.id,
+            type: 'APPOINTMENT_REMINDER',
+          },
           title,
           body,
         );
@@ -277,6 +292,52 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async notifyPortfolioConsentRequest(appointmentId: string) {
+    try {
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          customer: {
+            select: {
+              id: true,
+              pushDevices: { select: { expoPushToken: true } },
+            },
+          },
+          barbershop: { select: { id: true, name: true } },
+        },
+      });
+      if (!appointment) return;
+
+      const title = 'Portföy yayın izni';
+      const body = `${appointment.barbershop.name}, tıraş fotoğrafını portföyünde yayınlamak için onayını istiyor.`;
+      await this.prisma.appNotification.create({
+        data: {
+          userId: appointment.customer.id,
+          barbershopId: appointment.barbershop.id,
+          appointmentId: appointment.id,
+          type: 'PORTFOLIO_CONSENT_REQUEST',
+          title,
+          body,
+        },
+      });
+      await this.sendExpoPush(
+        appointment.customer.pushDevices.map((device) => device.expoPushToken),
+        {
+          appointmentId: appointment.id,
+          barbershopId: appointment.barbershop.id,
+          type: 'PORTFOLIO_CONSENT_REQUEST',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Bilinmeyen hata';
+      this.logger.warn(`Portföy izin bildirimi gönderilemedi: ${message}`);
+    }
+  }
+
   private async sendExpoPush(
     tokens: string[],
     data: { appointmentId: string; barbershopId: string; type: string },
@@ -286,19 +347,19 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     if (tokens.length === 0) return;
 
     const response = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          tokens.map((to) => ({
-            to,
-            channelId: 'appointments',
-            sound: 'default',
-            title,
-            body,
-            data,
-          })),
-        ),
-      });
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        tokens.map((to) => ({
+          to,
+          channelId: 'appointments',
+          sound: 'default',
+          title,
+          body,
+          data,
+        })),
+      ),
+    });
 
     if (!response.ok) {
       throw new Error(`Expo Push Service ${response.status} döndü.`);

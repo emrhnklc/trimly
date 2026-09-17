@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 
-import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { createManagementService } from '@/features/business-management/api';
@@ -12,7 +11,7 @@ import {
 } from '@/features/business-services/components/ServiceForm';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
-import { spacing } from '@/theme/spacing';
+import { layout } from '@/theme/spacing';
 
 export default function NewManagementServiceScreen() {
   const router = useRouter();
@@ -61,9 +60,6 @@ export default function NewManagementServiceScreen() {
             onBack={() => router.dismissTo('/management/services')}
             title="Yeni Hizmet"
           />
-          <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-            Müşterilerin randevu sırasında göreceği hizmet bilgilerini oluştur.
-          </AppText>
           <ServiceForm
             error={error}
             isSubmitting={isSubmitting}
@@ -78,6 +74,5 @@ export default function NewManagementServiceScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { fontSize: 11, lineHeight: 16, marginBottom: spacing.lg, marginTop: spacing.xs, textAlign: 'center' },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
 });

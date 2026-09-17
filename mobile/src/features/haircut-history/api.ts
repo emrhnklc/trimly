@@ -1,4 +1,5 @@
 import { apiGet, apiPost, apiUpload } from '@/lib/api/client';
+import { appendImageFile } from '@/lib/api/upload';
 import type { CustomerHaircutRecord } from './types';
 
 export function getMyHaircutHistory(accessToken: string) {
@@ -26,14 +27,37 @@ export function uploadBusinessHaircutPhoto(
 ) {
   const formData = new FormData();
   formData.append('customerConsentConfirmed', 'true');
-  formData.append('file', {
-    uri: photo.uri,
-    name: `trimly-${Date.now()}.jpg`,
-    type: photo.mimeType ?? 'image/jpeg',
-  } as unknown as Blob);
+  appendImageFile(formData, 'file', photo, 'trimly');
 
   return apiUpload<{ id: string }>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/haircut-record/photos`,
+    formData,
+    accessToken,
+  );
+}
+
+export function finalizeBusinessHaircutRecord(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPost<{ id: string; finalizedAt: string }>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/haircut-record/finalize`,
+    {},
+    accessToken,
+  );
+}
+
+export function uploadCustomerHaircutPhoto(
+  appointmentId: string,
+  photo: { uri: string; mimeType?: string | null },
+  accessToken: string,
+) {
+  const formData = new FormData();
+  appendImageFile(formData, 'file', photo, 'trimly-customer');
+
+  return apiUpload<{ id: string }>(
+    `/haircut-records/appointments/${encodeURIComponent(appointmentId)}/photos`,
     formData,
     accessToken,
   );

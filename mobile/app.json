@@ -13,6 +13,7 @@
     },
     "android": {
       "icon": "./assets/images/trimly-app-icon.png",
+      "package": "com.trimly.app",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA"
@@ -35,7 +36,21 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Trimly, sana yakın işletmeleri göstermek için konumunu kullanır."
+        }
+      ],
       "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Trimly, profil fotoğrafını seçebilmen için fotoğraflarına erişir.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-camera",
         {
@@ -43,7 +58,10 @@
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": false
         }
-      ]
+      ],
+      "expo-image",
+      "expo-sharing",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

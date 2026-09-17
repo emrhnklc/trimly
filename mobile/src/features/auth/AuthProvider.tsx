@@ -122,7 +122,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
 }
 
 function normalizeUser(user: PersistedAuthUser): AuthUser {
-  return { ...user, businessMemberships: user.businessMemberships ?? [] };
+  return {
+    ...user,
+    birthDate: user.birthDate ?? null,
+    provinceCode: user.provinceCode ?? null,
+    province: user.province ?? null,
+    district: user.district ?? null,
+    neighborhood: user.neighborhood ?? null,
+    businessMemberships: user.businessMemberships ?? [],
+  };
 }
 
 export function useAuth() {

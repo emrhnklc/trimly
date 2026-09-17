@@ -1,4 +1,12 @@
-import { Body, Controller, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -15,6 +23,12 @@ import { MembersService } from './members.service';
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
+  @Get()
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  findInvitations(@Param('barbershopId') barbershopId: string) {
+    return this.membersService.findInvitations(barbershopId);
+  }
+
   @Post()
   @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
   createInvitation(
@@ -23,5 +37,14 @@ export class MembersController {
     @Body() dto: CreateInvitationDto,
   ) {
     return this.membersService.createInvitation(barbershopId, user.id, dto);
+  }
+
+  @Delete(':invitationId')
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  revokeInvitation(
+    @Param('barbershopId') barbershopId: string,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.membersService.revokeInvitation(barbershopId, invitationId);
   }
 }

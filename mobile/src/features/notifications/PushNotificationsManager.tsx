@@ -17,7 +17,7 @@ type AppointmentNotificationData = {
 export function PushNotificationsManager() {
   const router = useRouter();
   const { token, user } = useAuth();
-  const { enterBusinessMode } = useAppMode();
+  const { enterBusinessMode, enterCustomerMode } = useAppMode();
   const { memberships } = useBusiness();
   const handledResponses = useRef(new Set<string>());
   const userId = user?.id ?? null;
@@ -76,8 +76,12 @@ export function PushNotificationsManager() {
         return;
       }
 
-      if (data.type === 'APPOINTMENT_REMINDER') {
+      if (
+        data.type === 'APPOINTMENT_REMINDER' ||
+        data.type === 'PORTFOLIO_CONSENT_REQUEST'
+      ) {
         handledResponses.current.add(response.notification.request.identifier);
+        await enterCustomerMode();
         router.push({
           pathname: '/appointments/[appointmentId]',
           params: { appointmentId: data.appointmentId },
@@ -99,7 +103,7 @@ export function PushNotificationsManager() {
         params: { appointmentId: data.appointmentId },
       });
     },
-    [enterBusinessMode, memberships, router],
+    [enterBusinessMode, enterCustomerMode, memberships, router],
   );
 
   useEffect(() => {

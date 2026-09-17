@@ -26,7 +26,7 @@ import {
 } from '@/features/schedules/api';
 import type { BusinessWorkingHours, Weekday } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 type PickerTarget = {
   field: 'startTime' | 'endTime';
@@ -169,10 +169,6 @@ export default function BusinessWorkingHoursScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <BusinessDetailHeader onBack={handleBack} title="Çalışma Saatleri" />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          İşletmenin müşterilere açık olduğu haftalık saatleri düzenle.
-        </AppText>
-
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && loadError ? (
@@ -196,10 +192,7 @@ export default function BusinessWorkingHoursScreen() {
 
             <View style={styles.sectionHeading}>
               <View style={styles.sectionCopy}>
-                <AppText style={styles.sectionTitle} variant="heading">İşletme saatleri</AppText>
-                <AppText color="textMuted" variant="bodySmall">
-                  Kapalı günlerde müşterilere randevu saati gösterilmez.
-                </AppText>
+                <AppText style={styles.sectionTitle} variant="sectionTitle">İşletme saatleri</AppText>
               </View>
               <View style={styles.openBadge}>
                 <AppText color="primary" variant="label">{summary.openDayCount}/7 açık</AppText>
@@ -254,12 +247,11 @@ export default function BusinessWorkingHoursScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
-  sectionHeading: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.sm, marginTop: spacing.xl },
+  sectionHeading: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.sm, marginTop: layout.sectionGap },
   sectionCopy: { flex: 1, paddingRight: spacing.sm },
-  sectionTitle: { fontSize: 18, lineHeight: 24, marginBottom: 2 },
+  sectionTitle: { fontSize: 22, lineHeight: 28 },
   openBadge: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,

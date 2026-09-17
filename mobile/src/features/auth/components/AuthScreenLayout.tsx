@@ -48,7 +48,7 @@ export function AuthScreenLayout({ children, description, onBackPress, title }: 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, minHeight: 48 },
   topBarSpacer: { height: 44, width: 44 },
   title: { marginTop: spacing.xxl },
   description: { marginTop: spacing.sm },

@@ -3,6 +3,7 @@ import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type AppTextVariant = keyof typeof typography;
 
@@ -23,6 +24,7 @@ export function AppText({
   variant = 'body',
   ...props
 }: AppTextProps) {
+  const themeColors = useThemeColors();
   const resolvedStyle = StyleSheet.flatten([typography[variant], style]);
   const readableSize = {
     fontSize: Math.max(resolvedStyle.fontSize ?? minimumReadableFontSize, minimumReadableFontSize),
@@ -34,7 +36,7 @@ export function AppText({
 
   return (
     <Text
-      style={[styles.base, typography[variant], { color: colors[color] }, style, readableSize]}
+      style={[styles.base, typography[variant], { color: themeColors[color] }, style, readableSize]}
       {...props}>
       {children}
     </Text>

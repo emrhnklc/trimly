@@ -6,6 +6,7 @@ import { AppText } from '@/components/ui/AppText';
 import type { CustomerAppointment } from '@/features/appointments/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function NextAppointmentCard({
   appointment,
@@ -14,6 +15,7 @@ export function NextAppointmentCard({
   appointment: CustomerAppointment | null;
   onPress: () => void;
 }) {
+  const themeColors = useThemeColors();
   const startsAt = appointment ? new Date(appointment.startsAt) : null;
   const dateLabel = startsAt
     ? new Intl.DateTimeFormat('tr-TR', {
@@ -30,8 +32,12 @@ export function NextAppointmentCard({
       accessibilityLabel={appointment ? 'Sonraki randevunun detaylarını aç' : 'Randevu oluştur'}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={styles.iconBox}>
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+        pressed && styles.pressed,
+      ]}>
+      <View style={[styles.iconBox, { backgroundColor: themeColors.surfaceMuted }]}>
         <SymbolView
           name={{ ios: 'calendar.badge.clock', android: 'event', web: 'event' }}
           size={24}
@@ -45,11 +51,11 @@ export function NextAppointmentCard({
         <AppText numberOfLines={1} variant="label">
           {appointment?.barbershop.name ?? 'Henüz yaklaşan randevun yok'}
         </AppText>
-        <AppText color="textMuted" numberOfLines={1} style={styles.meta} variant="bodySmall">
+        <AppText color="textMuted" numberOfLines={2} style={styles.meta} variant="bodySmall">
           {appointment ? `${dateLabel} · ${appointment.serviceNameSnapshot}` : 'Sana uygun işletme ve saati keşfet.'}
         </AppText>
       </View>
-      <View style={styles.detailPill}>
+      <View style={[styles.detailPill, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
         <AppText color="primary" variant="bodySmall">{appointment ? 'Detay' : 'Planla'}</AppText>
       </View>
     </Pressable>
@@ -59,19 +65,16 @@ export function NextAppointmentCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 252, 247, 0.68)',
-    borderColor: 'rgba(184, 134, 11, 0.18)',
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
     marginTop: spacing.sm,
-    minHeight: 74,
+    minHeight: 84,
     padding: spacing.sm,
   },
   pressed: { opacity: 0.72 },
   iconBox: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     height: 44,
     justifyContent: 'center',
@@ -81,8 +84,6 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 9, lineHeight: 12 },
   meta: { fontSize: 11, lineHeight: 15, marginTop: 2 },
   detailPill: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,

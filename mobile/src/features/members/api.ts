@@ -1,7 +1,10 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api/client';
 import type {
   BusinessInvitation,
+  BusinessInvitationPreview,
+  BusinessInvitationSummary,
   BusinessMember,
+  CustomerBarbershopAccess,
   CreateBusinessInvitationInput,
   UpdateBusinessMemberInput,
 } from './types';
@@ -14,11 +17,17 @@ type AcceptedBusinessInvitation = {
 };
 
 export function getBusinessMembers(barbershopId: string, accessToken: string) {
-  return apiGet<BusinessMember[]>(
+  return apiGet<unknown>(
     `/barbershops/${encodeURIComponent(barbershopId)}/members`,
     undefined,
     accessToken,
-  );
+  ).then((members) => {
+    if (!Array.isArray(members) || !members.every(isBusinessMember)) {
+      throw new Error('Çalışan verisi eksik geldi. Lütfen tekrar dene.');
+    }
+
+    return members;
+  });
 }
 
 export function getBusinessMember(
@@ -26,10 +35,33 @@ export function getBusinessMember(
   memberId: string,
   accessToken: string,
 ) {
-  return apiGet<BusinessMember>(
+  return apiGet<unknown>(
     `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}`,
     undefined,
     accessToken,
+  ).then((member) => {
+    if (!isBusinessMember(member)) {
+      throw new Error('Çalışan verisi eksik geldi. Lütfen tekrar dene.');
+    }
+
+    return member;
+  });
+}
+
+function isBusinessMember(value: unknown): value is BusinessMember {
+  if (!value || typeof value !== 'object') return false;
+
+  const member = value as Partial<BusinessMember>;
+  const user = member.user;
+
+  return Boolean(
+    typeof member.id === 'string' &&
+      typeof member.isActive === 'boolean' &&
+      typeof member.isBookable === 'boolean' &&
+      user &&
+      typeof user.id === 'string' &&
+      typeof user.firstName === 'string' &&
+      typeof user.lastName === 'string',
   );
 }
 
@@ -41,6 +73,56 @@ export function createBusinessInvitation(
   return apiPost<BusinessInvitation>(
     `/barbershops/${encodeURIComponent(barbershopId)}/invitations`,
     input,
+    accessToken,
+  );
+}
+
+export function getBusinessInvitations(
+  barbershopId: string,
+  accessToken: string,
+) {
+  return apiGet<BusinessInvitationSummary[]>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/invitations`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function revokeBusinessInvitation(
+  barbershopId: string,
+  invitationId: string,
+  accessToken: string,
+) {
+  return apiDelete<{ revoked: true }>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/invitations/${encodeURIComponent(invitationId)}`,
+    accessToken,
+  );
+}
+
+export function getBusinessInvitationPreview(token: string) {
+  return apiGet<BusinessInvitationPreview>(
+    `/invitations/${encodeURIComponent(token)}`,
+  );
+}
+
+export function getCustomerBarbershopAccesses(
+  barbershopId: string,
+  accessToken: string,
+) {
+  return apiGet<CustomerBarbershopAccess[]>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/customer-accesses`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function revokeCustomerBarbershopAccess(
+  barbershopId: string,
+  customerId: string,
+  accessToken: string,
+) {
+  return apiDelete<{ revoked: true }>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/customer-accesses/${encodeURIComponent(customerId)}`,
     accessToken,
   );
 }
@@ -67,6 +149,34 @@ export function updateBusinessMemberBookable(
   return apiPut<Pick<BusinessMember, 'id' | 'isActive' | 'isBookable'>>(
     `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}/bookable`,
     { isBookable },
+    accessToken,
+  );
+}
+
+export function requestBusinessOwnershipTransfer(
+  barbershopId: string,
+  memberId: string,
+  accessToken: string,
+) {
+  return apiPost<{
+    ownershipTransferVerificationRequired: boolean;
+    devOwnershipTransferCode?: string;
+  }>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}/ownership-transfer-request`,
+    {},
+    accessToken,
+  );
+}
+
+export function confirmBusinessOwnershipTransfer(
+  barbershopId: string,
+  memberId: string,
+  code: string,
+  accessToken: string,
+) {
+  return apiPost<{ message: string }>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}/transfer-ownership`,
+    { code },
     accessToken,
   );
 }

@@ -2,11 +2,13 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet, View, type ViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors } from '@/theme/colors';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function Screen({ children, style, ...props }: PropsWithChildren<ViewProps>) {
+  const colors = useThemeColors();
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.content, style]} {...props}>
         {children}
       </View>
@@ -15,6 +17,6 @@ export function Screen({ children, style, ...props }: PropsWithChildren<ViewProp
 }
 
 const styles = StyleSheet.create({
-  safeArea: { backgroundColor: colors.background, flex: 1 },
+  safeArea: { flex: 1 },
   content: { flex: 1 },
 });

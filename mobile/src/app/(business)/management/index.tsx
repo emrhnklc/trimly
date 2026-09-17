@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -38,7 +38,7 @@ import type { BusinessMember } from '@/features/members/types';
 import { getBusinessWorkingHours } from '@/features/schedules/api';
 import type { BusinessWorkingHours } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 
 type ManagementData = {
   bookingSettings: BookingSettings;
@@ -54,7 +54,17 @@ function formatNotice(minutes: number) {
   return `${Math.floor(minutes / 60)} sa ${minutes % 60} dk`;
 }
 
-export default function BusinessManagementScreen() {
+export default function BusinessManagementRoute() {
+  const { can } = useBusiness();
+
+  if (!can('MANAGE_SERVICES')) {
+    return <Redirect href="/(business)/calendar" />;
+  }
+
+  return <BusinessManagementScreen />;
+}
+
+function BusinessManagementScreen() {
   const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
@@ -62,10 +72,14 @@ export default function BusinessManagementScreen() {
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadVersion = useRef(0);
 
   const loadManagement = useCallback(
     async (refreshing = false) => {
       if (!activeMembership || !token) return;
+
+      const requestVersion = ++loadVersion.current;
+      const isCurrentRequest = () => requestVersion === loadVersion.current;
 
       if (refreshing) setRefreshing(true);
       else setLoading(true);
@@ -82,12 +96,18 @@ export default function BusinessManagementScreen() {
           getDailyBusinessSummary(barbershopId, today, token),
         ]);
 
-        setData({ bookingSettings, members, services, summary, workingHours });
+        if (isCurrentRequest()) {
+          setData({ bookingSettings, members, services, summary, workingHours });
+        }
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : 'Yönetim bilgileri yüklenemedi.');
+        if (isCurrentRequest()) {
+          setError(reason instanceof Error ? reason.message : 'Yönetim bilgileri yüklenemedi.');
+        }
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (isCurrentRequest()) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [activeMembership, token],
@@ -96,6 +116,10 @@ export default function BusinessManagementScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadManagement();
+
+      return () => {
+        loadVersion.current += 1;
+      };
     }, [loadManagement]),
   );
 
@@ -110,12 +134,30 @@ export default function BusinessManagementScreen() {
       : 'Müşteri iptali kapalı';
     const menuItems: ManagementMenuItem[] = [
       {
+        description: 'İşletme profili, konumu ve görünürlüğü',
+        icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
+        id: 'business',
+        onPress: () => router.push('/management/business'),
+        title: 'İşletme Ayarları',
+        value: activeMembership
+          ? businessRoleLabels[activeMembership.role]
+          : 'İşletme',
+      },
+      {
         description: 'Fiyat, süre ve aktiflik durumlarını yönet',
         icon: { ios: 'scissors', android: 'content_cut', web: 'content_cut' },
         id: 'services',
         onPress: () => router.push('/management/services'),
         title: 'Hizmetler',
         value: `${activeServices.length} aktif`,
+      },
+      {
+        description: 'Hizmetlere süreli fırsatlar tanımla',
+        icon: { ios: 'tag', android: 'local_offer', web: 'local_offer' },
+        id: 'campaigns',
+        onPress: () => router.push('/management/campaigns'),
+        title: 'Kampanyalar',
+        value: 'Yönet',
       },
       {
         description: `${bookableMembers.length} çalışan randevuya açık`,
@@ -148,16 +190,6 @@ export default function BusinessManagementScreen() {
         onPress: () => router.push('/management/revenue'),
         title: 'Gelirler',
         value: formatTurkishPrice(data.summary.completedRevenue),
-      },
-      {
-        description: 'İşletme profili, konumu ve görünürlüğü',
-        icon: { ios: 'storefront', android: 'storefront', web: 'storefront' },
-        id: 'business',
-        onPress: () => router.push('/management/business'),
-        title: 'İşletme Ayarları',
-        value: activeMembership
-          ? businessRoleLabels[activeMembership.role]
-          : 'İşletme',
       },
     ];
 
@@ -218,10 +250,7 @@ export default function BusinessManagementScreen() {
               />
             </View>
 
-            <AppText style={styles.sectionTitle} variant="heading">İşletmeni yönet</AppText>
-            <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
-              Hizmet, ekip, çalışma düzeni ve işletme ayarlarının güncel özeti.
-            </AppText>
+            <AppText style={styles.sectionTitle} variant="sectionTitle">İşletmeni yönet</AppText>
             <View style={styles.menu}>
               <ManagementMenuSection items={overview.menuItems} />
             </View>
@@ -233,10 +262,9 @@ export default function BusinessManagementScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 116, paddingHorizontal: spacing.md },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  sectionTitle: { fontSize: 18, lineHeight: 24, marginTop: spacing.xl },
-  sectionDescription: { fontSize: 11, lineHeight: 16, marginTop: 2 },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  sectionTitle: { fontSize: 22, lineHeight: 28, marginTop: layout.sectionGap },
   menu: { marginTop: spacing.sm },
 });

@@ -20,10 +20,10 @@ export function HomeHeroCard({ onExplorePress }: HomeHeroCardProps) {
       />
       <View pointerEvents="none" style={styles.imageOverlay} />
 
-      <AppText color="surfaceMuted" variant="overline">
+      <AppText style={styles.imageEyebrow} variant="overline">
         SİZE ÖZEL ÖNERİLER
       </AppText>
-      <AppText color="surface" style={styles.title} variant="displayMedium">
+      <AppText style={styles.title} variant="displayMedium">
         Tarzına en uygun berberi keşfet.
       </AppText>
       <View style={styles.buttonRow}>
@@ -50,14 +50,15 @@ const styles = StyleSheet.create({
   },
   backgroundImage: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   imageOverlay: {
-    backgroundColor: 'rgba(18, 12, 8, 0.18)',
+    backgroundColor: 'rgba(12, 8, 5, 0.56)',
     bottom: 0,
     left: 0,
     position: 'absolute',
     right: 0,
     top: 0,
   },
-  title: { fontSize: 22, lineHeight: 27, marginTop: spacing.xxs, maxWidth: 220 },
+  imageEyebrow: { color: '#F3E7CF' },
+  title: { color: '#FFFFFF', fontSize: 22, lineHeight: 27, marginTop: spacing.xxs, maxWidth: 220 },
   buttonRow: { alignSelf: 'flex-start', marginTop: 'auto' },
   button: {
     alignItems: 'center',

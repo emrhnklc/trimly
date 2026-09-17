@@ -2,6 +2,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { AppButton } from '@/components/ui/AppButton';
+import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import {
   completeBusinessAppointment,
@@ -11,7 +13,10 @@ import type { BusinessAppointmentDetail } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
-import { saveBusinessHaircutRecord } from '@/features/haircut-history/api';
+import {
+  finalizeBusinessHaircutRecord,
+  saveBusinessHaircutRecord,
+} from '@/features/haircut-history/api';
 import { BusinessHaircutRecordForm } from '@/features/haircut-history/components/BusinessHaircutRecordForm';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -26,6 +31,7 @@ export default function BusinessHaircutRecordScreen() {
   const [notes, setNotes] = useState('');
   const [isLoading, setLoading] = useState(true);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [isSaved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAppointment = useCallback(async () => {
@@ -46,6 +52,7 @@ export default function BusinessHaircutRecordScreen() {
       setAppointment(result);
       setStyleName(result.haircutRecord?.styleName ?? '');
       setNotes(result.haircutRecord?.notes ?? '');
+      setSaved(Boolean(result.haircutRecord && !result.haircutRecord.finalizedAt));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Tıraş kaydı yüklenemedi.');
     } finally {
@@ -71,6 +78,7 @@ export default function BusinessHaircutRecordScreen() {
           appointmentId,
           token,
         );
+        setAppointment((current) => (current ? { ...current, status: 'COMPLETED' } : current));
       }
 
       await saveBusinessHaircutRecord(
@@ -82,9 +90,31 @@ export default function BusinessHaircutRecordScreen() {
         },
         token,
       );
-      router.back();
+      setSaved(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Tıraş kaydı kaydedilemedi.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function finish() {
+    if (!appointment || !appointmentId || !token) return;
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await finalizeBusinessHaircutRecord(
+        appointment.barbershop.id,
+        appointmentId,
+        token,
+      );
+      router.dismissTo({
+        pathname: '/business-appointments/[appointmentId]',
+        params: { appointmentId },
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Tıraş kaydı tamamlanamadı.');
     } finally {
       setSubmitting(false);
     }
@@ -98,7 +128,17 @@ export default function BusinessHaircutRecordScreen() {
 
       {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
-      {!isLoading && appointment ? (
+      {!isLoading && appointment?.haircutRecord?.finalizedAt ? (
+        <View style={styles.lockedState}>
+          <AppText style={styles.lockedTitle} variant="heading">Tıraş kaydı tamamlandı</AppText>
+          <AppText color="textMuted" style={styles.lockedDescription}>
+            Tamamlanan kayıt işletme tarafından değiştirilemez. Müşteri kendi geçmişinden fotoğraf ekleyebilir.
+          </AppText>
+          <AppButton onPress={() => router.back()} variant="secondary">Randevuya Dön</AppButton>
+        </View>
+      ) : null}
+
+      {!isLoading && appointment && !appointment.haircutRecord?.finalizedAt ? (
         <BusinessHaircutRecordForm
           appointment={appointment}
           error={error}
@@ -106,9 +146,24 @@ export default function BusinessHaircutRecordScreen() {
           notes={notes}
           onChangeNotes={setNotes}
           onChangeStyleName={setStyleName}
+          isSaved={isSaved}
+          onAddPhoto={() =>
+            router.push({
+              pathname: '/business-haircut-camera/[appointmentId]',
+              params: { appointmentId: appointment.id },
+            })
+          }
           onSubmit={() => void submit()}
           styleName={styleName}
         />
+      ) : null}
+
+      {isSaved ? (
+        <View style={styles.doneButton}>
+          <AppButton disabled={isSubmitting} onPress={() => void finish()} variant="secondary">
+            {isSubmitting ? 'Tamamlanıyor…' : 'Kaydı Tamamla'}
+          </AppButton>
+        </View>
       ) : null}
     </Screen>
   );
@@ -117,4 +172,8 @@ export default function BusinessHaircutRecordScreen() {
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.md },
   loader: { marginTop: spacing.xxxl },
+  doneButton: { marginHorizontal: spacing.md, marginTop: spacing.sm },
+  lockedState: { paddingHorizontal: spacing.lg, paddingTop: spacing.xxxl },
+  lockedTitle: { textAlign: 'center' },
+  lockedDescription: { lineHeight: 21, marginBottom: spacing.xl, marginTop: spacing.xs, textAlign: 'center' },
 });

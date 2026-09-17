@@ -10,19 +10,8 @@ import type {
   BusinessCustomerVisit,
 } from '@/features/business-customers/types';
 import { formatTurkishPrice } from '@/features/business-management/format';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
-
-const visitStatus: Record<
-  BusinessCustomerVisit['status'],
-  { color: string; label: string }
-> = {
-  CONFIRMED: { color: '#5E8B61', label: 'Yaklaşan' },
-  ARRIVED: { color: colors.primary, label: 'İşlemde' },
-  COMPLETED: { color: '#4F7653', label: 'Tamamlandı' },
-  CANCELLED: { color: colors.danger, label: 'İptal' },
-  NO_SHOW: { color: '#9B6B3D', label: 'Gelmedi' },
-};
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type BusinessCustomerDetailContentProps = {
   customer: BusinessCustomerDetail;
@@ -35,6 +24,9 @@ export function BusinessCustomerDetailContent({
   onOpenAppointment,
   timeZone,
 }: BusinessCustomerDetailContentProps) {
+  const themeColors = useThemeColors();
+  if (!customer) return null;
+
   const fullName = `${customer.firstName} ${customer.lastName}`;
   const initials = `${customer.firstName[0] ?? ''}${customer.lastName[0] ?? ''}`;
 
@@ -49,7 +41,12 @@ export function BusinessCustomerDetailContent({
             style={styles.avatar}
           />
         ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          <View
+            style={[
+              styles.avatar,
+              styles.avatarPlaceholder,
+              { backgroundColor: themeColors.surfaceMuted },
+            ]}>
             <AppText color="primary" style={styles.initials} variant="heading">
               {initials}
             </AppText>
@@ -101,7 +98,14 @@ function BusinessCustomerVisitCard({
   onPress: () => void;
   timeZone: string;
 }) {
-  const status = visitStatus[appointment.status];
+  const themeColors = useThemeColors();
+  const status: { color: string; label: string } = {
+    CONFIRMED: { color: themeColors.success, label: 'Yaklaşan' },
+    ARRIVED: { color: themeColors.info, label: 'Geldi' },
+    COMPLETED: { color: themeColors.textMuted, label: 'Tamamlandı' },
+    CANCELLED: { color: themeColors.danger, label: 'İptal' },
+    NO_SHOW: { color: themeColors.primaryPressed, label: 'Gelmedi' },
+  }[appointment.status];
   const employeeName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
   const date = new Intl.DateTimeFormat('tr-TR', {
     day: 'numeric',
@@ -132,12 +136,12 @@ function BusinessCustomerVisitCard({
           </View>
         </View>
 
-        <View style={styles.serviceRow}>
+        <View style={[styles.serviceRow, { borderTopColor: themeColors.border }]}>
           <View style={styles.serviceCopy}>
             <SymbolView
               name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
               size={16}
-              tintColor={colors.primary}
+              tintColor={themeColors.primary}
             />
             <AppText style={styles.serviceName} variant="label">
               {appointment.serviceNameSnapshot}
@@ -147,7 +151,7 @@ function BusinessCustomerVisitCard({
         </View>
 
         {appointment.haircutRecord?.styleName || appointment.haircutRecord?.notes ? (
-          <View style={styles.recordBox}>
+          <View style={[styles.recordBox, { backgroundColor: themeColors.surfaceMuted }]}>
             {appointment.haircutRecord.styleName ? (
               <RecordRow
                 icon={{ ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }}
@@ -178,9 +182,10 @@ function RecordRow({
   label: string;
   value: string;
 }) {
+  const themeColors = useThemeColors();
   return (
     <View style={styles.recordRow}>
-      <SymbolView name={icon} size={14} tintColor={colors.primary} />
+      <SymbolView name={icon} size={14} tintColor={themeColors.primary} />
       <AppText color="textMuted" style={styles.recordLabel} variant="bodySmall">
         {label}:
       </AppText>
@@ -202,7 +207,6 @@ const styles = StyleSheet.create({
   avatar: { borderRadius: radius.pill, height: 64, width: 64 },
   avatarPlaceholder: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
   },
   initials: { fontSize: 20, lineHeight: 26 },
@@ -234,7 +238,6 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 9, lineHeight: 12 },
   serviceRow: {
     alignItems: 'center',
-    borderTopColor: colors.border,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -244,7 +247,6 @@ const styles = StyleSheet.create({
   serviceCopy: { alignItems: 'center', flex: 1, flexDirection: 'row' },
   serviceName: { marginLeft: spacing.xs },
   recordBox: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     gap: 5,
     marginTop: spacing.sm,

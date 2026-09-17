@@ -11,6 +11,7 @@ import type {
 } from '@/features/appointments/types';
 import { formatBusinessTime } from '@/features/business-appointments/date';
 import { formatTurkishPrice } from '@/features/business-management/format';
+import { resolveApiUrl } from '@/lib/api/client';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
@@ -24,25 +25,27 @@ const statusConfig: Record<AppointmentStatus, { color: string; label: string }> 
 
 type BusinessAppointmentDetailContentProps = {
   appointment: BusinessAppointmentDetail;
+  accessToken: string;
   canOpenCustomer: boolean;
   isUpdating: boolean;
   onCancel: () => void;
   onNoShow: () => void;
   onOpenCustomer: () => void;
-  onOpenCamera: () => void;
   onOpenHaircutRecord: () => void;
+  onRequestPortfolio: (photoId: string) => void;
   onReschedule: () => void;
 };
 
 export function BusinessAppointmentDetailContent({
   appointment,
+  accessToken,
   canOpenCustomer,
   isUpdating,
   onCancel,
   onNoShow,
   onOpenCustomer,
-  onOpenCamera,
   onOpenHaircutRecord,
+  onRequestPortfolio,
   onReschedule,
 }: BusinessAppointmentDetailContentProps) {
   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
@@ -60,7 +63,9 @@ export function BusinessAppointmentDetailContent({
   const canComplete =
     (appointment.status === 'CONFIRMED' || appointment.status === 'ARRIVED') &&
     new Date() >= new Date(appointment.startsAt);
-  const canEditRecord = appointment.status === 'COMPLETED';
+  const canEditRecord =
+    appointment.status === 'COMPLETED' &&
+    (!appointment.haircutRecord || !appointment.haircutRecord.finalizedAt);
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -142,6 +147,13 @@ export function BusinessAppointmentDetailContent({
           label="Süre"
           value={`${appointment.durationMinutes} dk`}
         />
+        {appointment.campaignTitleSnapshot ? (
+          <DetailRow
+            icon={{ ios: 'gift.fill', android: 'redeem', web: 'redeem' }}
+            label="Kampanya"
+            value={`${appointment.campaignTitleSnapshot}${appointment.campaignBenefitSnapshot ? ` · ${appointment.campaignBenefitSnapshot}` : ''}`}
+          />
+        ) : null}
         <DetailRow
           icon={{ ios: 'turkishlirasign.circle', android: 'payments', web: 'payments' }}
           isLast
@@ -169,34 +181,18 @@ export function BusinessAppointmentDetailContent({
       {canComplete || canEditRecord ? (
         <View style={styles.recordAction}>
           <AppButton disabled={isUpdating} onPress={onOpenHaircutRecord}>
-            {canEditRecord ? 'Tıraş Kaydını Düzenle' : 'Tıraşı Tamamla ve Not Ekle'}
+            {appointment.haircutRecord ? 'Tıraş Kaydına Devam Et' : 'Tıraşı Tamamla ve Not Ekle'}
           </AppButton>
         </View>
       ) : null}
 
-      {canEditRecord && appointment.haircutRecord ? (
-        <AppCard style={styles.photoCard}>
-          <View style={styles.photoIcon}>
-            <SymbolView
-              name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
-              size={20}
-              tintColor={colors.primary}
-            />
-          </View>
-          <View style={styles.photoCopy}>
-            <AppText variant="label">Tıraş fotoğrafı</AppText>
-            <AppText color="textMuted" style={styles.photoDescription} variant="bodySmall">
-              Müşteri izniyle, yalnız kameradan eklenir.
-            </AppText>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onOpenCamera}
-            style={({ pressed }) => [styles.photoButton, pressed && styles.pressed]}
-          >
-            <AppText color="primary" variant="label">Fotoğraf Çek</AppText>
-          </Pressable>
-        </AppCard>
+      {appointment.haircutRecord ? (
+        <BusinessHaircutResult
+          accessToken={accessToken}
+          appointment={appointment}
+          isUpdating={isUpdating}
+          onRequestPortfolio={onRequestPortfolio}
+        />
       ) : null}
 
       {canManage ? (
@@ -226,6 +222,97 @@ export function BusinessAppointmentDetailContent({
         </View>
       ) : null}
     </ScrollView>
+  );
+}
+
+function BusinessHaircutResult({
+  accessToken,
+  appointment,
+  isUpdating,
+  onRequestPortfolio,
+}: {
+  accessToken: string;
+  appointment: BusinessAppointmentDetail;
+  isUpdating: boolean;
+  onRequestPortfolio: (photoId: string) => void;
+}) {
+  const record = appointment.haircutRecord;
+  if (!record) return null;
+
+  return (
+    <View>
+      <AppText style={styles.sectionTitle} variant="heading">Tıraş sonucu</AppText>
+      {(record.styleName || record.notes) ? (
+        <AppCard style={styles.resultCard}>
+          {record.styleName ? <AppText variant="label">{record.styleName}</AppText> : null}
+          {record.notes ? (
+            <AppText color="textMuted" style={record.styleName && styles.resultNotes}>
+              {record.notes}
+            </AppText>
+          ) : null}
+        </AppCard>
+      ) : null}
+      {record.photos.length ? (
+        <ScrollView
+          contentContainerStyle={styles.resultPhotos}
+          horizontal
+          showsHorizontalScrollIndicator={false}>
+          {record.photos.map((photo, index) => {
+            const approvedPortfolioUrl =
+              photo.portfolioItem?.status === 'APPROVED'
+                ? `/portfolio/items/${photo.portfolioItem.id}/image`
+                : null;
+            const displayUrl = approvedPortfolioUrl ?? photo.url;
+
+            return (
+              <View key={photo.id} style={styles.portfolioPhotoCard}>
+                {displayUrl ? (
+                  <Image
+                    accessibilityLabel={`Tıraş sonucu fotoğrafı ${index + 1}`}
+                    contentFit="cover"
+                    source={{
+                      ...(photo.url
+                        ? { headers: { Authorization: `Bearer ${accessToken}` } }
+                        : {}),
+                      uri: resolveApiUrl(displayUrl),
+                    }}
+                    style={styles.resultPhoto}
+                  />
+                ) : (
+                  <View style={[styles.resultPhoto, styles.privatePhoto]}>
+                    <SymbolView
+                      name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
+                      size={24}
+                      tintColor={colors.textMuted}
+                    />
+                    <AppText color="textMuted" style={styles.privatePhotoText} variant="bodySmall">
+                      Fotoğraf müşterinin özel geçmişinde saklanıyor.
+                    </AppText>
+                  </View>
+                )}
+                {photo.portfolioItem?.status === 'PENDING' ? (
+                  <AppText color="textMuted" style={styles.portfolioStatus} variant="bodySmall">Müşteri onayı bekleniyor</AppText>
+                ) : photo.portfolioItem?.status === 'APPROVED' ? (
+                  <AppText color="primary" style={styles.portfolioStatus} variant="bodySmall">Portföyde yayında</AppText>
+                ) : (
+                  <AppButton disabled={isUpdating} onPress={() => onRequestPortfolio(photo.id)} variant="secondary">Portföy İzni İste</AppButton>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+      {record.finalizedAt ? (
+        <View style={styles.lockedRow}>
+          <SymbolView
+            name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
+            size={15}
+            tintColor={colors.textMuted}
+          />
+          <AppText color="textMuted" variant="bodySmall">Kayıt tamamlandı, yalnızca görüntülenebilir.</AppText>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -295,18 +382,20 @@ const styles = StyleSheet.create({
   noteCopy: { flex: 1, marginLeft: spacing.sm },
   noteText: { marginTop: 2 },
   recordAction: { marginTop: spacing.lg },
-  photoCard: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.sm },
-  photoIcon: {
+  resultCard: { padding: spacing.md },
+  resultNotes: { lineHeight: 21, marginTop: spacing.xs },
+  resultPhotos: { gap: spacing.sm, paddingRight: spacing.md, paddingTop: spacing.sm },
+  resultPhoto: { borderRadius: radius.card, height: 180, width: 250 },
+  privatePhoto: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    height: 42,
     justifyContent: 'center',
-    width: 42,
+    padding: spacing.lg,
   },
-  photoCopy: { flex: 1, marginLeft: spacing.sm },
-  photoDescription: { marginTop: 2 },
-  photoButton: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+  privatePhotoText: { marginTop: spacing.xs, textAlign: 'center' },
+  portfolioPhotoCard: { gap: spacing.xs, width: 250 },
+  portfolioStatus: { textAlign: 'center' },
+  lockedRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   actions: { gap: spacing.xs, marginTop: spacing.lg },
   cancelButton: { alignItems: 'center', justifyContent: 'center', minHeight: 48 },
   disabled: { opacity: 0.45 },

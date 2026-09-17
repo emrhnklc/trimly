@@ -8,7 +8,14 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { AppointmentStatus, Prisma } from '@prisma/client';
+import {
+  AppointmentStatus,
+  CampaignDiscountType,
+  CampaignLoyaltyPeriod,
+  CampaignRewardType,
+  CampaignType,
+  Prisma,
+} from '@prisma/client';
 import { DateTime } from 'luxon';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -18,6 +25,32 @@ import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 import { RevenuePeriod } from './dto/revenue-summary-query.dto';
 
+const portfolioStatusSelect = {
+  id: true,
+  status: true,
+  title: true,
+  requestedAt: true,
+  respondedAt: true,
+  revokedAt: true,
+} as const;
+
+const appointmentReviewSelect = {
+  id: true,
+  rating: true,
+  comment: true,
+  createdAt: true,
+  updatedAt: true,
+  photos: {
+    orderBy: { sortOrder: 'asc' as const },
+    select: {
+      id: true,
+      mimeType: true,
+      sizeBytes: true,
+      sortOrder: true,
+    },
+  },
+} as const;
+
 const customerAppointmentSelect = {
   id: true,
   startsAt: true,
@@ -25,6 +58,11 @@ const customerAppointmentSelect = {
   status: true,
   serviceId: true,
   serviceNameSnapshot: true,
+  campaignTitleSnapshot: true,
+  campaignBenefitSnapshot: true,
+  campaignId: true,
+  originalPriceSnapshot: true,
+  discountAmount: true,
   priceSnapshot: true,
   durationMinutes: true,
   cancelledAt: true,
@@ -56,8 +94,36 @@ const customerAppointmentSelect = {
   },
 } satisfies Prisma.AppointmentSelect;
 
+const customerAppointmentDetailSelect = {
+  ...customerAppointmentSelect,
+  review: { select: appointmentReviewSelect },
+  haircutRecord: {
+    select: {
+      id: true,
+      styleName: true,
+      notes: true,
+      photos: {
+        orderBy: { sortOrder: 'asc' as const },
+        select: {
+          id: true,
+          mimeType: true,
+          sizeBytes: true,
+          sortOrder: true,
+          portfolioItem: {
+            select: portfolioStatusSelect,
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.AppointmentSelect;
+
 type CustomerAppointmentRecord = Prisma.AppointmentGetPayload<{
   select: typeof customerAppointmentSelect;
+}>;
+
+type CustomerAppointmentDetailRecord = Prisma.AppointmentGetPayload<{
+  select: typeof customerAppointmentDetailSelect;
 }>;
 
 const defaultCancellationSettings = {
@@ -136,6 +202,34 @@ function presentCustomerAppointment(appointment: CustomerAppointmentRecord) {
       appointment.startsAt,
       cancellationSettings,
     ),
+  };
+}
+
+function presentCustomerAppointmentDetail(
+  appointment: CustomerAppointmentDetailRecord,
+) {
+  const { haircutRecord, review, ...appointmentRecord } = appointment;
+
+  return {
+    ...presentCustomerAppointment(appointmentRecord),
+    review: review
+      ? {
+          ...review,
+          photos: review.photos.map((photo) => ({
+            ...photo,
+            url: `/reviews/${review.id}/photos/${photo.id}`,
+          })),
+        }
+      : null,
+    haircutRecord: haircutRecord
+      ? {
+          ...haircutRecord,
+          photos: haircutRecord.photos.map((photo) => ({
+            ...photo,
+            url: `/haircut-records/${haircutRecord.id}/photos/${photo.id}`,
+          })),
+        }
+      : null,
   };
 }
 
@@ -254,19 +348,150 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      const appointment = await this.prisma.appointment.create({
-        data: {
-          barbershopId,
-          customerId,
-          businessMemberId: dto.memberId,
-          serviceId: service.id,
-          serviceNameSnapshot: service.name,
-          priceSnapshot: service.price,
-          durationMinutes: service.durationMinutes,
-          startsAt: new Date(selectedSlot.startsAt),
-          endsAt: new Date(selectedSlot.endsAt),
+      const appointment = await this.prisma.$transaction(
+        async (transaction) => {
+          let campaignId: string | null = null;
+          let campaignTitleSnapshot: string | null = null;
+          let campaignBenefitSnapshot: string | null = null;
+          let discountAmount = new Prisma.Decimal(0);
+
+          if (dto.campaignId) {
+            const now = new Date();
+            const campaign = await transaction.campaign.findFirst({
+              where: {
+                id: dto.campaignId,
+                barbershopId,
+                isActive: true,
+                startsAt: { lte: now },
+                endsAt: { gt: now },
+                services: { some: { serviceId: service.id } },
+              },
+              include: {
+                barbershop: { select: { timezone: true } },
+                services: { select: { serviceId: true } },
+              },
+            });
+            if (!campaign) {
+              throw new BadRequestException(
+                'Kampanya bu hizmet için geçerli değil veya süresi dolmuş.',
+              );
+            }
+
+            const totalUses = await transaction.appointment.count({
+              where: {
+                campaignId: campaign.id,
+                status: { not: AppointmentStatus.CANCELLED },
+              },
+            });
+            if (
+              campaign.usageLimit !== null &&
+              totalUses >= campaign.usageLimit
+            ) {
+              throw new ConflictException(
+                'Kampanyanın kullanım limiti dolmuş.',
+              );
+            }
+            if (campaign.campaignType === CampaignType.LOYALTY) {
+              const periodStart =
+                campaign.loyaltyPeriod === CampaignLoyaltyPeriod.ROLLING_DAYS
+                  ? DateTime.fromJSDate(now)
+                      .minus({ days: campaign.rollingPeriodDays ?? 30 })
+                      .toJSDate()
+                  : DateTime.fromJSDate(now)
+                      .setZone(campaign.barbershop.timezone)
+                      .startOf('month')
+                      .toUTC()
+                      .toJSDate();
+              const [completedVisits, redeemedCount] = await Promise.all([
+                transaction.appointment.count({
+                  where: {
+                    barbershopId,
+                    customerId,
+                    serviceId: {
+                      in: campaign.services.map(({ serviceId }) => serviceId),
+                    },
+                    status: AppointmentStatus.COMPLETED,
+                    completedAt: { gte: periodStart, lte: now },
+                  },
+                }),
+                transaction.appointment.count({
+                  where: {
+                    campaignId: campaign.id,
+                    customerId,
+                    status: { not: AppointmentStatus.CANCELLED },
+                    startsAt: { gte: periodStart },
+                  },
+                }),
+              ]);
+              if (
+                completedVisits < (campaign.requiredCompletedVisits ?? 1) ||
+                redeemedCount > 0
+              ) {
+                throw new ConflictException(
+                  'Sadakat kampanyası için gereken ziyaret sayısı henüz tamamlanmadı veya bu dönemki hak kullanıldı.',
+                );
+              }
+            } else {
+              const customerUses = await transaction.appointment.count({
+                where: {
+                  campaignId: campaign.id,
+                  customerId,
+                  status: { not: AppointmentStatus.CANCELLED },
+                },
+              });
+              if (customerUses >= campaign.perCustomerLimit) {
+                throw new ConflictException(
+                  'Bu kampanyanın kullanım hakkını tamamladın.',
+                );
+              }
+            }
+
+            if (
+              campaign.rewardType === CampaignRewardType.DISCOUNT &&
+              campaign.discountType &&
+              campaign.discountValue
+            ) {
+              discountAmount =
+                campaign.discountType === CampaignDiscountType.PERCENTAGE
+                  ? service.price
+                      .mul(campaign.discountValue)
+                      .div(100)
+                      .toDecimalPlaces(2)
+                  : campaign.discountValue.gt(service.price)
+                    ? service.price
+                    : campaign.discountValue;
+              campaignBenefitSnapshot =
+                campaign.discountType === CampaignDiscountType.PERCENTAGE
+                  ? `%${campaign.discountValue.toString()} indirim`
+                  : `₺${campaign.discountValue.toString()} indirim`;
+            } else {
+              campaignBenefitSnapshot = campaign.giftDescription;
+            }
+            campaignId = campaign.id;
+            campaignTitleSnapshot = campaign.title;
+          }
+
+          return transaction.appointment.create({
+            data: {
+              barbershopId,
+              customerId,
+              businessMemberId: dto.memberId,
+              serviceId: service.id,
+              campaignId,
+              campaignTitleSnapshot,
+              campaignBenefitSnapshot,
+              serviceNameSnapshot: service.name,
+              originalPriceSnapshot: service.price,
+              discountAmount,
+              priceSnapshot: service.price.sub(discountAmount),
+              durationMinutes: service.durationMinutes,
+              startsAt: new Date(selectedSlot.startsAt),
+              endsAt: new Date(selectedSlot.endsAt),
+            },
+          });
         },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
 
       void this.notificationsService.notifyNewAppointment(appointment.id);
 
@@ -274,7 +499,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2039'
+        (error.code === 'P2039' || error.code === 'P2034')
       ) {
         throw new ConflictException(
           'Bu saat az önce başka biri tarafından alındı.',
@@ -302,14 +527,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const appointment = await this.prisma.appointment.findFirst({
       where: { id: appointmentId, customerId },
-      select: customerAppointmentSelect,
+      select: customerAppointmentDetailSelect,
     });
 
     if (!appointment) {
       throw new NotFoundException('Randevu bulunamadı.');
     }
 
-    return presentCustomerAppointment(appointment);
+    return presentCustomerAppointmentDetail(appointment);
   }
 
   async cancelForCustomer(appointmentId: string, customerId: string) {
@@ -376,6 +601,8 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         autoCompleteAt: true,
         completedAt: true,
         serviceNameSnapshot: true,
+        campaignTitleSnapshot: true,
+        campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
         customer: {
@@ -421,6 +648,8 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         autoCompleteAt: true,
         completedAt: true,
         serviceNameSnapshot: true,
+        campaignTitleSnapshot: true,
+        campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
         customer: {
@@ -463,6 +692,8 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         cancelledAt: true,
         cancellationReason: true,
         serviceNameSnapshot: true,
+        campaignTitleSnapshot: true,
+        campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
         customer: {
@@ -489,7 +720,25 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         },
         barbershop: { select: { id: true, name: true, timezone: true } },
         haircutRecord: {
-          select: { styleName: true, notes: true },
+          select: {
+            id: true,
+            styleName: true,
+            notes: true,
+            finalizedAt: true,
+            photos: {
+              orderBy: { sortOrder: 'asc' },
+              where: { uploadedBy: 'BUSINESS' },
+              select: {
+                id: true,
+                mimeType: true,
+                sizeBytes: true,
+                sortOrder: true,
+                portfolioItem: {
+                  select: portfolioStatusSelect,
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -525,7 +774,25 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       user: appointment.businessMember.user,
     };
 
-    return { ...appointment, businessMember, completedVisitCount };
+    const businessHaircutRecord = appointment.haircutRecord;
+    const haircutRecord = businessHaircutRecord
+      ? {
+          ...businessHaircutRecord,
+          photos: businessHaircutRecord.photos.map((photo) => ({
+            ...photo,
+            url: businessHaircutRecord.finalizedAt
+              ? null
+              : `/barbershops/${barbershopId}/appointments/${appointment.id}/haircut-record/photos/${photo.id}`,
+          })),
+        }
+      : null;
+
+    return {
+      ...appointment,
+      businessMember,
+      completedVisitCount,
+      haircutRecord,
+    };
   }
 
   async findDailySummary(barbershopId: string, date?: string) {

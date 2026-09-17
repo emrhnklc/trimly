@@ -1,14 +1,14 @@
-import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { Image } from "expo-image";
+import { StyleSheet, View } from "react-native";
 
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from "expo-symbols";
 
-import { AppIconButton } from '@/components/ui/AppIconButton';
-import { AppText } from '@/components/ui/AppText';
-import { BarbershopRating } from '@/features/barbershops/components/BarbershopRating';
-import type { PublicBarbershopDetail } from '@/features/barbershops/types';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { AppIconButton } from "@/components/ui/AppIconButton";
+import { AppText } from "@/components/ui/AppText";
+import { BarbershopRating } from "@/features/barbershops/components/BarbershopRating";
+import type { PublicBarbershopDetail } from "@/features/barbershops/types";
+import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 type BarbershopHeroProps = {
   barbershop: PublicBarbershopDetail;
@@ -23,11 +23,12 @@ export function BarbershopHero({
   isFavoriteLoading = false,
   onFavoritePress,
 }: BarbershopHeroProps) {
+  const colors = useThemeColors();
   const initial = barbershop.name.slice(0, 1).toUpperCase();
 
   return (
     <View style={styles.hero}>
-      <View style={styles.cover}>
+      <View style={[styles.cover, { backgroundColor: colors.darkSurface }]}>
         {barbershop.coverImageUrl ? (
           <Image
             accessibilityLabel={`${barbershop.name} kapak fotoğrafı`}
@@ -39,7 +40,11 @@ export function BarbershopHero({
         ) : (
           <View style={[styles.fill, styles.coverPlaceholder]}>
             <SymbolView
-              name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
+              name={{
+                ios: "scissors",
+                android: "content_cut",
+                web: "content_cut",
+              }}
               size={64}
               tintColor={colors.primary}
             />
@@ -48,8 +53,13 @@ export function BarbershopHero({
         <View style={[styles.fill, styles.overlay]} />
       </View>
 
-      <View style={styles.summary}>
-        <View style={styles.avatarFrame}>
+      <View
+        style={[
+          styles.summary,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
+        <View style={[styles.avatarFrame, { backgroundColor: colors.surface }]}>
           {barbershop.profileImageUrl ? (
             <Image
               accessibilityLabel={`${barbershop.name} profil fotoğrafı`}
@@ -59,8 +69,18 @@ export function BarbershopHero({
               transition={180}
             />
           ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <AppText color="primary" style={styles.initial} variant="displayLarge">
+            <View
+              style={[
+                styles.avatar,
+                styles.avatarPlaceholder,
+                { backgroundColor: colors.surfaceMuted },
+              ]}
+            >
+              <AppText
+                color="primary"
+                style={styles.initial}
+                variant="displayLarge"
+              >
                 {initial}
               </AppText>
             </View>
@@ -68,30 +88,53 @@ export function BarbershopHero({
         </View>
 
         <View style={styles.identity}>
-          <AppText numberOfLines={2} style={styles.name} variant="displayMedium">
+          <AppText
+            adjustsFontSizeToFit
+            minimumFontScale={0.86}
+            numberOfLines={2}
+            style={styles.name}
+            variant="displayMedium"
+          >
             {barbershop.name}
           </AppText>
-          <View style={styles.statusRow}>
-            <View style={styles.statusDot} />
-            <AppText color="textMuted" variant="bodySmall">Randevuya açık işletme</AppText>
-          </View>
-          <View style={styles.rating}>
-            <BarbershopRating
-              ratingAverage={barbershop.ratingAverage}
-              ratingCount={barbershop.ratingCount}
-            />
+          <View style={styles.metaRow}>
+            <View
+              style={[styles.pill, { backgroundColor: colors.successSurface }]}
+            >
+              <View
+                style={[styles.statusDot, { backgroundColor: colors.success }]}
+              />
+              <AppText
+                color="success"
+                style={styles.pillText}
+                variant="bodySmall"
+              >
+                Randevuya açık
+              </AppText>
+            </View>
+            <View
+              style={[styles.pill, { backgroundColor: colors.surfaceMuted }]}
+            >
+              <BarbershopRating
+                compact
+                ratingAverage={barbershop.ratingAverage}
+                ratingCount={barbershop.ratingCount}
+              />
+            </View>
           </View>
         </View>
 
         <View style={styles.favoriteButton}>
           <AppIconButton
-            accessibilityLabel={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+            accessibilityLabel={
+              isFavorite ? "Favorilerden çıkar" : "Favorilere ekle"
+            }
             color="primary"
             disabled={isFavoriteLoading}
             icon={{
-              ios: isFavorite ? 'heart.fill' : 'heart',
-              android: isFavorite ? 'favorite' : 'favorite_border',
-              web: isFavorite ? 'favorite' : 'favorite_border',
+              ios: isFavorite ? "heart.fill" : "heart",
+              android: isFavorite ? "favorite" : "favorite_border",
+              web: isFavorite ? "favorite" : "favorite_border",
             }}
             onPress={onFavoritePress}
             variant="transparent"
@@ -105,48 +148,62 @@ export function BarbershopHero({
 const styles = StyleSheet.create({
   hero: { marginBottom: spacing.md },
   cover: {
-    backgroundColor: colors.darkSurface,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    height: 250,
-    overflow: 'hidden',
+    height: 218,
+    overflow: "hidden",
   },
-  fill: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  coverPlaceholder: { alignItems: 'center', justifyContent: 'center', opacity: 0.72 },
-  overlay: { backgroundColor: 'rgba(22, 16, 12, 0.23)' },
+  fill: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
+  coverPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.72,
+  },
+  overlay: { backgroundColor: "rgba(22, 16, 12, 0.23)" },
   summary: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: -18,
-    minHeight: 118,
-    paddingBottom: spacing.md,
-    paddingLeft: 124,
+    minHeight: 108,
+    paddingBottom: spacing.sm,
+    paddingLeft: 108,
     paddingRight: 54,
     paddingTop: spacing.md,
   },
   avatarFrame: {
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
-    height: 104,
+    height: 88,
     left: spacing.md,
     padding: 4,
-    position: 'absolute',
-    top: -42,
-    width: 104,
+    position: "absolute",
+    top: -32,
+    width: 88,
   },
-  avatar: { borderRadius: radius.pill, height: '100%', width: '100%' },
+  avatar: { borderRadius: radius.pill, height: "100%", width: "100%" },
   avatarPlaceholder: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   initial: { fontSize: 42, lineHeight: 48 },
   identity: { flex: 1 },
-  favoriteButton: { position: 'absolute', right: spacing.sm, top: spacing.sm },
-  name: { fontSize: 24, lineHeight: 29 },
-  statusRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: spacing.xs },
-  statusDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 7, width: 7 },
-  rating: { marginTop: spacing.xs },
+  favoriteButton: { position: "absolute", right: spacing.sm, top: spacing.sm },
+  name: { fontSize: 28, lineHeight: 33 },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginLeft: -92,
+    marginRight: -42,
+    marginTop: spacing.xs,
+  },
+  pill: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    minHeight: 24,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 3,
+  },
+  pillText: { fontSize: 11, lineHeight: 15 },
+  statusDot: { borderRadius: radius.pill, height: 6, marginRight: 5, width: 6 },
 });

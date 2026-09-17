@@ -32,7 +32,32 @@ export type BusinessInvitation = {
   role: Exclude<BusinessMemberRole, 'OWNER'>;
   expiresAt: string;
   createdAt: string;
-  inviteUrl: string;
+  token: string;
+};
+
+export type BusinessInvitationStatus = 'ACTIVE' | 'USED' | 'EXPIRED' | 'REVOKED';
+
+export type BusinessInvitationSummary = Omit<BusinessInvitation, 'token'> & {
+  acceptedBy: string | null;
+  status: BusinessInvitationStatus;
+};
+
+export type BusinessInvitationPreview = {
+  id: string;
+  role: Exclude<BusinessMemberRole, 'OWNER'>;
+  expiresAt: string;
+  status: BusinessInvitationStatus;
+  barbershop: { id: string; name: string; slug: string };
+};
+
+export type CustomerBarbershopAccess = {
+  grantedAt: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profileImageUrl: string | null;
+  };
 };
 
 export type UpdateBusinessMemberInput = {

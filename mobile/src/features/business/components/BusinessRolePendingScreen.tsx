@@ -5,22 +5,15 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { useAppMode } from '@/features/app-mode/AppModeProvider';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { businessRoleLabels } from '@/features/business/role-labels';
 import { spacing } from '@/theme/spacing';
 
 export function BusinessRolePendingScreen() {
   const router = useRouter();
-  const { enterCustomerMode } = useAppMode();
   const { activeMembership } = useBusiness();
 
   if (!activeMembership) return null;
-
-  async function returnToCustomerMode() {
-    await enterCustomerMode();
-    router.replace('/(tabs)');
-  }
 
   return (
     <Screen>
@@ -36,8 +29,8 @@ export function BusinessRolePendingScreen() {
           </AppText>
         </AppCard>
         <View style={styles.action}>
-          <AppButton onPress={() => void returnToCustomerMode()} variant="secondary">
-            Müşteri Moduna Dön
+          <AppButton onPress={() => router.replace('/profiles')} variant="secondary">
+            Profillerime Dön
           </AppButton>
         </View>
       </View>

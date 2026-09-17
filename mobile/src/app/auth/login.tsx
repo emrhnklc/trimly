@@ -22,11 +22,13 @@ export default function LoginScreen() {
     accessCode,
     accessSlug,
     email: initialEmail,
+    invitationToken,
     passwordReset,
   } = useLocalSearchParams<{
     accessCode?: string;
     accessSlug?: string;
     email?: string;
+    invitationToken?: string;
     passwordReset?: string;
   }>();
   const { signIn } = useAuth();
@@ -52,6 +54,11 @@ export default function LoginScreen() {
           pathname: "/access/[slug]",
           params: { code: accessCode, slug: accessSlug },
         });
+      } else if (invitationToken) {
+        router.replace({
+          pathname: "/join/[token]",
+          params: { token: invitationToken },
+        });
       } else {
         router.replace("/");
       }
@@ -62,6 +69,7 @@ export default function LoginScreen() {
           params: {
             email: email.trim().toLowerCase(),
             ...(accessSlug && accessCode ? { accessCode, accessSlug } : {}),
+            ...(invitationToken ? { invitationToken } : {}),
           },
         });
         return;
@@ -138,6 +146,7 @@ export default function LoginScreen() {
                   ...(accessSlug && accessCode
                     ? { accessCode, accessSlug }
                     : {}),
+                  ...(invitationToken ? { invitationToken } : {}),
                 },
               })
             }
@@ -173,7 +182,11 @@ export default function LoginScreen() {
             router.replace({
               pathname: "/auth/register",
               params:
-                accessSlug && accessCode ? { accessCode, accessSlug } : {},
+                accessSlug && accessCode
+                  ? { accessCode, accessSlug }
+                  : invitationToken
+                    ? { invitationToken }
+                    : {},
             })
           }
           style={({ pressed }) => [

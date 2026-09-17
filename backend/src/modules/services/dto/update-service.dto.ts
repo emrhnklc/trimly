@@ -10,11 +10,17 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
+function trimString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+function normalizePrice(value: unknown) {
+  return typeof value === 'string' ? value.replace(',', '.') : value;
+}
+
 export class UpdateServiceDto {
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => trimString(value as unknown))
   @IsString()
   @MinLength(1)
   @MaxLength(100)
@@ -31,9 +37,7 @@ export class UpdateServiceDto {
   durationMinutes?: number;
 
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.replace(',', '.') : value,
-  )
+  @Transform(({ value }) => normalizePrice(value as unknown))
   @Matches(/^\d+(?:\.\d{1,2})?$/)
   price?: string;
 

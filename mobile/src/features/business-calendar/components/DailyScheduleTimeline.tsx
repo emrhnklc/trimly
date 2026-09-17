@@ -1,20 +1,12 @@
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import type { BusinessAppointment, AppointmentStatus } from '@/features/appointments/types';
-import { colors } from '@/theme/colors';
+import type { BusinessAppointment } from '@/features/appointments/types';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { getBusinessMinuteOfDay, minutesToTime } from '../date';
 
 const HOUR_HEIGHT = 76;
-
-const appointmentColors: Record<AppointmentStatus, { background: string; accent: string }> = {
-  CONFIRMED: { background: '#EEF4EA', accent: '#6C8B5B' },
-  ARRIVED: { background: '#FBF0D2', accent: colors.primary },
-  COMPLETED: { background: '#F4E7C8', accent: colors.primary },
-  CANCELLED: { background: '#F7E8E5', accent: colors.danger },
-  NO_SHOW: { background: '#F3E9DF', accent: '#9B6B3D' },
-};
 
 type PositionedAppointment = {
   appointment: BusinessAppointment;
@@ -59,6 +51,7 @@ export function DailyScheduleTimeline({
   startMinute: number;
   timeZone: string;
 }) {
+  const themeColors = useThemeColors();
   const totalMinutes = Math.max(endMinute - startMinute, 60);
   const timelineHeight = (totalMinutes / 60) * HOUR_HEIGHT;
   const hourMarks = Array.from(
@@ -77,13 +70,22 @@ export function DailyScheduleTimeline({
           <AppText color="textMuted" style={styles.hourLabel} variant="bodySmall">
             {minutesToTime(minute)}
           </AppText>
-          <View style={styles.hourLine} />
+          <View style={[styles.hourLine, { backgroundColor: themeColors.border }]} />
         </View>
       ))}
 
       <View style={styles.eventLayer}>
         {positioned.map(({ appointment, endMinute: appointmentEnd, lane, startMinute: appointmentStart }) => {
-          const colorsForStatus = appointmentColors[appointment.status];
+          const colorsForStatus = {
+            accent: {
+              CONFIRMED: themeColors.success,
+              ARRIVED: themeColors.info,
+              COMPLETED: themeColors.primary,
+              CANCELLED: themeColors.danger,
+              NO_SHOW: themeColors.primaryPressed,
+            }[appointment.status],
+            background: themeColors.surfaceMuted,
+          };
           const top = ((appointmentStart - startMinute) / 60) * HOUR_HEIGHT;
           const naturalHeight = ((appointmentEnd - appointmentStart) / 60) * HOUR_HEIGHT;
           const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
@@ -119,7 +121,12 @@ export function DailyScheduleTimeline({
       </View>
 
       {!appointments.length ? (
-        <View pointerEvents="none" style={styles.empty}>
+        <View
+          pointerEvents="none"
+          style={[
+            styles.empty,
+            { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+          ]}>
           <AppText color="textMuted" style={styles.emptyText} variant="bodySmall">
             Bugün için randevu bulunmuyor.
           </AppText>
@@ -140,7 +147,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   hourLabel: { fontSize: 10, lineHeight: 14, width: 46 },
-  hourLine: { backgroundColor: colors.border, flex: 1, height: StyleSheet.hairlineWidth },
+  hourLine: { flex: 1, height: StyleSheet.hairlineWidth },
   eventLayer: { bottom: 0, left: 50, position: 'absolute', right: 0, top: 0 },
   appointment: {
     borderLeftWidth: 3,
@@ -156,8 +163,6 @@ const styles = StyleSheet.create({
   meta: { fontSize: 8, lineHeight: 11, marginTop: 1 },
   empty: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     left: 74,

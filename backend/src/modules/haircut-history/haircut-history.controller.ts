@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -10,6 +12,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -61,5 +64,39 @@ export class HaircutHistoryController {
       dto.customerConsentConfirmed,
       file,
     );
+  }
+
+  @Post('finalize')
+  finalize(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.haircutHistoryService.finalizeForAppointment(
+      barbershopId,
+      appointmentId,
+      user.id,
+    );
+  }
+
+  @Get('photos/:photoId')
+  async getPhoto(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @Param('photoId') photoId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() response: Response,
+  ) {
+    const photo = await this.haircutHistoryService.getPhotoForBusiness(
+      barbershopId,
+      appointmentId,
+      photoId,
+      user.id,
+    );
+
+    response.setHeader('Content-Type', photo.mimeType);
+    response.setHeader('Content-Length', photo.buffer.length);
+    response.setHeader('Content-Disposition', 'inline');
+    response.send(photo.buffer);
   }
 }

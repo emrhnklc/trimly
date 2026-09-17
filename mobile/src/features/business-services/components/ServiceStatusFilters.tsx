@@ -36,7 +36,7 @@ export function ServiceStatusFilters({
               pressed && styles.pressed,
             ]}>
             <AppText
-              color={selected ? 'text' : 'textMuted'}
+              color={selected ? 'onPrimary' : 'textMuted'}
               style={styles.label}
               variant="label">
               {filter.label}
@@ -50,15 +50,16 @@ export function ServiceStatusFilters({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.xs,
     marginTop: spacing.md,
     padding: 4,
   },
   filter: { alignItems: 'center', borderRadius: radius.sm, flex: 1, minHeight: 36, justifyContent: 'center' },
-  selected: { backgroundColor: colors.surfaceMuted },
+  selected: { backgroundColor: colors.darkSurface },
   label: { fontSize: 11, lineHeight: 15 },
   pressed: { opacity: 0.7 },
 });

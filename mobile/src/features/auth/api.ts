@@ -1,4 +1,12 @@
-import { apiGet, apiPatch, apiPost } from "@/lib/api/client";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiUpload,
+} from "@/lib/api/client";
+import { Platform } from "react-native";
+import { appendImageFile } from "@/lib/api/upload";
 import type {
   AuthResponse,
   AuthUser,
@@ -9,8 +17,15 @@ import type {
 export const getCurrentUser = (accessToken: string) =>
   apiGet<AuthUser>("/users/me", undefined, accessToken);
 
+const deviceName = Platform.select({
+  android: "Android cihaz",
+  ios: "iPhone",
+  web: "Web tarayıcısı",
+  default: "Bilinmeyen cihaz",
+});
+
 export const login = (email: string, password: string) =>
-  apiPost<AuthResponse>("/auth/login", { email, password });
+  apiPost<AuthResponse>("/auth/login", { deviceName, email, password });
 
 export const register = (data: {
   email: string;
@@ -18,6 +33,11 @@ export const register = (data: {
   firstName: string;
   lastName: string;
   phone?: string;
+  birthDate?: string;
+  provinceCode?: string;
+  province?: string;
+  district?: string;
+  neighborhood?: string;
 }) => apiPost<EmailVerificationPendingResponse>("/auth/register", data);
 
 export const verifyEmail = (email: string, code: string) =>
@@ -47,7 +67,45 @@ export const updateMyProfile = (
     firstName?: string;
     lastName?: string;
     phone?: string;
-    profileImageUrl?: string;
+    birthDate?: string | null;
   },
   accessToken: string,
 ) => apiPatch<AuthUser>("/users/me", data, accessToken);
+
+export function uploadMyProfilePhoto(
+  photo: { uri: string; mimeType?: string | null },
+  accessToken: string,
+) {
+  const formData = new FormData();
+  appendImageFile(formData, "file", photo, "trimly-profile");
+  return apiUpload<AuthUser>("/users/me/profile-photo", formData, accessToken);
+}
+
+export const removeMyProfilePhoto = (accessToken: string) =>
+  apiDelete<AuthUser>("/users/me/profile-photo", accessToken);
+
+export const exportMyData = (accessToken: string) =>
+  apiGet<Record<string, unknown>>("/users/me/export", undefined, accessToken);
+
+export const requestAccountDeletion = (accessToken: string) =>
+  apiPost<{ deletionVerificationRequired?: boolean; devDeletionCode?: string; ownerBusinesses?: string[]; requiresOwnershipResolution?: boolean }>("/users/me/deletion-request", {}, accessToken);
+
+export const confirmAccountDeletion = (code: string, accessToken: string) =>
+  apiPost<{ message: string }>("/users/me/delete", { code }, accessToken);
+
+export type ActiveSession = {
+  id: string;
+  deviceName: string;
+  createdAt: string;
+  lastActiveAt: string;
+  isCurrent: boolean;
+};
+
+export const getActiveSessions = (accessToken: string) =>
+  apiGet<ActiveSession[]>("/auth/sessions", undefined, accessToken);
+
+export const revokeSession = (sessionId: string, accessToken: string) =>
+  apiDelete<{ message: string }>(`/auth/sessions/${sessionId}`, accessToken);
+
+export const revokeOtherSessions = (accessToken: string) =>
+  apiPost<{ revokedCount: number }>("/auth/sessions/revoke-others", {}, accessToken);

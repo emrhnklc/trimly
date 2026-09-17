@@ -13,21 +13,30 @@ import { spacing } from '@/theme/spacing';
 
 export default function InvitationOnboardingScreen() {
   const router = useRouter();
-  const { source } = useLocalSearchParams<{ source?: string }>();
+  const { source, token: invitationToken } = useLocalSearchParams<{
+    source?: string;
+    token?: string;
+  }>();
   const { refreshUser, token } = useAuth();
-  const [invitation, setInvitation] = useState('');
+  const [invitation, setInvitation] = useState(invitationToken ?? '');
   const [joinedBusiness, setJoinedBusiness] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
 
   function goBack() {
-    if (source === 'profile' || source === 'business-select') {
+    if (source === 'profile' || source === 'business-select' || source === 'profiles') {
       if (router.canGoBack()) {
         router.back();
         return;
       }
 
-      router.replace(source === 'profile' ? '/(tabs)/profile' : '/business/select');
+      router.replace(
+        source === 'profile'
+          ? '/(tabs)/profile'
+          : source === 'profiles'
+            ? '/profiles'
+            : '/business/select',
+      );
       return;
     }
 
@@ -64,11 +73,13 @@ export default function InvitationOnboardingScreen() {
           <AppText color="primary" variant="overline">DAVET KABUL EDİLDİ</AppText>
           <AppText style={styles.successName} variant="heading">{joinedBusiness}</AppText>
           <AppText color="textMuted">
-            İşletme üyeliğin hesabına eklendi. Çalışan ekranlarını sonraki aşamada bu üyeliğe göre açacağız.
+            İşletme üyeliğin hesabına eklendi. Artık yetkilerine uygun işletme ekranlarını kullanabilirsin.
           </AppText>
         </AppCard>
         <View style={styles.action}>
-          <AppButton onPress={() => router.replace('/')}>Ana Sayfaya Dön</AppButton>
+          <AppButton onPress={() => router.replace('/profiles')}>
+            Profillerimi Gör
+          </AppButton>
         </View>
       </AuthScreenLayout>
     );

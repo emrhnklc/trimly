@@ -1,9 +1,9 @@
 import { SymbolView } from 'expo-symbols';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function BusinessCustomerSearch({
   onChangeText,
@@ -12,12 +12,17 @@ export function BusinessCustomerSearch({
   onChangeText: (value: string) => void;
   value: string;
 }) {
+  const themeColors = useThemeColors();
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+      ]}>
       <SymbolView
         name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
         size={18}
-        tintColor={colors.textMuted}
+        tintColor={themeColors.textMuted}
       />
       <TextInput
         accessibilityLabel="Müşteri ara"
@@ -26,9 +31,9 @@ export function BusinessCustomerSearch({
         clearButtonMode="while-editing"
         onChangeText={onChangeText}
         placeholder="İsim veya telefon ara"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={themeColors.textMuted}
         returnKeyType="search"
-        style={styles.input}
+        style={[styles.input, { color: themeColors.text }]}
         value={value}
       />
     </View>
@@ -38,18 +43,15 @@ export function BusinessCustomerSearch({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.xs,
     marginTop: spacing.md,
-    minHeight: 48,
+    minHeight: 46,
     paddingHorizontal: spacing.md,
   },
   input: {
-    color: colors.text,
     flex: 1,
     fontFamily: fontFamily.body,
     fontSize: 13,

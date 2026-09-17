@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import {
   formatCalendarMonth,
   formatCalendarWeekday,
@@ -23,10 +24,11 @@ export function CalendarWeekPicker({
   selectedDateKey,
   todayKey,
 }: CalendarWeekPickerProps) {
+  const themeColors = useThemeColors();
   const dates = getWeekDateKeys(selectedDateKey);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
       <View style={styles.monthRow}>
         <Pressable
           accessibilityLabel="Önceki hafta"
@@ -36,7 +38,7 @@ export function CalendarWeekPicker({
           <SymbolView
             name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
             size={18}
-            tintColor={colors.text}
+            tintColor={themeColors.text}
           />
         </Pressable>
         <AppText style={styles.month} variant="label">
@@ -57,7 +59,7 @@ export function CalendarWeekPicker({
           <SymbolView
             name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
             size={18}
-            tintColor={colors.text}
+            tintColor={themeColors.text}
           />
         </Pressable>
       </View>
@@ -75,7 +77,7 @@ export function CalendarWeekPicker({
               onPress={() => onChange(dateKey)}
               style={({ pressed }) => [
                 styles.day,
-                selected && styles.selectedDay,
+                selected && { backgroundColor: themeColors.primary },
                 pressed && styles.pressed,
               ]}>
               <AppText
@@ -101,8 +103,6 @@ export function CalendarWeekPicker({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     marginTop: spacing.md,
@@ -122,7 +122,6 @@ const styles = StyleSheet.create({
     minHeight: 62,
     paddingVertical: 6,
   },
-  selectedDay: { backgroundColor: colors.darkSurface },
   weekday: { fontSize: 10, lineHeight: 14, textTransform: 'capitalize' },
   dayNumber: { fontSize: 14, lineHeight: 19, marginTop: 2 },
   todayDot: { borderRadius: radius.pill, height: 3, marginTop: 3, width: 3 },

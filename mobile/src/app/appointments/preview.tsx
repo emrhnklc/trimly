@@ -20,8 +20,12 @@ type PreviewParams = {
   barbershopId?: string;
   date?: string;
   durationMinutes?: string;
+  campaignId?: string;
+  campaignBenefit?: string;
+  campaignTitle?: string;
   memberId?: string;
   price?: string;
+  originalPrice?: string;
   serviceId?: string;
   serviceName?: string;
   shopName?: string;
@@ -56,6 +60,7 @@ export default function AppointmentPreviewScreen() {
           memberId: params.memberId,
           serviceId: params.serviceId,
           startsAt: params.startsAt,
+          ...(params.campaignId ? { campaignId: params.campaignId } : {}),
         },
         token,
       );
@@ -69,7 +74,7 @@ export default function AppointmentPreviewScreen() {
 
   return (
     <Screen>
-      <BookingFlowHeader activeStep={4} onClose={() => router.back()} />
+      <BookingFlowHeader activeStep={5} onClose={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.intro}>
@@ -117,6 +122,20 @@ export default function AppointmentPreviewScreen() {
             label="Süre"
             value={params.durationMinutes ? `${params.durationMinutes} dk` : '—'}
           />
+          {params.campaignTitle ? (
+            <DetailRow
+              icon={{ ios: 'tag.fill', android: 'local_offer', web: 'local_offer' }}
+              label="Kampanya"
+              value={`${params.campaignTitle}${params.campaignBenefit ? ` · ${params.campaignBenefit}` : ''}`}
+            />
+          ) : null}
+          {params.originalPrice ? (
+            <DetailRow
+              icon={{ ios: 'arrow.down.circle', android: 'trending_down', web: 'trending_down' }}
+              label="Normal fiyat"
+              value={`₺${formatPrice(params.originalPrice)}`}
+            />
+          ) : null}
           <DetailRow
             icon={{ ios: 'turkishlirasign.circle', android: 'payments', web: 'payments' }}
             isLast

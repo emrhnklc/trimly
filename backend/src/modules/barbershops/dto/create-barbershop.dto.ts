@@ -1,11 +1,15 @@
 import {
+  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
   Matches,
   MaxLength,
   MinLength,
+  Max,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateBarbershopDto {
   @IsString()
@@ -43,6 +47,20 @@ export class CreateBarbershopDto {
   @IsString()
   @MaxLength(500)
   address?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number;
 
   @IsOptional()
   @IsString()

@@ -10,13 +10,14 @@ import type {
 } from '@/features/appointments/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   CONFIRMED: 'Onaylandı',
-  ARRIVED: 'İşlemde',
+  ARRIVED: 'Geldi',
   COMPLETED: 'Tamamlandı',
-  CANCELLED: 'İptal edildi',
-  NO_SHOW: 'Gelinmedi',
+  CANCELLED: 'İptal Edildi',
+  NO_SHOW: 'Gelmedi',
 };
 
 export function CustomerAppointmentCard({
@@ -26,6 +27,7 @@ export function CustomerAppointmentCard({
   appointment: CustomerAppointment;
   onPress: () => void;
 }) {
+  const themeColors = useThemeColors();
   const startsAt = new Date(appointment.startsAt);
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
   const dayLabel = new Intl.DateTimeFormat('tr-TR', { weekday: 'short' })
@@ -39,7 +41,17 @@ export function CustomerAppointmentCard({
     hour: '2-digit',
     minute: '2-digit',
   }).format(startsAt);
-  const isCancelled = appointment.status === 'CANCELLED';
+  const presentationByStatus: Record<
+    AppointmentStatus,
+    { backgroundColor: string; color: keyof typeof colors }
+  > = {
+    CONFIRMED: { backgroundColor: themeColors.successSurface, color: 'success' },
+    ARRIVED: { backgroundColor: themeColors.surfaceMuted, color: 'primary' },
+    COMPLETED: { backgroundColor: themeColors.surfaceMuted, color: 'textMuted' },
+    CANCELLED: { backgroundColor: themeColors.dangerSurface, color: 'danger' },
+    NO_SHOW: { backgroundColor: themeColors.dangerSurface, color: 'danger' },
+  };
+  const presentation = presentationByStatus[appointment.status];
 
   return (
     <Pressable
@@ -48,7 +60,7 @@ export function CustomerAppointmentCard({
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}>
       <AppCard style={styles.card}>
-        <View style={styles.dateBox}>
+        <View style={[styles.dateBox, { backgroundColor: themeColors.darkSurface }]}>
           <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
             {dayLabel}
           </AppText>
@@ -61,24 +73,17 @@ export function CustomerAppointmentCard({
         </View>
 
         <View style={styles.content}>
-          <View style={styles.headingRow}>
-            <AppText numberOfLines={1} style={styles.shopName} variant="label">
-              {appointment.barbershop.name}
-            </AppText>
-            <View style={[styles.badge, isCancelled && styles.cancelledBadge]}>
-              <AppText color={isCancelled ? 'danger' : 'textMuted'} style={styles.badgeText} variant="bodySmall">
-                {statusLabels[appointment.status]}
-              </AppText>
-            </View>
-          </View>
-          <AppText color="textMuted" numberOfLines={1} variant="bodySmall">
+          <AppText numberOfLines={1} style={styles.shopName} variant="cardTitle">
+            {appointment.barbershop.name}
+          </AppText>
+          <AppText color="textMuted" numberOfLines={1} style={styles.employee} variant="bodySmall">
             {barberName}
           </AppText>
           <View style={styles.metaRow}>
             <SymbolView
               name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
               size={15}
-              tintColor={colors.textMuted}
+              tintColor={themeColors.textMuted}
             />
             <AppText color="textMuted" variant="bodySmall">{timeLabel}</AppText>
             <View style={styles.dot} />
@@ -87,11 +92,18 @@ export function CustomerAppointmentCard({
             </AppText>
           </View>
         </View>
-        <SymbolView
-          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-          size={17}
-          tintColor={colors.textMuted}
-        />
+        <View style={styles.trailing}>
+          <View style={[styles.badge, { backgroundColor: presentation.backgroundColor }]}>
+            <AppText color={presentation.color} numberOfLines={1} style={styles.badgeText} variant="bodySmall">
+              {statusLabels[appointment.status]}
+            </AppText>
+          </View>
+          <SymbolView
+            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+            size={13}
+            tintColor={themeColors.textMuted}
+          />
+        </View>
       </AppCard>
     </Pressable>
   );
@@ -102,25 +114,31 @@ const styles = StyleSheet.create({
   card: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.sm, padding: spacing.sm },
   dateBox: {
     alignItems: 'center',
-    backgroundColor: colors.darkSurface,
     borderRadius: radius.md,
     justifyContent: 'center',
-    minHeight: 82,
-    width: 62,
+    minHeight: 80,
+    width: 58,
   },
   dateText: { fontSize: 11, lineHeight: 14, textTransform: 'capitalize' },
   dayNumber: { fontSize: 24, lineHeight: 28 },
-  content: { flex: 1, justifyContent: 'center', marginLeft: spacing.sm },
-  headingRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  content: { flex: 1, justifyContent: 'center', marginLeft: 10, minWidth: 0 },
   shopName: { flex: 1 },
+  employee: { marginTop: 2 },
+  trailing: {
+    alignItems: 'flex-end',
+    alignSelf: 'stretch',
+    justifyContent: 'space-between',
+    marginLeft: 6,
+    paddingVertical: 5,
+  },
   badge: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 3,
+    minHeight: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  cancelledBadge: { backgroundColor: '#F8E8E5' },
-  badgeText: { fontSize: 10, lineHeight: 14 },
+  badgeText: { fontSize: 9, lineHeight: 14 },
   metaRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: spacing.xs },
   dot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 4, width: 4 },
   serviceName: { flex: 1 },

@@ -7,19 +7,16 @@ import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 
 const options: {
-  description: string;
   icon: SymbolViewProps['name'];
   label: string;
   value: ScheduleBlockType;
 }[] = [
   {
-    description: 'Gün içindeki yemek veya dinlenme aralığı',
     icon: { ios: 'cup.and.saucer', android: 'free_breakfast', web: 'free_breakfast' },
     label: 'Mola',
     value: 'BREAK',
   },
   {
-    description: 'Saatlik, günlük veya çok günlük izin',
     icon: { ios: 'calendar.badge.minus', android: 'event_busy', web: 'event_busy' },
     label: 'İzin',
     value: 'TIME_OFF',
@@ -52,9 +49,6 @@ export function ScheduleBlockTypeSelector({
               <SymbolView name={option.icon} size={21} tintColor={colors.primary} />
             </View>
             <AppText style={styles.label} variant="label">{option.label}</AppText>
-            <AppText color="textMuted" style={styles.description} variant="bodySmall">
-              {option.description}
-            </AppText>
           </Pressable>
         );
       })}
@@ -67,10 +61,10 @@ const styles = StyleSheet.create({
   option: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     flex: 1,
-    minHeight: 138,
+    minHeight: 106,
     padding: spacing.md,
   },
   selectedOption: { borderColor: colors.primary },
@@ -84,6 +78,5 @@ const styles = StyleSheet.create({
   },
   selectedIcon: { backgroundColor: colors.surfaceMuted },
   label: { marginTop: spacing.sm },
-  description: { marginTop: 2 },
   pressed: { opacity: 0.68 },
 });

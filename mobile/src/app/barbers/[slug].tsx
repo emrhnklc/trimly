@@ -20,7 +20,8 @@ import {
 } from "@/features/barbershops/api";
 import { BarberPreviewCard } from "@/features/barbershops/components/BarberPreviewCard";
 import { BarbershopAccessCard } from "@/features/barbershops/components/BarbershopAccessCard";
-import { BarbershopGalleryPreview } from "@/features/barbershops/components/BarbershopGalleryPreview";
+import { BarbershopEmptyState } from "@/features/barbershops/components/BarbershopEmptyState";
+import { BarbershopWorkShowcase } from "@/features/barbershops/components/BarbershopWorkShowcase";
 import { BarbershopHero } from "@/features/barbershops/components/BarbershopHero";
 import { BarbershopInfoCard } from "@/features/barbershops/components/BarbershopInfoCard";
 import { BarbershopServiceTags } from "@/features/barbershops/components/BarbershopServiceTags";
@@ -31,13 +32,17 @@ import {
   getFavoriteBarbershops,
   removeFavoriteBarbershop,
 } from "@/features/favorites/api";
-import { colors } from "@/theme/colors";
-import { spacing } from "@/theme/spacing";
-import { fontFamily } from "@/theme/typography";
+import { layout, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 import { isApiErrorCode } from "@/lib/api/client";
+import { BarbershopReviewsSection } from "@/features/reviews/components/BarbershopReviewsSection";
+import { getActiveBarbershopCampaigns } from "@/features/campaigns/api";
+import { CampaignCard } from "@/features/campaigns/components/CampaignCard";
+import type { Campaign } from "@/features/campaigns/types";
 
 export default function BarbershopProfileScreen() {
   const router = useRouter();
+  const themeColors = useThemeColors();
   const { token } = useAuth();
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [barbershop, setBarbershop] = useState<PublicBarbershopDetail | null>(
@@ -51,6 +56,7 @@ export default function BarbershopProfileScreen() {
   const [hasBookingAccess, setHasBookingAccess] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [isAccessSubmitting, setIsAccessSubmitting] = useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
 
   const loadBarbershop = useCallback(async () => {
     if (!slug) {
@@ -66,6 +72,7 @@ export default function BarbershopProfileScreen() {
 
     try {
       let loadedBarbershop = await getPublicBarbershop(slug);
+      let canLoadCampaigns = loadedBarbershop.accessMode !== "CODE_REQUIRED";
 
       if (loadedBarbershop.accessMode === "CODE_REQUIRED") {
         if (!token) {
@@ -78,6 +85,7 @@ export default function BarbershopProfileScreen() {
             );
             loadedBarbershop = { ...loadedBarbershop, services };
             setHasBookingAccess(true);
+            canLoadCampaigns = true;
           } catch (reason) {
             if (!isApiErrorCode(reason, "BARBERSHOP_ACCESS_REQUIRED"))
               throw reason;
@@ -89,6 +97,16 @@ export default function BarbershopProfileScreen() {
       }
 
       setBarbershop(loadedBarbershop);
+
+      if (token && canLoadCampaigns) {
+        try {
+          setCampaigns(await getActiveBarbershopCampaigns(loadedBarbershop.id, token));
+        } catch {
+          setCampaigns([]);
+        }
+      } else {
+        setCampaigns([]);
+      }
 
       if (token) {
         setIsFavoriteLoading(true);
@@ -177,7 +195,7 @@ export default function BarbershopProfileScreen() {
   if (isLoading) {
     return (
       <Screen>
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
+        <ActivityIndicator color={themeColors.primary} style={styles.loader} />
       </Screen>
     );
   }
@@ -209,6 +227,11 @@ export default function BarbershopProfileScreen() {
     hasBookingAccess && barbershop.services.length && barbershop.members.length,
   );
 
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/barbers");
+  }
+
   return (
     <Screen>
       <View style={styles.screenContent}>
@@ -220,7 +243,7 @@ export default function BarbershopProfileScreen() {
               android: "arrow_back",
               web: "arrow_back",
             }}
-            onPress={() => router.back()}
+            onPress={goBack}
           />
         </View>
         <View style={[styles.floatingAction, styles.shareAction]}>
@@ -271,35 +294,90 @@ export default function BarbershopProfileScreen() {
                 <BarbershopServiceTags services={barbershop.services} />
               </ProfileSection>
 
-              <ProfileSection title="Hakkında">
-                <AppText color="textMuted" style={styles.description}>
-                  {barbershop.description ||
-                    "Bu işletme henüz kendisi hakkında bir açıklama eklememiş."}
-                </AppText>
-              </ProfileSection>
+              {campaigns.length ? (
+                <ProfileSection title="Kampanyalar">
+                  <View style={styles.campaigns}>
+                    {campaigns.map((campaign) => (
+                      <CampaignCard
+                        campaign={campaign}
+                        key={campaign.id}
+                        onPress={campaign.campaignType === "LOYALTY" && !campaign.customerProgress?.isEligible ? undefined : () => router.push({
+                          pathname: "/book",
+                          params: {
+                            campaignId: campaign.id,
+                            serviceId: campaign.services[0]?.service.id,
+                            slug: barbershop.slug,
+                          },
+                        })}
+                      />
+                    ))}
+                  </View>
+                </ProfileSection>
+              ) : null}
 
               <ProfileSection title="Ekibimiz">
                 {barbershop.members.length ? (
                   barbershop.members.map((barber) => (
-                    <BarberPreviewCard barber={barber} key={barber.id} />
+                    <BarberPreviewCard
+                      barber={barber}
+                      key={barber.id}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/book",
+                          params: { slug: barbershop.slug },
+                        })
+                      }
+                    />
                   ))
                 ) : (
-                  <AppText color="textMuted">
-                    Henüz randevuya açık çalışan yok.
-                  </AppText>
+                  <BarbershopEmptyState
+                    description="İşletme ekibi hazır olduğunda burada görünecek."
+                    icon={{
+                      ios: "person.2",
+                      android: "group",
+                      web: "group",
+                    }}
+                    title="Henüz randevuya açık çalışan yok"
+                  />
                 )}
               </ProfileSection>
 
-              <ProfileSection title="Çalışma Galerisi">
-                <BarbershopGalleryPreview />
+              <ProfileSection title="Hakkında">
+                <ExpandableDescription description={barbershop.description} />
+              </ProfileSection>
+
+              <ProfileSection title="Galeri ve Tıraşlar">
+                <BarbershopWorkShowcase
+                  barbershopId={barbershop.id}
+                  galleryPhotos={barbershop.galleryPhotos}
+                  slug={barbershop.slug}
+                />
+              </ProfileSection>
+
+              <ProfileSection title="Yorumlar">
+                <BarbershopReviewsSection barbershopId={barbershop.id} />
               </ProfileSection>
             </>
           )}
         </ScrollView>
 
         {hasBookingAccess ? (
-          <SafeAreaView edges={["bottom"]} style={styles.footerSafeArea}>
-            <View style={styles.footer}>
+          <SafeAreaView
+            edges={["bottom"]}
+            style={[
+              styles.footerSafeArea,
+              { backgroundColor: themeColors.surface },
+            ]}
+          >
+            <View
+              style={[
+                styles.footer,
+                {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border,
+                },
+              ]}
+            >
               <AppButton
                 disabled={!canBook}
                 onPress={() =>
@@ -328,10 +406,43 @@ function ProfileSection({
 }) {
   return (
     <View style={styles.section}>
-      <AppText style={styles.sectionTitle} variant="heading">
+      <AppText style={styles.sectionTitle} variant="sectionTitle">
         {title}
       </AppText>
       {children}
+    </View>
+  );
+}
+
+function ExpandableDescription({
+  description,
+}: {
+  description: string | null;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const text =
+    description || "Bu işletme henüz kendisi hakkında bir açıklama eklememiş.";
+  const canExpand = text.length > 150;
+
+  return (
+    <View>
+      <AppText
+        color="textMuted"
+        numberOfLines={isExpanded ? undefined : 3}
+        style={styles.description}
+      >
+        {text}
+      </AppText>
+      {canExpand ? (
+        <AppText
+          color="primary"
+          onPress={() => setIsExpanded((current) => !current)}
+          style={styles.descriptionAction}
+          variant="label"
+        >
+          {isExpanded ? "Daha az göster" : "Devamını gör"}
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -353,23 +464,18 @@ const styles = StyleSheet.create({
   shareAction: { right: spacing.lg },
   content: {
     paddingBottom: spacing.xxxl,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: layout.screenHorizontalPadding,
     paddingTop: spacing.xs,
   },
-  accessSection: { marginTop: spacing.lg, paddingHorizontal: spacing.xs },
-  section: { marginTop: spacing.xl, paddingHorizontal: spacing.xs },
-  sectionTitle: {
-    fontFamily: fontFamily.display,
-    fontSize: 20,
-    lineHeight: 26,
-    marginBottom: spacing.sm,
-  },
+  accessSection: { marginTop: spacing.lg },
+  section: { marginTop: layout.sectionGap },
+  sectionTitle: { marginBottom: spacing.sm },
+  campaigns: { gap: spacing.sm },
   description: { lineHeight: 22 },
-  favoriteError: { paddingHorizontal: spacing.xs, textAlign: "center" },
-  footerSafeArea: { backgroundColor: colors.surface },
+  descriptionAction: { marginTop: spacing.xs },
+  favoriteError: { textAlign: "center" },
+  footerSafeArea: {},
   footer: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderTopWidth: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,

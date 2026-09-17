@@ -19,8 +19,10 @@ model Barbershop {
   coverImageUrl   String?
   phone           String?
   address         String?
+  latitude        Float?
+  longitude       Float?
   timezone        String               @default("Europe/Istanbul")
-  isDiscoverable  Boolean              @default(true)
+  isDiscoverable  Boolean              @default(false)
   accessMode      BarbershopAccessMode @default(PUBLIC)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -36,6 +38,38 @@ model Barbershop {
   customerAccessAttempts CustomerBarbershopAccessAttempt[]
   accessCode             BarbershopAccessCode?
   notifications          AppNotification[]
+  galleryPhotos          BarbershopPhoto[]
+  portfolioItems         BarberPortfolioItem[]
+  reviews                AppointmentReview[]
+  campaigns              Campaign[]
+}
+
+model BarbershopPhoto {
+  id           String   @id @default(cuid())
+  barbershopId String
+  storageKey   String   @unique
+  mimeType     String
+  sizeBytes    Int
+  sortOrder    Int
+  createdAt    DateTime @default(now())
+
+  barbershop Barbershop                @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  favorites  FavoriteBarbershopPhoto[]
+
+  @@unique([barbershopId, sortOrder])
+  @@index([barbershopId, sortOrder])
+}
+
+model FavoriteBarbershopPhoto {
+  userId    String
+  photoId   String
+  createdAt DateTime @default(now())
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  photo BarbershopPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, photoId])
+  @@index([photoId])
 }
 
 model BarbershopAccessCode {
@@ -105,6 +139,9 @@ model BusinessMember {
   appointments       Appointment[]
   createdInvitations BusinessInvitation[]
   haircutRecords     HaircutRecord[]
+  portfolioItems     BarberPortfolioItem[]
+  reviews            AppointmentReview[]
+  createdCampaigns   Campaign[]
 
   @@unique([userId, barbershopId])
   @@index([barbershopId, role])

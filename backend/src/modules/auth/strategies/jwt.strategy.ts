@@ -7,12 +7,14 @@ import { PrismaService } from '../../../database/prisma.service';
 type JwtPayload = {
   sub: string;
   email: string;
+  sid?: string;
   authVersion?: number;
 };
 
 export type AuthenticatedUser = {
   id: string;
   email: string;
+  sessionId: string;
 };
 
 @Injectable()
@@ -32,13 +34,26 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { authVersion: true, email: true, emailVerifiedAt: true },
+    if (!payload.sid) {
+      throw new UnauthorizedException('Oturum geçersiz veya süresi dolmuş.');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: payload.sub,
+        authSessions: { some: { id: payload.sid, revokedAt: null } },
+      },
+      select: {
+        authVersion: true,
+        deletedAt: true,
+        email: true,
+        emailVerifiedAt: true,
+      },
     });
 
     if (
       !user?.emailVerifiedAt ||
+      user.deletedAt ||
       user.authVersion !== (payload.authVersion ?? 0)
     ) {
       throw new UnauthorizedException('Oturum geçersiz veya süresi dolmuş.');
@@ -47,6 +62,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: payload.sub,
       email: user.email,
+      sessionId: payload.sid,
     };
   }
 }

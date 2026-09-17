@@ -26,7 +26,7 @@ import {
 } from '@/features/schedules/api';
 import type { MemberScheduleBlock } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 export default function EmployeeScheduleBlocksScreen() {
   const router = useRouter();
@@ -155,10 +155,6 @@ export default function EmployeeScheduleBlocksScreen() {
           }}
           title="Mola ve İzinler"
         />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          Tekrarlanmayan mola, izin ve tatil zamanlarını buradan yönet.
-        </AppText>
-
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && error ? (
@@ -238,13 +234,12 @@ export default function EmployeeScheduleBlocksScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   summaryCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     marginTop: spacing.sm,
@@ -256,12 +251,12 @@ const styles = StyleSheet.create({
   infoCard: {
     alignItems: 'flex-start',
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     flexDirection: 'row',
     marginTop: spacing.sm,
     padding: spacing.md,
   },
-  infoCopy: { flex: 1, marginLeft: spacing.sm },
+  infoCopy: { flex: 1, marginLeft: spacing.sm, minWidth: 0 },
   listHeading: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -269,12 +264,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.xl,
   },
-  sectionTitle: { fontSize: 18, lineHeight: 24 },
+  sectionTitle: { fontSize: 22, lineHeight: 28 },
   emptyCard: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     padding: spacing.xl,
   },

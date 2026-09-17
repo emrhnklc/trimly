@@ -10,7 +10,10 @@ export class PrismaService
 {
   constructor() {
     const connectionString = process.env.DATABASE_URL;
-    const poolMax = Number(process.env.DATABASE_POOL_MAX ?? '10');
+    // PrismaPg'nin bu yerel PostgreSQL kurulumu ile birden fazla bağlantıda
+    // prepared-statement protokol hatası (08P01/P2039) verdiği doğrulandı.
+    // İstekler yine async olarak kuyruklanır; tek bağlantı veri tutarlılığını korur.
+    const poolMax = Number(process.env.DATABASE_POOL_MAX ?? '1');
 
     if (!connectionString) {
       throw new Error('DATABASE_URL is not configured.');

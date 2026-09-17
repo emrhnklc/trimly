@@ -3,18 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
-import type { AppointmentStatus, BusinessAppointment } from '@/features/appointments/types';
-import { colors } from '@/theme/colors';
+import type { BusinessAppointment } from '@/features/appointments/types';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { formatBusinessTime } from '../date';
-
-const statusConfig: Record<AppointmentStatus, { color: string; label: string }> = {
-  CONFIRMED: { color: '#5E8B61', label: 'Onaylandı' },
-  ARRIVED: { color: '#B8860B', label: 'İşlemde' },
-  COMPLETED: { color: colors.primary, label: 'Tamamlandı' },
-  CANCELLED: { color: colors.danger, label: 'İptal' },
-  NO_SHOW: { color: '#9B6B3D', label: 'Gelmedi' },
-};
 
 export function BusinessAppointmentCard({
   appointment,
@@ -25,10 +17,17 @@ export function BusinessAppointmentCard({
   onPress?: () => void;
   timeZone: string;
 }) {
+  const themeColors = useThemeColors();
   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
   const initials = `${appointment.customer.firstName[0] ?? ''}${appointment.customer.lastName[0] ?? ''}`;
-  const status = statusConfig[appointment.status];
+  const status: { backgroundColor: string; color: string; label: string } = {
+    CONFIRMED: { backgroundColor: themeColors.successSurface, color: themeColors.success, label: 'Onaylandı' },
+    ARRIVED: { backgroundColor: themeColors.infoSurface, color: themeColors.info, label: 'Geldi' },
+    COMPLETED: { backgroundColor: themeColors.surfaceMuted, color: themeColors.textMuted, label: 'Tamamlandı' },
+    CANCELLED: { backgroundColor: themeColors.dangerSurface, color: themeColors.danger, label: 'İptal' },
+    NO_SHOW: { backgroundColor: themeColors.surfaceMuted, color: themeColors.textMuted, label: 'Gelmedi' },
+  }[appointment.status];
 
   const content = (
     <AppCard style={styles.card}>
@@ -49,7 +48,7 @@ export function BusinessAppointmentCard({
           style={styles.avatar}
         />
       ) : (
-        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+        <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: themeColors.surfaceMuted }]}>
           <AppText color="primary" variant="label">{initials}</AppText>
         </View>
       )}
@@ -66,8 +65,7 @@ export function BusinessAppointmentCard({
         </AppText>
       </View>
 
-      <View style={styles.status}>
-        <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+      <View style={[styles.status, { backgroundColor: status.backgroundColor }]}>
         <AppText style={[styles.statusLabel, { color: status.color }]} variant="bodySmall">
           {status.label}
         </AppText>
@@ -93,7 +91,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     marginBottom: spacing.sm,
-    minHeight: 88,
+    minHeight: 92,
     padding: spacing.sm,
   },
   timeColumn: { alignItems: 'center', width: 52 },
@@ -102,15 +100,19 @@ const styles = StyleSheet.create({
   avatar: { borderRadius: radius.pill, height: 44, width: 44 },
   avatarPlaceholder: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
   },
-  details: { flex: 1, marginLeft: spacing.sm },
-  customerName: { fontSize: 13, lineHeight: 18 },
+  details: { flex: 1, marginLeft: spacing.sm, minWidth: 0 },
+  customerName: { fontSize: 14, lineHeight: 19 },
   service: { fontSize: 11, lineHeight: 15, marginTop: 2 },
   barber: { fontSize: 10, lineHeight: 14, marginTop: 2 },
-  status: { alignItems: 'center', flexDirection: 'row', marginLeft: spacing.xs },
-  statusDot: { borderRadius: radius.pill, height: 6, width: 6 },
-  statusLabel: { fontSize: 9, lineHeight: 13, marginLeft: 3 },
+  status: {
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    marginLeft: spacing.xs,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  statusLabel: { fontSize: 9, lineHeight: 12 },
   pressed: { opacity: 0.68 },
 });

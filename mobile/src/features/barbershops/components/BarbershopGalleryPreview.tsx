@@ -1,43 +1,97 @@
-import { StyleSheet, View } from 'react-native';
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { SymbolView } from 'expo-symbols';
+import { AppText } from "@/components/ui/AppText";
+import { BarbershopEmptyState } from "@/features/barbershops/components/BarbershopEmptyState";
+import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 
-import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+export function BarbershopGalleryPreview({
+  photos,
+  slug,
+}: {
+  photos: { id: string; url: string }[];
+  slug: string;
+}) {
+  const router = useRouter();
+  const colors = useThemeColors();
 
-export function BarbershopGalleryPreview() {
+  if (!photos.length) {
+    return (
+      <BarbershopEmptyState
+        description="İşletme galerisini güncellediğinde fotoğraflar burada görünecek."
+        icon={{
+          ios: "photo.on.rectangle",
+          android: "photo_library",
+          web: "photo_library",
+        }}
+        title="Henüz mekân fotoğrafı yok"
+      />
+    );
+  }
   return (
     <View>
+      <View style={styles.heading}>
+        <AppText color="textMuted" variant="bodySmall">
+          {photos.length} fotoğraf
+        </AppText>
+        <Pressable
+          accessibilityLabel="Galerinin tümünü gör"
+          accessibilityRole="button"
+          onPress={() =>
+            router.push({
+              pathname: "/barbers/[slug]/gallery",
+              params: { slug },
+            })
+          }
+          style={({ pressed }) => [
+            styles.allPhotosButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <AppText color="primary" variant="label">
+            Tümünü Gör
+          </AppText>
+        </Pressable>
+      </View>
       <View style={styles.gallery}>
-        {[0, 1, 2].map((item) => (
-          <View key={item} style={styles.tile}>
-            <SymbolView
-              name={{ ios: 'photo', android: 'image', web: 'image' }}
-              size={25}
-              tintColor={colors.primary}
-            />
-          </View>
+        {photos.slice(0, 2).map((photo) => (
+          <Image
+            contentFit="cover"
+            key={photo.id}
+            source={photo.url}
+            style={[
+              styles.tile,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderColor: colors.border,
+              },
+            ]}
+          />
         ))}
       </View>
-      <AppText color="textMuted" style={styles.helper} variant="bodySmall">
-        İşletme fotoğrafları eklendiğinde burada görünecek.
-      </AppText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  gallery: { flexDirection: 'row', gap: spacing.xs },
+  heading: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  gallery: { flexDirection: "row", gap: spacing.xs },
   tile: {
-    alignItems: 'center',
-    aspectRatio: 1.15,
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
+    aspectRatio: 1.2,
     borderRadius: radius.md,
     borderWidth: 1,
     flex: 1,
-    justifyContent: 'center',
   },
-  helper: { marginTop: spacing.xs },
+  allPhotosButton: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  pressed: { opacity: 0.62 },
 });

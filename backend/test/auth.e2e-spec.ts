@@ -15,6 +15,7 @@ type AuthResponseBody = {
     firstName: string;
     lastName: string;
     phone: string | null;
+    birthDate: string | null;
     businessMemberships: BusinessMembershipBody[];
     passwordHash?: string;
   };
@@ -45,6 +46,8 @@ type UserProfileBody = {
   firstName: string;
   lastName: string;
   phone: string | null;
+  birthDate: string | null;
+  profileImageUrl: string | null;
   businessMemberships: BusinessMembershipBody[];
 };
 
@@ -129,8 +132,8 @@ describe('Authentication flow (e2e)', () => {
     expect(pending).toMatchObject({
       email,
       verificationRequired: true,
-      devVerificationCode: expect.stringMatching(/^\d{6}$/),
     });
+    expect(pending.devVerificationCode).toMatch(/^\d{6}$/);
     expect(response.body).not.toHaveProperty('accessToken');
 
     await request(app.getHttpServer())
@@ -235,6 +238,38 @@ describe('Authentication flow (e2e)', () => {
       .send({ email, password: 'New-safe-password2!' })
       .expect(201);
     accessToken = asAuthResponseBody(loginResponse.body).accessToken;
+
+    const otherLoginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password: 'New-safe-password2!' })
+      .expect(201);
+    const otherAccessToken = asAuthResponseBody(
+      otherLoginResponse.body,
+    ).accessToken;
+
+    const sessionsResponse = await request(app.getHttpServer())
+      .get('/auth/sessions')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    expect(sessionsResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ isCurrent: true }),
+        expect.objectContaining({ isCurrent: false }),
+      ]),
+    );
+
+    await request(app.getHttpServer())
+      .post('/auth/sessions/revoke-others')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(201)
+      .expect(({ body }: { body: { revokedCount: number } }) => {
+        expect(body.revokedCount).toBeGreaterThanOrEqual(1);
+      });
+
+    await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${otherAccessToken}`)
+      .expect(401);
   });
 
   it('reads and updates only its own profile', async () => {
@@ -251,13 +286,71 @@ describe('Authentication flow (e2e)', () => {
     const updateResponse = await request(app.getHttpServer())
       .patch('/users/me')
       .set('Authorization', `Bearer ${accessToken}`)
-      .send({ firstName: 'Updated', phone: '5551234567' })
+      .send({
+        firstName: 'Updated',
+        phone: '5551234567',
+        birthDate: '1997-08-14',
+      })
       .expect(200);
 
     expect(asUserProfileBody(updateResponse.body)).toMatchObject({
       firstName: 'Updated',
       phone: '+905551234567',
     });
+    expect(asUserProfileBody(updateResponse.body).birthDate).toMatch(
+      /^1997-08-14T00:00:00\.000Z$/,
+    );
+
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ birthDate: null })
+      .expect(200)
+      .expect(({ body }: { body: UserProfileBody }) => {
+        expect(body.birthDate).toBeNull();
+      });
+
+    await request(app.getHttpServer())
+      .patch('/users/me')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ birthDate: '2026-02-30' })
+      .expect(400);
+
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/users/me/profile-photo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', Buffer.from([0xff, 0xd8, 0xff, 0xdb]), {
+        contentType: 'image/jpeg',
+        filename: 'profile.jpg',
+      })
+      .expect(201);
+    const uploadedProfile = asUserProfileBody(uploadResponse.body);
+    expect(uploadedProfile.profileImageUrl).toMatch(
+      /\/users\/profile-images\/[0-9a-f-]{36}\.jpg$/,
+    );
+
+    const imageUrl = new URL(uploadedProfile.profileImageUrl as string);
+    await request(app.getHttpServer())
+      .get(imageUrl.pathname)
+      .expect(200)
+      .expect('Content-Type', /image\/jpeg/);
+
+    await request(app.getHttpServer())
+      .post('/users/me/profile-photo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', Buffer.from('not an image'), {
+        contentType: 'image/jpeg',
+        filename: 'invalid.jpg',
+      })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .delete('/users/me/profile-photo')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect(({ body }: { body: UserProfileBody }) => {
+        expect(body.profileImageUrl).toBeNull();
+      });
   });
 
   it('normalizes phone numbers and explains duplicate phone conflicts', async () => {
@@ -635,6 +728,21 @@ describe('Authentication flow (e2e)', () => {
       .patch(`/barbershops/${ownerMembership.barbershop.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ isDiscoverable: true })
+      .expect(400)
+      .expect(({ body }: { body: { message: string } }) => {
+        expect(body.message).toBe(
+          'İşletmeyi keşfette yayınlamak için konumunu doğrulamalısın.',
+        );
+      });
+
+    await request(app.getHttpServer())
+      .patch(`/barbershops/${ownerMembership.barbershop.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        latitude: 38.4372,
+        longitude: 27.1434,
+        isDiscoverable: true,
+      })
       .expect(200);
 
     const searchResponse = await request(app.getHttpServer())

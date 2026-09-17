@@ -4,13 +4,19 @@ export function resolveApiUrl(path: string) {
   return new URL(path, API_URL).toString();
 }
 
-type ApiErrorResponse = { code?: string; message?: string | string[] };
+type ApiErrorResponse = {
+  code?: string;
+  message?: string | string[];
+  requestId?: string;
+};
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
     readonly code?: string,
+    readonly requestId?: string,
+    readonly endpoint?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -25,11 +31,18 @@ async function parseResponse<T>(response: Response) {
     const message = Array.isArray(payload?.message)
       ? payload.message[0]
       : payload?.message;
+    const isServerFailure = response.status >= 500;
+    const isGenericServerMessage = !message || /^internal server error$/i.test(message);
+    const userMessage = isServerFailure && isGenericServerMessage
+      ? "Sunucuya şu an ulaşılamıyor. Lütfen biraz sonra tekrar dene."
+      : message ?? "İşlem şu an yapılamadı. Lütfen tekrar dene.";
 
     throw new ApiError(
-      message ?? "İşlem şu an yapılamadı. Lütfen tekrar dene.",
+      userMessage,
       response.status,
       payload?.code,
+      payload?.requestId ?? response.headers.get("x-request-id") ?? undefined,
+      response.url,
     );
   }
 

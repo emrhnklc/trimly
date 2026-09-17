@@ -16,7 +16,7 @@ import { BusinessDetailHeader } from '@/features/business/components/BusinessDet
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 
 export default function ManagementMembersScreen() {
   const router = useRouter();
@@ -82,9 +82,6 @@ export default function ManagementMembersScreen() {
               onBack={() => router.dismissTo('/management')}
               title="Çalışanlar"
             />
-            <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-              Rolleri, çalışma durumunu ve hizmet yetkinliklerini yönet.
-            </AppText>
             <MemberStatusFilters onChange={setFilter} value={filter} />
 
             {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
@@ -101,7 +98,7 @@ export default function ManagementMembersScreen() {
 
             {!isLoading && !error ? (
               <View style={styles.listHeading}>
-                <AppText variant="label">Ekip listesi</AppText>
+                <AppText style={styles.listTitle} variant="sectionTitle">Ekip</AppText>
                 <AppText color="textMuted" style={styles.count} variant="bodySmall">
                   {visibleMembers.length} çalışan
                 </AppText>
@@ -150,15 +147,15 @@ export default function ManagementMembersScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { fontSize: 11, lineHeight: 16, marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   listHeading: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    marginTop: spacing.lg,
+    marginTop: layout.sectionGap,
   },
+  listTitle: { fontSize: 22, lineHeight: 28 },
   count: { fontSize: 11, lineHeight: 15 },
 });

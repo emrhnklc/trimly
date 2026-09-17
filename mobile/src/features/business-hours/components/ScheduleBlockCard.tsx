@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     marginBottom: spacing.sm,
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     width: 48,
   },
   timeOffIcon: { backgroundColor: colors.surfaceMuted },
-  copy: { flex: 1, marginHorizontal: spacing.sm },
+  copy: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   range: { marginTop: 2 },
   note: { marginTop: spacing.xs },
   deleteButton: {

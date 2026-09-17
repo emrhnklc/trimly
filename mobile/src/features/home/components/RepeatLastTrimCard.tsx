@@ -6,7 +6,7 @@ import { SymbolView } from 'expo-symbols';
 import { AppText } from '@/components/ui/AppText';
 import type { CustomerAppointment } from '@/features/appointments/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 export function RepeatLastTrimCard({
   appointment,
@@ -36,13 +36,13 @@ export function RepeatLastTrimCard({
       />
       <View pointerEvents="none" style={styles.overlay} />
       <View style={styles.content}>
-        <AppText color="surface" variant="heading">
+        <AppText style={styles.imageTitle} variant="heading">
           {appointment ? 'Son tıraşını tekrar ettir' : 'İlk tarzını oluşturmaya başla'}
         </AppText>
-        <AppText color="surfaceMuted" numberOfLines={1} style={styles.shop} variant="bodySmall">
+        <AppText numberOfLines={1} style={styles.shop} variant="bodySmall">
           {appointment?.barbershop.name ?? 'Trimly ile uygun berberini keşfet'}
         </AppText>
-        <AppText color="surfaceMuted" variant="bodySmall">
+        <AppText style={styles.imageMeta} variant="bodySmall">
           {lastTrimDate ?? 'Tamamlanan tıraşların burada görünecek'}
         </AppText>
       </View>
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.darkSurface,
     borderRadius: radius.md,
     flexDirection: 'row',
-    marginTop: spacing.xxl,
+    marginTop: layout.sectionGap,
     minHeight: 108,
     overflow: 'hidden',
     padding: spacing.md,
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.76 },
   backgroundImage: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   overlay: {
-    backgroundColor: 'rgba(16, 10, 7, 0.16)',
+    backgroundColor: 'rgba(12, 8, 5, 0.58)',
     bottom: 0,
     left: 0,
     position: 'absolute',
@@ -79,7 +79,9 @@ const styles = StyleSheet.create({
     top: 0,
   },
   content: { flex: 1, paddingRight: spacing.md },
-  shop: { marginBottom: 2, marginTop: spacing.xs },
+  imageTitle: { color: '#FFFFFF' },
+  shop: { color: '#E8DED0', marginBottom: 2, marginTop: spacing.xs },
+  imageMeta: { color: '#E8DED0' },
   repeatButton: {
     alignItems: 'center',
     backgroundColor: colors.primary,

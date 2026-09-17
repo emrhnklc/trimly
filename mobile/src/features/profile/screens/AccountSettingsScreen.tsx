@@ -1,229 +1,153 @@
-import type { ReactNode } from 'react';
-import { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Image } from 'expo-image';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { useRouter } from 'expo-router';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
-import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { useAuth } from '@/features/auth/AuthProvider';
-import {
-  getNotificationPreferences,
-  type NotificationPreferences,
-  updateNotificationPreferences,
-} from '@/features/notifications/api';
+import { SettingsPageHeader } from '@/components/ui/SettingsPageHeader';
+import { useBusiness } from '@/features/business/BusinessProvider';
+import { businessRoleLabels } from '@/features/business/role-labels';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 export function AccountSettingsScreen() {
   const router = useRouter();
-  const { signOut, token, user } = useAuth();
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
-    appointmentRemindersEnabled: true,
-    campaignsEnabled: false,
-    recommendationsEnabled: true,
-  });
+  const { activeMembership, memberships } = useBusiness();
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!token) return;
-
-      let isActive = true;
-      void getNotificationPreferences(token)
-        .then((nextPreferences) => {
-          if (isActive) setPreferences(nextPreferences);
-        })
-        .catch(() => undefined);
-
-      return () => {
-        isActive = false;
-      };
-    }, [token]),
-  );
-
-  if (!user) return null;
-
-  async function changePreference(
-    key: keyof NotificationPreferences,
-    value: boolean,
-  ) {
-    if (!token) return;
-
-    const previousPreferences = preferences;
-    const nextPreferences = { ...preferences, [key]: value };
-    setPreferences(nextPreferences);
-
-    try {
-      const savedPreferences = await updateNotificationPreferences({ [key]: value }, token);
-      setPreferences(savedPreferences);
-    } catch (reason) {
-      setPreferences(previousPreferences);
-      Alert.alert(
-        'Tercih kaydedilemedi',
-        reason instanceof Error ? reason.message : 'Lütfen tekrar dene.',
-      );
-    }
+  function showComingSoon(feature: string) {
+    Alert.alert(`${feature} yakında`, 'Bu özelliği sağlam bir altyapıyla hazırlayıp aktif edeceğiz.');
   }
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <AppIconButton
-            accessibilityLabel="Profile geri dön"
-            icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-            onPress={() => router.back()}
-            variant="transparent"
-          />
-          <AppText style={styles.title} variant="displayMedium">Hesap Ayarları</AppText>
-          <View style={styles.topBarSpacer} />
-        </View>
+        <SettingsPageHeader title="Hesap Ayarları" />
 
-        <SettingsGroup title="Hesap Bilgilerim">
-          <SettingsRow
-            label="Ad Soyad"
-            onPress={() => router.push('/profile/edit')}
-            value={`${user.firstName} ${user.lastName}`}
-          />
-          <SettingsRow label="E-posta" value={user.email} />
-          <SettingsRow
-            label="Telefon"
-            onPress={() => router.push('/profile/edit')}
-            value={user.phone || 'Eklenmedi'}
-          />
-          <SettingsRow label="Doğum Tarihi" value="Eklenmedi" />
-          <SettingsRow label="Cinsiyet" value="Eklenmedi" isLast />
-        </SettingsGroup>
+        <SettingsSection title="Hesabım">
+          <SettingsRow icon={{ ios: 'person', android: 'person', web: 'person' }} isLast label="Hesap Bilgileri" onPress={() => router.push('/(business)/profile/edit')} />
+        </SettingsSection>
 
-        <SettingsGroup title="Kaydettiklerin">
-          <SettingsRow isLast label="Favori Berberlerim" onPress={() => router.push('/favorites')} />
-        </SettingsGroup>
+        <SettingsSection title="Şifre & Güvenlik">
+          <SettingsRow icon={{ ios: 'lock', android: 'lock', web: 'lock' }} label="Şifre Değiştir" onPress={() => router.push('/password/change')} />
+          <SettingsRow icon={{ ios: 'link', android: 'link', web: 'link' }} label="Bağlı Hesaplar" onPress={() => showComingSoon('Bağlı hesaplar')} />
+          <SettingsRow icon={{ ios: 'laptopcomputer', android: 'devices', web: 'devices' }} isLast label="Aktif Oturumlar" onPress={() => router.push('/sessions')} />
+        </SettingsSection>
 
-        <SettingsGroup title="Ödeme & Geçmiş">
-          <SettingsRow label="Ödeme Yöntemlerim" />
-          <SettingsRow label="İşlem Geçmişim" />
-          <SettingsRow label="Faturalar" isLast />
-        </SettingsGroup>
+        <SettingsSection title="İşletme Erişimlerim">
+          {memberships.map((membership, index) => (
+            <BusinessAccessRow
+              active={membership.id === activeMembership?.id}
+              isLast={index === memberships.length - 1}
+              key={membership.id}
+              name={membership.barbershop.name}
+              profileImageUrl={membership.barbershop.profileImageUrl}
+              role={businessRoleLabels[membership.role]}
+              onPress={() => router.push('/profiles')}
+            />
+          ))}
+        </SettingsSection>
 
-        <SettingsGroup title="Tercihler">
-          <PreferenceRow
-            label="Randevu Hatırlatmaları"
-            onValueChange={(value) => void changePreference('appointmentRemindersEnabled', value)}
-            value={preferences.appointmentRemindersEnabled}
-          />
-          <PreferenceRow
-            label="Kampanya & Duyurular"
-            onValueChange={(value) => void changePreference('campaignsEnabled', value)}
-            value={preferences.campaignsEnabled}
-          />
-          <PreferenceRow
-            isLast
-            label="Kişiselleştirilmiş Öneriler"
-            onValueChange={(value) => void changePreference('recommendationsEnabled', value)}
-            value={preferences.recommendationsEnabled}
-          />
-        </SettingsGroup>
-
-        <View style={styles.signOut}>
-          <AppButton onPress={() => void signOut()} variant="ghost">Çıkış Yap</AppButton>
-        </View>
+        <SettingsSection title="Veri & Gizlilik">
+          <SettingsRow icon={{ ios: 'arrow.down.to.line', android: 'download', web: 'download' }} label="Verilerimi Dışa Aktar" onPress={() => router.push('/data-export')} />
+          <SettingsRow danger icon={{ ios: 'trash', android: 'delete', web: 'delete' }} isLast label="Hesabı Sil" onPress={() => router.push('/account-delete')} />
+        </SettingsSection>
       </ScrollView>
     </Screen>
   );
 }
 
-function SettingsGroup({ children, title }: { children: ReactNode; title: string }) {
+function SettingsSection({ children, title }: { children: React.ReactNode; title: string }) {
   return (
-    <AppCard style={styles.group}>
-      <AppText variant="heading">{title}</AppText>
-      <View style={styles.rows}>{children}</View>
-    </AppCard>
-  );
-}
-
-function SettingsRow({
-  isLast = false,
-  label,
-  onPress,
-  value,
-}: {
-  isLast?: boolean;
-  label: string;
-  onPress?: () => void;
-  value?: string;
-}) {
-  const content = (
-    <>
-      <AppText>{label}</AppText>
-      <View style={styles.rowValue}>
-        {value ? <AppText color="textMuted" numberOfLines={1} style={styles.valueText}>{value}</AppText> : null}
-        <AppText color="textMuted" variant="heading">›</AppText>
-      </View>
-    </>
-  );
-
-  if (onPress) {
-    return (
-      <Pressable
-        accessibilityLabel={`${label} ekranını aç`}
-        accessibilityRole="button"
-        onPress={onPress}
-        style={({ pressed }) => [styles.row, !isLast && styles.rowBorder, pressed && styles.rowPressed]}>
-        {content}
-      </Pressable>
-    );
-  }
-
-  return <View style={[styles.row, !isLast && styles.rowBorder]}>{content}</View>;
-}
-
-function PreferenceRow({
-  isLast = false,
-  label,
-  onValueChange,
-  value,
-}: {
-  isLast?: boolean;
-  label: string;
-  onValueChange: (value: boolean) => void;
-  value: boolean;
-}) {
-  return (
-    <View style={[styles.row, !isLast && styles.rowBorder]}>
-      <AppText>{label}</AppText>
-      <Switch
-        ios_backgroundColor={colors.border}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        value={value}
-      />
+    <View style={styles.section}>
+      <AppText style={styles.sectionTitle} variant="sectionTitle">{title}</AppText>
+      <AppCard style={styles.sectionCard}>{children}</AppCard>
     </View>
   );
 }
 
+type SettingsRowProps = {
+  danger?: boolean;
+  icon: SymbolViewProps['name'];
+  isLast?: boolean;
+  label: string;
+  onPress: () => void;
+};
+
+function SettingsRow({ danger = false, icon, isLast = false, label, onPress }: SettingsRowProps) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, !isLast && styles.divider, pressed && styles.pressed]}>
+      <View style={[styles.rowIcon, danger && styles.dangerIcon]}>
+        <SymbolView name={icon} size={18} tintColor={danger ? colors.danger : colors.primary} />
+      </View>
+      <AppText color={danger ? 'danger' : 'text'} style={styles.rowLabel}>{label}</AppText>
+      <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={17} tintColor={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+function BusinessAccessRow({ active, isLast, name, onPress, profileImageUrl, role }: {
+  active: boolean;
+  isLast: boolean;
+  name: string;
+  onPress: () => void;
+  profileImageUrl: string | null;
+  role: string;
+}) {
+  const initial = name.slice(0, 1).toLocaleUpperCase('tr-TR');
+  const compactRole = role === 'İşletme Sahibi' ? 'Sahip' : role;
+  return (
+    <Pressable
+      accessibilityLabel={`${name} işletmesine geç`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, !isLast && styles.divider, pressed && styles.pressed]}>
+      {profileImageUrl ? (
+        <Image contentFit="cover" source={profileImageUrl} style={styles.businessAvatar} />
+      ) : (
+        <View style={[styles.businessAvatar, styles.businessAvatarPlaceholder]}>
+          <AppText color="primary" style={styles.businessInitial} variant="heading">{initial}</AppText>
+        </View>
+      )}
+      <View style={styles.businessCopy}>
+        <AppText numberOfLines={1} style={styles.businessName}>{name}</AppText>
+        <AppText color="textMuted" style={styles.businessStatus} variant="bodySmall">
+          {active ? 'Aktif işletme' : 'Bağlı işletme'}
+        </AppText>
+      </View>
+      <View style={[styles.roleBadge, active && styles.activeRoleBadge]}>
+        <AppText color={active ? 'primary' : 'textMuted'} style={styles.roleText} variant="overline">
+          {compactRole}
+        </AppText>
+      </View>
+      <SymbolView name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }} size={17} tintColor={colors.textMuted} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-  },
-  topBarSpacer: { width: 44 },
-  title: { flex: 1, fontSize: 24, lineHeight: 30, textAlign: 'center' },
-  group: { marginTop: spacing.lg, padding: spacing.md },
-  rows: { marginTop: spacing.sm },
-  row: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 48,
-  },
-  rowBorder: { borderBottomColor: colors.border, borderBottomWidth: 1 },
-  rowPressed: { opacity: 0.62 },
-  rowValue: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, maxWidth: '60%' },
-  valueText: { flexShrink: 1, textAlign: 'right' },
-  signOut: { marginTop: spacing.lg },
+  content: { paddingBottom: spacing.xxxl, paddingHorizontal: layout.screenHorizontalPadding },
+  section: { marginTop: layout.sectionGap },
+  sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: spacing.sm },
+  sectionCard: { paddingHorizontal: spacing.sm, paddingVertical: 0 },
+  row: { alignItems: 'center', flexDirection: 'row', minHeight: 58, paddingHorizontal: spacing.xs },
+  divider: { borderBottomColor: colors.border, borderBottomWidth: 1 },
+  rowIcon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radius.pill, height: 32, justifyContent: 'center', width: 32 },
+  dangerIcon: { backgroundColor: '#F8E8E5' },
+  rowLabel: { flex: 1, fontSize: 13, lineHeight: 18, marginLeft: spacing.sm },
+  businessAvatar: { borderRadius: radius.pill, height: 32, width: 32 },
+  businessAvatarPlaceholder: { alignItems: 'center', backgroundColor: colors.background, justifyContent: 'center' },
+  businessInitial: { fontSize: 14, lineHeight: 18 },
+  businessCopy: { flex: 1, marginLeft: spacing.sm, minWidth: 0 },
+  businessName: { fontSize: 13, lineHeight: 18 },
+  businessStatus: { fontSize: 11, lineHeight: 14, marginTop: 1 },
+  roleBadge: { backgroundColor: colors.background, borderRadius: radius.pill, marginLeft: spacing.xs, marginRight: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  activeRoleBadge: { backgroundColor: '#FBF3DE' },
+  roleText: { fontSize: 8, lineHeight: 10 },
+  pressed: { opacity: 0.62 },
 });

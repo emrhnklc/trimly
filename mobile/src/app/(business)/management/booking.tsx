@@ -20,7 +20,7 @@ import { BusinessManagementState } from '@/features/business-management/componen
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 function serializeSettings(settings: BookingSettings | null) {
   return settings ? JSON.stringify(settings) : '';
@@ -122,10 +122,6 @@ export default function BookingSettingsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <BusinessDetailHeader onBack={handleBack} title="Randevu Ayarları" />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          Müşterilerin ne zaman randevu alıp iptal edebileceğini belirle.
-        </AppText>
-
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && loadError ? (
@@ -141,10 +137,7 @@ export default function BookingSettingsScreen() {
             <BookingSettingsSummaryCard settings={settings} />
 
             <View style={styles.sectionHeading}>
-              <AppText style={styles.sectionTitle} variant="heading">Randevu penceresi</AppText>
-              <AppText color="textMuted" variant="bodySmall">
-                Müşterinin seçebileceği tarih aralığını yönet.
-              </AppText>
+              <AppText style={styles.sectionTitle} variant="sectionTitle">Randevu penceresi</AppText>
             </View>
             <BookingNumberSettingCard
               description="Örneğin 60 dakika seçilirse daha yakın saatlere randevu alınamaz."
@@ -168,10 +161,7 @@ export default function BookingSettingsScreen() {
             />
 
             <View style={styles.sectionHeading}>
-              <AppText style={styles.sectionTitle} variant="heading">Saat düzeni</AppText>
-              <AppText color="textMuted" variant="bodySmall">
-                Bu değer hizmet süresini değiştirmez; yalnızca başlangıç seçeneklerini belirler.
-              </AppText>
+              <AppText style={styles.sectionTitle} variant="sectionTitle">Saat düzeni</AppText>
             </View>
             <BookingSlotIntervalCard
               onChange={(value) => changeSettings({ slotIntervalMinutes: value })}
@@ -186,10 +176,7 @@ export default function BookingSettingsScreen() {
             </View>
 
             <View style={styles.sectionHeading}>
-              <AppText style={styles.sectionTitle} variant="heading">İptal politikası</AppText>
-              <AppText color="textMuted" variant="bodySmall">
-                Randevu yaklaşınca müşterinin iptal yetkisini sınırla.
-              </AppText>
+              <AppText style={styles.sectionTitle} variant="sectionTitle">İptal politikası</AppText>
             </View>
             <CustomerCancellationCard
               enabled={settings.customerCancellationEnabled}
@@ -221,14 +208,13 @@ export default function BookingSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
-  sectionHeading: { marginBottom: spacing.sm, marginTop: spacing.xl },
-  sectionTitle: { fontSize: 18, lineHeight: 24, marginBottom: 2 },
+  sectionHeading: { marginBottom: spacing.sm, marginTop: layout.sectionGap },
+  sectionTitle: { fontSize: 22, lineHeight: 28 },
   infoCard: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     marginTop: spacing.sm,
     padding: spacing.md,
   },

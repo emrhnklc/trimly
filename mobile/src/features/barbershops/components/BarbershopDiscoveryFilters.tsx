@@ -1,8 +1,8 @@
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export type DiscoveryFilter = 'featured' | 'nearby' | 'popular' | 'new';
 
@@ -20,6 +20,7 @@ export function BarbershopDiscoveryFilters({
   activeFilter: DiscoveryFilter;
   onChange: (filter: DiscoveryFilter) => void;
 }) {
+  const themeColors = useThemeColors();
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -36,7 +37,10 @@ export function BarbershopDiscoveryFilters({
             onPress={() => onChange(filter.value)}
             style={({ pressed }) => [
               styles.filter,
-              isActive && styles.activeFilter,
+              {
+                backgroundColor: isActive ? themeColors.primary : themeColors.surface,
+                borderColor: isActive ? themeColors.primary : themeColors.border,
+              },
               pressed && styles.pressed,
             ]}>
             <AppText color={isActive ? 'onPrimary' : 'text'} style={styles.label} variant="bodySmall">
@@ -53,15 +57,12 @@ const styles = StyleSheet.create({
   content: { gap: spacing.xs, paddingRight: spacing.lg },
   filter: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     borderWidth: 1,
     justifyContent: 'center',
     minHeight: 38,
     paddingHorizontal: spacing.md,
   },
-  activeFilter: { backgroundColor: colors.primary, borderColor: colors.primary },
   label: { fontSize: 13, lineHeight: 18 },
   pressed: { opacity: 0.76 },
 });

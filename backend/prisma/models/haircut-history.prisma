@@ -1,11 +1,12 @@
 model HaircutRecord {
-  id                String   @id @default(cuid())
-  appointmentId     String   @unique
+  id                String    @id @default(cuid())
+  appointmentId     String    @unique
   createdByMemberId String
   styleName         String?
   notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  finalizedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   appointment     Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   createdByMember BusinessMember @relation(fields: [createdByMemberId], references: [id])
@@ -13,16 +14,67 @@ model HaircutRecord {
 }
 
 model HaircutPhoto {
-  id                         String   @id @default(cuid())
+  id                         String               @id @default(cuid())
   haircutRecordId            String
-  storageKey                 String   @unique
+  storageKey                 String               @unique
   mimeType                   String
   sizeBytes                  Int
-  sortOrder                  Int      @default(0)
+  sortOrder                  Int                  @default(0)
   customerConsentConfirmedAt DateTime
-  createdAt                  DateTime @default(now())
+  uploadedBy                 HaircutPhotoUploader @default(BUSINESS)
+  createdAt                  DateTime             @default(now())
 
-  haircutRecord HaircutRecord @relation(fields: [haircutRecordId], references: [id], onDelete: Cascade)
+  haircutRecord HaircutRecord        @relation(fields: [haircutRecordId], references: [id], onDelete: Cascade)
+  portfolioItem BarberPortfolioItem?
 
   @@index([haircutRecordId, sortOrder])
+}
+
+enum HaircutPhotoUploader {
+  BUSINESS
+  CUSTOMER
+}
+
+enum PortfolioPublicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+model BarberPortfolioItem {
+  id               String                     @id @default(cuid())
+  haircutPhotoId   String                     @unique
+  barbershopId     String
+  businessMemberId String
+  customerId       String
+  title            String?
+  status           PortfolioPublicationStatus @default(PENDING)
+  requestedAt      DateTime                   @default(now())
+  respondedAt      DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  haircutPhoto   HaircutPhoto            @relation(fields: [haircutPhotoId], references: [id], onDelete: Cascade)
+  barbershop     Barbershop              @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  businessMember BusinessMember          @relation(fields: [businessMemberId], references: [id], onDelete: Cascade)
+  customer       User                    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  favorites      FavoritePortfolioItem[]
+
+  @@index([barbershopId, status, createdAt])
+  @@index([businessMemberId, status])
+  @@index([customerId, status])
+}
+
+model FavoritePortfolioItem {
+  userId          String
+  portfolioItemId String
+  createdAt       DateTime @default(now())
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portfolioItem BarberPortfolioItem @relation(fields: [portfolioItemId], references: [id], onDelete: Cascade)
+
+  @@id([userId, portfolioItemId])
+  @@index([portfolioItemId])
 }

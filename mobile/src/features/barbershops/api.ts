@@ -13,13 +13,16 @@ import type {
   UpdateBarbershopProfileInput,
   UpdateBookingSettingsInput,
 } from "./types";
-import { apiGet, apiPatch, apiPost, apiPut } from "@/lib/api/client";
+import { apiGet, apiPatch, apiPost, apiPut, apiUpload } from "@/lib/api/client";
+import { appendImageFile } from "@/lib/api/upload";
 
 export type CreateBarbershopInput = {
   name: string;
   slug: string;
   address?: string;
   phone?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type CreatedBarbershop = {
@@ -28,6 +31,12 @@ export type CreatedBarbershop = {
   slug: string;
 };
 
+export function getBarbershopSlugAvailability(slug: string) {
+  return apiGet<{ available: boolean }>(
+    `/barbershops/slug-availability/${encodeURIComponent(slug)}`,
+  );
+}
+
 export function createBarbershop(
   data: CreateBarbershopInput,
   accessToken: string,
@@ -35,11 +44,84 @@ export function createBarbershop(
   return apiPost<CreatedBarbershop>("/barbershops", data, accessToken);
 }
 
+export function createBarbershopWithPhotos(
+  data: CreateBarbershopInput,
+  profilePhoto: { uri: string; mimeType?: string | null },
+  galleryPhotos: { uri: string; mimeType?: string | null }[],
+  accessToken: string,
+) {
+  const formData = new FormData();
+  formData.append("name", data.name);
+  formData.append("slug", data.slug);
+  if (data.address) formData.append("address", data.address);
+  if (data.phone) formData.append("phone", data.phone);
+  if (data.latitude !== undefined)
+    formData.append("latitude", data.latitude.toString());
+  if (data.longitude !== undefined)
+    formData.append("longitude", data.longitude.toString());
+  appendImageFile(formData, "profilePhoto", profilePhoto, "profile");
+  galleryPhotos.forEach((photo, index) =>
+    appendImageFile(formData, "galleryPhotos", photo, `gallery-${index + 1}`),
+  );
+  return apiUpload<CreatedBarbershop>(
+    "/barbershops/onboarding",
+    formData,
+    accessToken,
+  );
+}
+
+export function uploadBarbershopProfilePhoto(
+  barbershopId: string,
+  photo: { uri: string; mimeType?: string | null },
+  accessToken: string,
+) {
+  const formData = new FormData();
+  appendImageFile(formData, "file", photo, "profile");
+  return apiUpload<EditableBarbershopProfile>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/profile-photo`,
+    formData,
+    accessToken,
+  );
+}
+
+export function uploadBarbershopGalleryPhotos(
+  barbershopId: string,
+  photos: { uri: string; mimeType?: string | null }[],
+  accessToken: string,
+) {
+  const formData = new FormData();
+  photos.forEach((photo, index) =>
+    appendImageFile(formData, "files", photo, `gallery-${index + 1}`),
+  );
+  return apiUpload<EditableBarbershopProfile>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/gallery-photos`,
+    formData,
+    accessToken,
+  );
+}
+
+export function uploadBarbershopCoverPhoto(
+  barbershopId: string,
+  photo: { uri: string; mimeType?: string | null },
+  accessToken: string,
+) {
+  const formData = new FormData();
+  appendImageFile(formData, "file", photo, "cover");
+  return apiUpload<EditableBarbershopProfile>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/cover-photo`,
+    formData,
+    accessToken,
+  );
+}
+
 export async function getPublicBarbershops(
   search?: string,
+  location?: { latitude: number; longitude: number },
 ): Promise<PublicBarbershop[]> {
   return apiGet<PublicBarbershop[]>("/barbershops", {
     search: search?.trim() ?? "",
+    latitude: location?.latitude.toString() ?? "",
+    longitude: location?.longitude.toString() ?? "",
   });
 }
 

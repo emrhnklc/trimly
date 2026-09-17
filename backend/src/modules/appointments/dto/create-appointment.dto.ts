@@ -1,4 +1,4 @@
-import { IsDateString, IsString, MinLength } from 'class-validator';
+import { IsDateString, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateAppointmentDto {
   @IsString()
@@ -11,4 +11,9 @@ export class CreateAppointmentDto {
 
   @IsDateString()
   startsAt: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  campaignId?: string;
 }

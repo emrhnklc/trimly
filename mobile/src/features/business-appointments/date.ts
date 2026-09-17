@@ -10,8 +10,8 @@ export function getDateKey(date: Date, timeZone: string) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-export function formatBusinessDate(date: Date, timeZone: string) {
-  return new Intl.DateTimeFormat('tr-TR', {
+export function formatBusinessDate(date: Date, timeZone: string, locale = 'tr-TR') {
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'long',
     timeZone,

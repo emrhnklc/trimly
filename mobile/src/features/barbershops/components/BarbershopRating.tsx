@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function BarbershopRating({
   ratingAverage,
@@ -14,6 +14,7 @@ export function BarbershopRating({
   ratingCount: number;
   compact?: boolean;
 }) {
+  const colors = useThemeColors();
   const hasRating = ratingAverage !== null && ratingCount > 0;
 
   return (
@@ -32,5 +33,5 @@ export function BarbershopRating({
 
 const styles = StyleSheet.create({
   row: { alignItems: 'center', flexDirection: 'row', gap: 4 },
-  label: { fontSize: 11, lineHeight: 15 },
+  label: { fontSize: 13, lineHeight: 18 },
 });

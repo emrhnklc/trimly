@@ -34,4 +34,28 @@ export class RegisterDto {
   @IsString()
   @MaxLength(25)
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{2}$/)
+  provinceCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  neighborhood?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  birthDate?: string;
 }

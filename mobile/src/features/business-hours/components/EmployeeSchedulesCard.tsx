@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
-  copy: { flex: 1, marginTop: spacing.sm, paddingRight: spacing.sm },
+  copy: { flex: 1, marginTop: spacing.sm, minWidth: 0, paddingRight: spacing.sm },
   title: { fontSize: 14, lineHeight: 19 },
   description: { marginTop: spacing.xxs },
   chevron: { position: 'absolute', right: spacing.md, top: spacing.md },

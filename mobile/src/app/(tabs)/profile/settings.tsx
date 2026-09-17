@@ -1,3 +1,3 @@
-import { AccountSettingsScreen } from '@/features/profile/screens/AccountSettingsScreen';
+import { CustomerAccountSettingsScreen } from '@/features/profile/screens/CustomerAccountSettingsScreen';
 
-export default AccountSettingsScreen;
+export default CustomerAccountSettingsScreen;

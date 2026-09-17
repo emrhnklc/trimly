@@ -21,6 +21,11 @@ import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto'
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { UsersService } from '../users/users.service';
+import {
+  getCities,
+  getDistrictsByCityCode,
+  getNeighbourhoodsByCityCodeAndDistrict,
+} from 'turkey-neighbourhoods';
 
 const emailVerificationLifetimeMinutes = 10;
 const emailVerificationResendCooldownSeconds = 60;
@@ -46,6 +51,11 @@ export class AuthService {
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
+
+    const location = this.validateRegistrationLocation(dto);
+    const birthDate = dto.birthDate
+      ? this.parseRegistrationBirthDate(dto.birthDate)
+      : undefined;
 
     if (existingUser) {
       throw new ConflictException('Bu e-posta ile kayıtlı bir kullanıcı var.');
@@ -74,6 +84,8 @@ export class AuthService {
           firstName: dto.firstName.trim(),
           lastName: dto.lastName.trim(),
           phone,
+          birthDate,
+          ...location,
         },
       });
 
@@ -92,6 +104,58 @@ export class AuthService {
     }
   }
 
+  private validateRegistrationLocation(dto: RegisterDto) {
+    const hasAnyLocation = Boolean(
+      dto.provinceCode || dto.province || dto.district || dto.neighborhood,
+    );
+    if (!hasAnyLocation) return {};
+
+    if (!dto.provinceCode || !dto.province || !dto.district) {
+      throw new BadRequestException(
+        'Konum eklemek için il ve ilçe seçimini tamamlamalısın.',
+      );
+    }
+
+    const province = getCities().find(
+      (city) => city.code === dto.provinceCode && city.name === dto.province,
+    );
+    if (!province) throw new BadRequestException('Geçerli bir il seçmelisin.');
+
+    const district = dto.district.trim();
+    if (!getDistrictsByCityCode(province.code).includes(district)) {
+      throw new BadRequestException('Seçilen ilçe bu ile bağlı değil.');
+    }
+
+    const neighborhood = dto.neighborhood?.trim();
+    if (
+      neighborhood &&
+      !getNeighbourhoodsByCityCodeAndDistrict(province.code, district).includes(
+        neighborhood,
+      )
+    ) {
+      throw new BadRequestException('Seçilen mahalle bu ilçeye bağlı değil.');
+    }
+
+    return {
+      provinceCode: province.code,
+      province: province.name,
+      district,
+      ...(neighborhood ? { neighborhood } : {}),
+    };
+  }
+
+  private parseRegistrationBirthDate(value: string) {
+    const birthDate = new Date(`${value}T00:00:00.000Z`);
+    if (
+      Number.isNaN(birthDate.getTime()) ||
+      birthDate > new Date() ||
+      birthDate.getUTCFullYear() < 1900
+    ) {
+      throw new BadRequestException('Geçerli bir doğum tarihi seçmelisin.');
+    }
+    return birthDate;
+  }
+
   async login(dto: LoginDto) {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -107,7 +171,7 @@ export class AuthService {
       });
     }
 
-    return this.createAuthResponse(user);
+    return this.createAuthResponse(user, dto.deviceName);
   }
 
   async verifyEmail(dto: VerifyEmailDto) {
@@ -345,6 +409,11 @@ export class AuthService {
         where: { userId: user.id, usedAt: null },
         data: { usedAt: now },
       });
+
+      await transaction.authSession.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
     });
 
     return { message: 'Şifren yenilendi. Yeni şifrenle giriş yapabilirsin.' };
@@ -352,6 +421,47 @@ export class AuthService {
 
   findMe(userId: string) {
     return this.usersService.findMe(userId);
+  }
+
+  async listSessions(userId: string, currentSessionId: string) {
+    const now = new Date();
+    await this.prisma.authSession.update({
+      where: { id: currentSessionId },
+      data: { lastActiveAt: now },
+    });
+    const sessions = await this.prisma.authSession.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { lastActiveAt: 'desc' },
+      select: {
+        createdAt: true,
+        deviceName: true,
+        id: true,
+        lastActiveAt: true,
+      },
+    });
+    return sessions.map((session) => ({
+      ...session,
+      isCurrent: session.id === currentSessionId,
+    }));
+  }
+
+  async revokeSession(userId: string, sessionId: string) {
+    const revoked = await this.prisma.authSession.updateMany({
+      where: { id: sessionId, userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (revoked.count !== 1) {
+      throw new BadRequestException('Bu oturum artık aktif değil.');
+    }
+    return { message: 'Oturum kapatıldı.' };
+  }
+
+  async revokeOtherSessions(userId: string, currentSessionId: string) {
+    const revoked = await this.prisma.authSession.updateMany({
+      where: { userId, id: { not: currentSessionId }, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { revokedCount: revoked.count };
   }
 
   private async issueEmailVerificationChallenge(userId: string, email: string) {
@@ -498,15 +608,26 @@ export class AuthService {
     );
   }
 
-  private async createAuthResponse(user: { id: string; email: string }) {
+  private async createAuthResponse(
+    user: { id: string; email: string },
+    deviceName = 'Bilinmeyen cihaz',
+  ) {
     const tokenUser = await this.prisma.user.findUniqueOrThrow({
       where: { id: user.id },
       select: { authVersion: true, email: true },
+    });
+    const session = await this.prisma.authSession.create({
+      data: {
+        deviceName: deviceName.trim() || 'Bilinmeyen cihaz',
+        userId: user.id,
+      },
+      select: { id: true },
     });
     const accessToken = await this.jwtService.signAsync({
       authVersion: tokenUser.authVersion,
       sub: user.id,
       email: tokenUser.email,
+      sid: session.id,
     });
 
     const publicUser = await this.usersService.findMe(user.id);

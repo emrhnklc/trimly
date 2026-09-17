@@ -1,6 +1,13 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
@@ -9,7 +16,7 @@ import type { CustomerAppointment } from '@/features/appointments/types';
 import type { PublicBarbershop } from '@/features/barbershops/types';
 import type { FavoriteBarbershop } from '@/features/favorites/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 type BookingStartScreenProps = {
   error: string | null;
@@ -19,7 +26,6 @@ type BookingStartScreenProps = {
   lastShop: PublicBarbershop | null;
   onAllFavoritesPress: () => void;
   onFavoritePress: (slug: string) => void;
-  onLastContinue: () => void;
   onRepeat: () => void;
   onRetry: () => void;
   onSearchPress: () => void;
@@ -33,15 +39,20 @@ export function BookingStartScreen({
   lastShop,
   onAllFavoritesPress,
   onFavoritePress,
-  onLastContinue,
   onRepeat,
   onRetry,
   onSearchPress,
 }: BookingStartScreenProps) {
+  const { width } = useWindowDimensions();
+  const favoriteCardWidth =
+    favorites.length === 1
+      ? Math.min(width - layout.screenHorizontalPadding * 2, 380)
+      : Math.min((width - layout.screenHorizontalPadding * 2) * 0.76, 280);
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.intro}>
-        <AppText style={styles.title} variant="displayMedium">Başlayalım</AppText>
+        <AppText style={styles.title} variant="pageTitle">Başlayalım</AppText>
         <AppText color="textMuted" style={styles.subtitle}>
           Randevuna en hızlı şekilde başlayabilirsin.
         </AppText>
@@ -60,18 +71,13 @@ export function BookingStartScreen({
       {!isLoading && !error ? (
         <>
           <View style={styles.sectionTitleRow}>
-            <AppText variant="label">Son gittiğin berber</AppText>
-            {lastAppointment ? (
-              <Pressable accessibilityRole="button" onPress={onRepeat}>
-                <AppText color="primary" variant="label">Tekrar et ↻</AppText>
-              </Pressable>
-            ) : null}
+            <AppText variant="sectionTitle">Son gittiğin berber</AppText>
           </View>
 
           <LastVisitCard
             appointment={lastAppointment}
             barbershop={lastShop}
-            onPress={lastAppointment ? onLastContinue : onSearchPress}
+            onPress={lastAppointment ? onRepeat : onSearchPress}
           />
 
           <SectionHeader
@@ -87,6 +93,7 @@ export function BookingStartScreen({
               {favorites.map(({ barbershop }) => (
                 <FavoriteShopCard
                   barbershop={barbershop}
+                  cardWidth={favoriteCardWidth}
                   key={barbershop.id}
                   onPress={() => onFavoritePress(barbershop.slug)}
                 />
@@ -98,9 +105,9 @@ export function BookingStartScreen({
             </AppText>
           )}
 
-          <AppText style={styles.searchTitle} variant="label">Başka bir berber ara</AppText>
+          <AppText style={styles.searchTitle} variant="cardTitle">Başka bir berber ara</AppText>
           <Pressable
-            accessibilityLabel="Berber ara veya konum seç"
+            accessibilityLabel="Berber veya konum ara"
             accessibilityRole="button"
             onPress={onSearchPress}
             style={({ pressed }) => [styles.searchBox, pressed && styles.pressed]}>
@@ -109,7 +116,7 @@ export function BookingStartScreen({
               size={20}
               tintColor={colors.textMuted}
             />
-            <AppText color="textMuted" style={styles.searchText}>Berber ara veya konum seç</AppText>
+            <AppText color="textMuted" style={styles.searchText}>Berber veya konum ara</AppText>
             <SymbolView
               name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
               size={18}
@@ -149,11 +156,7 @@ function LastVisitCard({
   const barberName = appointment
     ? `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`
     : 'Trimly ile sana uygun işletmeyi bul';
-  const dateLabel = appointment
-    ? new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(
-        new Date(appointment.completedAt ?? appointment.startsAt),
-      )
-    : 'Henüz tamamlanan randevun yok';
+  const serviceLabel = appointment?.serviceNameSnapshot ?? 'Henüz tamamlanan randevun yok';
 
   return (
     <Pressable
@@ -172,29 +175,39 @@ function LastVisitCard({
         </View>
       )}
       <View style={styles.lastContent}>
-        <AppText numberOfLines={1} variant="label">{title}</AppText>
+        <AppText numberOfLines={2} style={styles.lastTitle} variant="cardTitle">{title}</AppText>
         <AppText color="textMuted" numberOfLines={1} style={styles.lastMeta} variant="bodySmall">
           {barberName}
         </AppText>
-        <View style={styles.lastDateRow}>
+        <View style={styles.lastServiceRow}>
           <SymbolView
-            name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }}
-            size={13}
-            tintColor={colors.textMuted}
+            name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
+            size={14}
+            tintColor={colors.primary}
           />
-          <AppText color="textMuted" numberOfLines={1} style={styles.lastDate} variant="bodySmall">
-            {appointment ? `${appointment.serviceNameSnapshot} · ${dateLabel}` : dateLabel}
+          <AppText color="textMuted" numberOfLines={2} style={styles.lastService} variant="bodySmall">
+            {serviceLabel}
           </AppText>
         </View>
       </View>
       <View style={styles.continuePill}>
-        <AppText color="onPrimary" variant="bodySmall">{appointment ? 'Devam Et' : 'Keşfet'} →</AppText>
+        <AppText color="onPrimary" style={styles.continueText} variant="label">
+          {appointment ? 'Tekrarla' : 'Keşfet'}
+        </AppText>
       </View>
     </Pressable>
   );
 }
 
-function FavoriteShopCard({ barbershop, onPress }: { barbershop: PublicBarbershop; onPress: () => void }) {
+function FavoriteShopCard({
+  barbershop,
+  cardWidth,
+  onPress,
+}: {
+  barbershop: PublicBarbershop;
+  cardWidth: number;
+  onPress: () => void;
+}) {
   const imageUrl = barbershop.profileImageUrl ?? barbershop.coverImageUrl;
 
   return (
@@ -202,7 +215,11 @@ function FavoriteShopCard({ barbershop, onPress }: { barbershop: PublicBarbersho
       accessibilityLabel={`${barbershop.name} ile randevu oluştur`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.favoriteCard, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.favoriteCard,
+        { width: cardWidth },
+        pressed && styles.pressed,
+      ]}>
       <View style={styles.favoriteImageArea}>
         {imageUrl ? (
           <Image contentFit="cover" source={imageUrl} style={styles.favoriteImage} />
@@ -224,7 +241,7 @@ function FavoriteShopCard({ barbershop, onPress }: { barbershop: PublicBarbersho
         </View>
       </View>
       <View style={styles.favoriteContent}>
-        <AppText numberOfLines={1} style={styles.favoriteName} variant="label">{barbershop.name}</AppText>
+        <AppText numberOfLines={1} style={styles.favoriteName} variant="cardTitle">{barbershop.name}</AppText>
         <AppText color="textMuted" numberOfLines={1} style={styles.favoriteAddress} variant="bodySmall">
           {barbershop.address ?? 'Konum bilgisi yakında'}
         </AppText>
@@ -234,10 +251,10 @@ function FavoriteShopCard({ barbershop, onPress }: { barbershop: PublicBarbersho
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
-  intro: { marginTop: spacing.md },
-  title: { fontSize: 27, lineHeight: 33 },
-  subtitle: { fontSize: 13, lineHeight: 18, marginTop: spacing.xxs },
+  content: { paddingBottom: 112, paddingHorizontal: layout.screenHorizontalPadding },
+  intro: { marginTop: spacing.sm },
+  title: { fontSize: 30, lineHeight: 36 },
+  subtitle: { fontSize: 15, lineHeight: 21, marginTop: spacing.xxs },
   loader: { marginTop: spacing.xxxl },
   errorState: { alignItems: 'center', marginTop: spacing.xxxl },
   errorText: { textAlign: 'center' },
@@ -247,41 +264,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    marginTop: spacing.xxl,
+    marginTop: spacing.xl,
   },
   lastCard: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
-    minHeight: 104,
-    padding: spacing.sm,
+    minHeight: 118,
+    padding: spacing.md,
   },
-  lastImage: { borderRadius: radius.pill, height: 66, width: 66 },
+  lastImage: { borderRadius: radius.pill, height: 62, width: 62 },
   imagePlaceholder: { alignItems: 'center', backgroundColor: colors.darkSurface, justifyContent: 'center' },
   lastContent: { flex: 1, marginLeft: spacing.sm },
-  lastMeta: { fontSize: 11, lineHeight: 15, marginTop: 2 },
-  lastDateRow: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.xs },
-  lastDate: { flex: 1, fontSize: 10, lineHeight: 14, marginLeft: spacing.xxs },
+  lastTitle: { fontSize: 17, lineHeight: 22 },
+  lastMeta: { fontSize: 14, lineHeight: 19, marginTop: 2 },
+  lastServiceRow: { alignItems: 'flex-start', flexDirection: 'row', marginTop: spacing.xs },
+  lastService: { flex: 1, fontSize: 13, lineHeight: 18, marginLeft: spacing.xxs },
   continuePill: {
     backgroundColor: colors.primary,
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     marginLeft: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  favoriteList: { gap: spacing.sm, paddingRight: spacing.lg },
+  continueText: { fontSize: 12, lineHeight: 16 },
+  favoriteList: { gap: layout.cardGap, paddingRight: spacing.lg },
   favoriteCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.smallCard,
     borderWidth: 1,
     overflow: 'hidden',
-    width: 164,
   },
-  favoriteImageArea: { height: 104 },
+  favoriteImageArea: { height: 96 },
   favoriteImage: { height: '100%', width: '100%' },
   heartBadge: {
     alignItems: 'center',
@@ -295,19 +313,19 @@ const styles = StyleSheet.create({
     width: 28,
   },
   favoriteContent: { padding: spacing.sm },
-  favoriteName: { fontSize: 13, lineHeight: 17 },
-  favoriteAddress: { fontSize: 10, lineHeight: 14, marginTop: spacing.xxs },
+  favoriteName: { fontSize: 16, lineHeight: 21 },
+  favoriteAddress: { fontSize: 13, lineHeight: 18, marginTop: spacing.xxs },
   emptyFavorites: { lineHeight: 18 },
-  searchTitle: { marginTop: spacing.xxl },
+  searchTitle: { fontSize: 22, lineHeight: 28, marginTop: spacing.xl },
   searchBox: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     marginTop: spacing.sm,
-    minHeight: 62,
+    minHeight: 54,
     paddingHorizontal: spacing.md,
   },
   searchText: { flex: 1, marginLeft: spacing.sm },

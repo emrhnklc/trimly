@@ -191,7 +191,7 @@ function SettingRow({
 const styles = StyleSheet.create({
   identityCard: {
     backgroundColor: colors.darkSurface,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     marginBottom: spacing.sm,
     padding: spacing.md,

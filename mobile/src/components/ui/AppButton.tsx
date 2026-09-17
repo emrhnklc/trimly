@@ -1,8 +1,8 @@
 import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, type PressableProps, View } from 'react-native';
 
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { AppText } from './AppText';
 
 type AppButtonProps = PropsWithChildren<
@@ -12,13 +12,17 @@ type AppButtonProps = PropsWithChildren<
 >;
 
 export function AppButton({ children, disabled, variant = 'primary', ...props }: AppButtonProps) {
+  const colors = useThemeColors();
+
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
       style={({ pressed }) => [
         styles.base,
-        styles[variant],
+        variant === 'primary' && { backgroundColor: colors.primary },
+        variant === 'secondary' && { backgroundColor: colors.surfaceMuted },
+        variant === 'ghost' && styles.ghost,
         pressed && !disabled && styles.pressed,
         disabled && styles.disabled,
       ]}
@@ -35,13 +39,11 @@ export function AppButton({ children, disabled, variant = 'primary', ...props }:
 const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: layout.primaryButtonHeight,
     paddingHorizontal: spacing.lg,
   },
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.surfaceMuted },
   ghost: { backgroundColor: 'transparent' },
   label: { textAlign: 'center' },
   pressed: { opacity: 0.82 },

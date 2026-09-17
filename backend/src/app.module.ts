@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CommonModule } from './common/common.module';
 import { PrismaModule } from './database/prisma.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
@@ -15,11 +17,20 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ServicesModule } from './modules/services/services.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { UsersModule } from './modules/users/users.module';
+import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { LocationsModule } from './modules/locations/locations.module';
+import { CampaignsModule } from './modules/campaigns/campaigns.module';
 
 @Module({
   imports: [
     PrismaModule,
     CommonModule,
+    ThrottlerModule.forRoot({
+      errorMessage:
+        'Çok fazla istek gönderildi. Lütfen kısa süre sonra tekrar dene.',
+      throttlers: [{ ttl: 60_000, limit: 120 }],
+    }),
     AvailabilityModule,
     AppointmentsModule,
     AuthModule,
@@ -34,6 +45,11 @@ import { UsersModule } from './modules/users/users.module';
     HaircutHistoryModule,
     FavoritesModule,
     UsersModule,
+    PortfolioModule,
+    ReviewsModule,
+    LocationsModule,
+    CampaignsModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

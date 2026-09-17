@@ -33,6 +33,7 @@ export class HaircutHistoryService {
         id: true,
         status: true,
         businessMember: { select: { userId: true } },
+        haircutRecord: { select: { finalizedAt: true } },
       },
     });
 
@@ -43,6 +44,12 @@ export class HaircutHistoryService {
     if (appointment.status !== 'COMPLETED') {
       throw new BadRequestException(
         'Tıraş kaydı yalnız tamamlanmış randevuya eklenebilir.',
+      );
+    }
+
+    if (appointment.haircutRecord?.finalizedAt) {
+      throw new ForbiddenException(
+        'Tamamlanan tıraş kaydı işletme tarafından değiştirilemez.',
       );
     }
 
@@ -151,12 +158,18 @@ export class HaircutHistoryService {
     );
     const record = await this.prisma.haircutRecord.findUnique({
       where: { appointmentId: appointment.id },
-      select: { id: true },
+      select: { finalizedAt: true, id: true },
     });
 
     if (!record) {
       throw new BadRequestException(
         'Fotoğraf eklemeden önce tıraş kaydı oluşturulmalıdır.',
+      );
+    }
+
+    if (record.finalizedAt) {
+      throw new ForbiddenException(
+        'Tamamlanan tıraş kaydına işletme tarafından fotoğraf eklenemez.',
       );
     }
 
@@ -166,43 +179,61 @@ export class HaircutHistoryService {
       );
     }
 
-    if (!file || !file.buffer) {
-      throw new BadRequestException('Bir fotoğraf dosyası gönderilmelidir.');
+    return this.storePhoto(record.id, file, true);
+  }
+
+  async finalizeForAppointment(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+  ) {
+    const { appointment } = await this.assertCanManageRecord(
+      barbershopId,
+      appointmentId,
+      userId,
+    );
+    const record = await this.prisma.haircutRecord.findUnique({
+      where: { appointmentId: appointment.id },
+      select: { finalizedAt: true, id: true },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Önce tıraş kaydı oluşturulmalıdır.');
     }
 
-    const extension = this.acceptedMimeTypes.get(file.mimetype);
-    if (!extension) {
+    if (record.finalizedAt) return record;
+
+    return this.prisma.haircutRecord.update({
+      where: { id: record.id },
+      data: { finalizedAt: new Date() },
+      select: { finalizedAt: true, id: true },
+    });
+  }
+
+  async addPhotoForCustomer(
+    appointmentId: string,
+    customerId: string,
+    file: Express.Multer.File | undefined,
+  ) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, customerId },
+      select: {
+        haircutRecord: { select: { id: true } },
+        status: true,
+      },
+    });
+
+    if (!appointment) throw new NotFoundException('Randevu bulunamadı.');
+    if (appointment.status !== 'COMPLETED') {
       throw new BadRequestException(
-        'Yalnız JPEG, PNG veya WebP fotoğraf yüklenebilir.',
+        'Fotoğraf yalnız tamamlanmış randevuya eklenebilir.',
       );
     }
-
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('Fotoğraf boyutu en fazla 5 MB olabilir.');
+    if (!appointment.haircutRecord) {
+      throw new BadRequestException('Bu randevu için henüz tıraş kaydı yok.');
     }
 
-    const storageKey = `haircut-photos/${randomUUID()}.${extension}`;
-    const filePath = this.resolveStoragePath(storageKey);
-    await mkdir(resolve(filePath, '..'), { recursive: true });
-    await writeFile(filePath, file.buffer);
-
-    try {
-      const sortOrder = await this.nextPhotoSortOrder(record.id);
-      return await this.prisma.haircutPhoto.create({
-        data: {
-          haircutRecordId: record.id,
-          storageKey,
-          mimeType: file.mimetype,
-          sizeBytes: file.size,
-          sortOrder,
-          customerConsentConfirmedAt: new Date(),
-        },
-        select: { id: true, mimeType: true, sizeBytes: true, sortOrder: true },
-      });
-    } catch (error) {
-      await unlink(filePath).catch(() => undefined);
-      throw error;
-    }
+    return this.storePhoto(appointment.haircutRecord.id, file, false);
   }
 
   async getPhotoForCustomer(
@@ -221,6 +252,42 @@ export class HaircutHistoryService {
 
     if (!photo) {
       throw new NotFoundException('Fotoğraf bulunamadı.');
+    }
+
+    try {
+      return {
+        mimeType: photo.mimeType,
+        buffer: await readFile(this.resolveStoragePath(photo.storageKey)),
+      };
+    } catch {
+      throw new NotFoundException('Fotoğraf dosyası bulunamadı.');
+    }
+  }
+
+  async getPhotoForBusiness(
+    barbershopId: string,
+    appointmentId: string,
+    photoId: string,
+    userId: string,
+  ) {
+    await this.assertCanManageRecord(barbershopId, appointmentId, userId);
+    const photo = await this.prisma.haircutPhoto.findFirst({
+      where: {
+        id: photoId,
+        haircutRecord: { appointmentId },
+      },
+      select: {
+        storageKey: true,
+        mimeType: true,
+        haircutRecord: { select: { finalizedAt: true } },
+      },
+    });
+
+    if (!photo) throw new NotFoundException('Fotoğraf bulunamadı.');
+    if (photo.haircutRecord.finalizedAt) {
+      throw new ForbiddenException(
+        'Tamamlanan fotoğraf müşterinin özel tıraş geçmişine aittir.',
+      );
     }
 
     try {
@@ -275,13 +342,82 @@ export class HaircutHistoryService {
     return { appointment, membership };
   }
 
-  private async nextPhotoSortOrder(haircutRecordId: string) {
-    const result = await this.prisma.haircutPhoto.aggregate({
-      where: { haircutRecordId },
-      _max: { sortOrder: true },
-    });
+  private async storePhoto(
+    haircutRecordId: string,
+    file: Express.Multer.File | undefined,
+    finalizeRecord: boolean,
+  ) {
+    if (!file?.buffer) {
+      throw new BadRequestException('Bir fotoğraf dosyası gönderilmelidir.');
+    }
 
-    return (result._max.sortOrder ?? -1) + 1;
+    const extension = this.acceptedMimeTypes.get(file.mimetype);
+    if (!extension) {
+      throw new BadRequestException(
+        'Yalnız JPEG, PNG veya WebP fotoğraf yüklenebilir.',
+      );
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('Fotoğraf boyutu en fazla 5 MB olabilir.');
+    }
+
+    const storageKey = `haircut-photos/${randomUUID()}.${extension}`;
+    const filePath = this.resolveStoragePath(storageKey);
+    await mkdir(resolve(filePath, '..'), { recursive: true });
+    await writeFile(filePath, file.buffer);
+
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        if (finalizeRecord) {
+          const lockResult = await transaction.haircutRecord.updateMany({
+            where: { finalizedAt: null, id: haircutRecordId },
+            data: { finalizedAt: new Date() },
+          });
+          if (!lockResult.count) {
+            throw new ForbiddenException(
+              'Tamamlanan tıraş kaydına işletme tarafından fotoğraf eklenemez.',
+            );
+          }
+        }
+
+        const photoCount = await transaction.haircutPhoto.count({
+          where: { haircutRecordId },
+        });
+        if (photoCount >= 8) {
+          throw new BadRequestException(
+            'Bir tıraş kaydına en fazla 8 fotoğraf eklenebilir.',
+          );
+        }
+
+        const orderResult = await transaction.haircutPhoto.aggregate({
+          where: { haircutRecordId },
+          _max: { sortOrder: true },
+        });
+        return transaction.haircutPhoto.create({
+          data: {
+            haircutRecordId,
+            storageKey,
+            mimeType: file.mimetype,
+            sizeBytes: file.size,
+            sortOrder: (orderResult._max.sortOrder ?? -1) + 1,
+            customerConsentConfirmedAt: new Date(),
+            uploadedBy: finalizeRecord ? 'BUSINESS' : 'CUSTOMER',
+          },
+          select: {
+            id: true,
+            mimeType: true,
+            sizeBytes: true,
+            sortOrder: true,
+          },
+        });
+      });
+    } catch (error) {
+      await this.prisma.haircutPhoto
+        .deleteMany({ where: { storageKey } })
+        .catch(() => undefined);
+      await unlink(filePath).catch(() => undefined);
+      throw error;
+    }
   }
 
   private resolveStoragePath(storageKey: string) {

@@ -1,4 +1,4 @@
-import { Controller, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -9,6 +9,11 @@ import { MembersService } from './members.service';
 @ApiTags('Çalışan Davetleri')
 export class InvitationAcceptanceController {
   constructor(private readonly membersService: MembersService) {}
+
+  @Get(':token')
+  preview(@Param('token') token: string) {
+    return this.membersService.previewInvitation(token);
+  }
 
   @Post(':token/accept')
   @UseGuards(JwtAuthGuard)

@@ -1,0 +1,36 @@
+model AppointmentReview {
+  id               String   @id @default(cuid())
+  appointmentId    String   @unique
+  barbershopId     String
+  businessMemberId String
+  customerId       String
+  rating           Int
+  comment          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  appointment    Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  barbershop     Barbershop     @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  businessMember BusinessMember @relation(fields: [businessMemberId], references: [id], onDelete: Cascade)
+  customer       User           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  photos         ReviewPhoto[]
+
+  @@index([barbershopId, createdAt])
+  @@index([businessMemberId, createdAt])
+  @@index([customerId, createdAt])
+}
+
+model ReviewPhoto {
+  id         String   @id @default(cuid())
+  reviewId   String
+  storageKey String   @unique
+  mimeType   String
+  sizeBytes  Int
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  review AppointmentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, sortOrder])
+  @@index([reviewId, sortOrder])
+}

@@ -8,7 +8,6 @@ import {
   StyleSheet,
 } from 'react-native';
 
-import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
@@ -24,7 +23,7 @@ import {
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 
 export default function EditManagementServiceScreen() {
   const router = useRouter();
@@ -100,10 +99,6 @@ export default function EditManagementServiceScreen() {
             onBack={() => router.dismissTo('/management/services')}
             title="Hizmeti Düzenle"
           />
-          <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-            Değişiklikler yeni randevulara uygulanır; geçmiş kayıtlar korunur.
-          </AppText>
-
           {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
           {!isLoading && loadError ? (
@@ -140,7 +135,6 @@ export default function EditManagementServiceScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { fontSize: 11, lineHeight: 16, marginBottom: spacing.lg, marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
 });

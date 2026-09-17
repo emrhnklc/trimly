@@ -8,6 +8,7 @@ import { BarbershopRating } from '@/features/barbershops/components/BarbershopRa
 import type { PublicBarbershop } from '@/features/barbershops/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function FeaturedBarbershopCard({
   barbershop,
@@ -20,6 +21,7 @@ export function FeaturedBarbershopCard({
   onFavoritePress: () => void;
   onPress: () => void;
 }) {
+  const themeColors = useThemeColors();
   const imageUrl = barbershop.coverImageUrl ?? barbershop.profileImageUrl;
 
   return (
@@ -27,7 +29,7 @@ export function FeaturedBarbershopCard({
       accessibilityLabel={`${barbershop.name} işletmesini aç`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }, pressed && styles.pressed]}>
       <View style={styles.imageArea}>
         {imageUrl ? (
           <Image
@@ -55,12 +57,12 @@ export function FeaturedBarbershopCard({
             event.stopPropagation();
             onFavoritePress();
           }}
-          style={({ pressed }) => [styles.bookmark, pressed && styles.bookmarkPressed]}>
+          style={({ pressed }) => [styles.favoriteButton, { backgroundColor: themeColors.surface }, pressed && styles.favoriteButtonPressed]}>
           <SymbolView
             name={{
-              ios: isFavorite ? 'bookmark.fill' : 'bookmark',
-              android: isFavorite ? 'bookmark' : 'bookmark_border',
-              web: isFavorite ? 'bookmark' : 'bookmark_border',
+              ios: isFavorite ? 'heart.fill' : 'heart',
+              android: isFavorite ? 'favorite' : 'favorite_border',
+              web: isFavorite ? 'favorite' : 'favorite_border',
             }}
             size={17}
             tintColor={colors.primary}
@@ -69,7 +71,7 @@ export function FeaturedBarbershopCard({
       </View>
 
       <View style={styles.content}>
-        <AppText numberOfLines={1} variant="label">{barbershop.name}</AppText>
+        <AppText numberOfLines={1} variant="cardTitle">{barbershop.name}</AppText>
         <AppText color="textMuted" numberOfLines={1} style={styles.address} variant="bodySmall">
           {barbershop.address ?? 'Konum bilgisi yakında'}
         </AppText>
@@ -87,8 +89,6 @@ export function FeaturedBarbershopCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     overflow: 'hidden',
@@ -110,9 +110,8 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  bookmark: {
+  favoriteButton: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     height: 34,
     justifyContent: 'center',
@@ -121,7 +120,7 @@ const styles = StyleSheet.create({
     top: spacing.xs,
     width: 34,
   },
-  bookmarkPressed: { opacity: 0.64 },
+  favoriteButtonPressed: { opacity: 0.64 },
   content: { padding: spacing.sm },
   address: { marginTop: spacing.xxs },
   rating: { marginTop: spacing.xs },

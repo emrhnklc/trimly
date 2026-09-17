@@ -5,8 +5,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import type { BusinessAppointment } from '@/features/appointments/types';
-import { colors } from '@/theme/colors';
+import type { ThemeColors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { formatBusinessTime } from '../date';
 
 function getMinutesUntilArrivalOpens(appointment: BusinessAppointment, now: number) {
@@ -14,14 +15,14 @@ function getMinutesUntilArrivalOpens(appointment: BusinessAppointment, now: numb
   return Math.max(0, Math.ceil((opensAt - now) / 60000));
 }
 
-function getCardState(appointment: BusinessAppointment, now: number) {
+function getCardState(appointment: BusinessAppointment, now: number, themeColors: ThemeColors) {
   const startsAt = new Date(appointment.startsAt).getTime();
   const endsAt = new Date(appointment.endsAt).getTime();
 
   if (appointment.status === 'ARRIVED') {
     return {
-      accent: '#D5A538',
-      label: now >= startsAt ? 'İŞLEMDE' : 'MÜŞTERİ GELDİ',
+      accent: themeColors.info,
+      label: 'MÜŞTERİ GELDİ',
       note: appointment.autoCompleteAt
         ? `${formatBusinessTime(appointment.autoCompleteAt, 'Europe/Istanbul')} civarı otomatik tamamlanır`
         : 'Geliş kaydı oluşturuldu',
@@ -54,7 +55,7 @@ function getCardState(appointment: BusinessAppointment, now: number) {
 
   const minutes = getMinutesUntilArrivalOpens(appointment, now);
   return {
-    accent: colors.primary,
+    accent: themeColors.primary,
     label: 'SIRADAKİ RANDEVU',
     note: `“Müşteri Geldi” ${minutes} dk sonra açılacak.`,
   };
@@ -79,15 +80,16 @@ export function BusinessActiveAppointmentCard({
   onUndoArrival: () => void;
   timeZone: string;
 }) {
+  const themeColors = useThemeColors();
   const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
   const initials = `${appointment.customer.firstName[0] ?? ''}${appointment.customer.lastName[0] ?? ''}`;
-  const state = getCardState(appointment, now);
+  const state = getCardState(appointment, now, themeColors);
   const canMarkArrived = getMinutesUntilArrivalOpens(appointment, now) === 0;
   const hasArrived = appointment.status === 'ARRIVED';
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
       <View style={styles.topRow}>
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, { backgroundColor: state.accent }]} />
@@ -95,11 +97,11 @@ export function BusinessActiveAppointmentCard({
             {state.label}
           </AppText>
         </View>
-        <View style={styles.timeBadge}>
+        <View style={[styles.timeBadge, { backgroundColor: themeColors.surfaceMuted }]}>
           <SymbolView
             name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
             size={15}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
           <AppText color="primary" style={styles.time} variant="label">
             {formatBusinessTime(appointment.startsAt, timeZone)}–
@@ -121,7 +123,7 @@ export function BusinessActiveAppointmentCard({
             style={styles.avatar}
           />
         ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+          <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: themeColors.surfaceMuted }]}>
             <AppText color="primary" style={styles.initials} variant="heading">{initials}</AppText>
           </View>
         )}
@@ -139,11 +141,11 @@ export function BusinessActiveAppointmentCard({
         <SymbolView
           name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
           size={17}
-          tintColor={colors.textMuted}
+          tintColor={themeColors.textMuted}
         />
       </Pressable>
 
-      <View style={styles.infoRow}>
+      <View style={[styles.infoRow, { backgroundColor: themeColors.background }]}>
         <SymbolView
           name={{ ios: 'info.circle', android: 'info', web: 'info' }}
           size={16}
@@ -181,8 +183,6 @@ export function BusinessActiveAppointmentCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: spacing.md,
@@ -195,7 +195,6 @@ const styles = StyleSheet.create({
   overline: { fontSize: 9, lineHeight: 13 },
   timeBadge: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     flexDirection: 'row',
     paddingHorizontal: spacing.sm,
@@ -206,7 +205,6 @@ const styles = StyleSheet.create({
   avatar: { borderRadius: radius.pill, height: 62, width: 62 },
   avatarPlaceholder: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     justifyContent: 'center',
   },
   initials: { fontSize: 20, lineHeight: 26 },
@@ -215,7 +213,6 @@ const styles = StyleSheet.create({
   barber: { marginTop: 2 },
   infoRow: {
     alignItems: 'center',
-    backgroundColor: colors.background,
     borderRadius: radius.sm,
     flexDirection: 'row',
     marginTop: spacing.md,

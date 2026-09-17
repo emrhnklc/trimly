@@ -32,7 +32,7 @@ import type { BusinessMember } from '@/features/members/types';
 import { createMemberScheduleBlock } from '@/features/schedules/api';
 import type { ScheduleBlockType } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 type PickerTarget = 'startDate' | 'startTime' | 'endDate' | 'endTime';
 
@@ -184,17 +184,10 @@ export default function NewEmployeeScheduleBlockScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <BusinessDetailHeader onBack={goBack} title="Yeni Mola veya İzin" />
-          <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-            Çalışanın randevuya kapalı olacağı tek seferlik zaman aralığını belirle.
-          </AppText>
-
           {member ? <EmployeeScheduleIdentityCard member={member} /> : null}
 
           <View style={styles.section}>
             <AppText style={styles.sectionTitle} variant="heading">Kayıt türü</AppText>
-            <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
-              Mola aynı gün içinde, izin ise birden fazla gün için oluşturulabilir.
-            </AppText>
             <ScheduleBlockTypeSelector onChange={selectType} value={type} />
           </View>
 
@@ -245,9 +238,6 @@ export default function NewEmployeeScheduleBlockScreen() {
 
           <View style={styles.section}>
             <AppText style={styles.sectionTitle} variant="heading">Not</AppText>
-            <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
-              İsteğe bağlıdır ve yalnızca işletme yönetiminde görünür.
-            </AppText>
             <TextInput
               maxLength={500}
               multiline
@@ -298,17 +288,15 @@ export default function NewEmployeeScheduleBlockScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   section: { marginTop: spacing.xl },
-  sectionTitle: { fontSize: 18, lineHeight: 24 },
-  sectionDescription: { marginBottom: spacing.sm, marginTop: 2 },
+  sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: spacing.sm },
   fieldRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   field: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
@@ -323,11 +311,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 38,
   },
-  fieldCopy: { flex: 1, marginHorizontal: spacing.xs },
+  fieldCopy: { flex: 1, marginHorizontal: spacing.xs, minWidth: 0 },
   fieldValue: { marginTop: 1 },
   sameDayField: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     flex: 1,
     justifyContent: 'center',
     minHeight: 72,
@@ -336,7 +324,7 @@ const styles = StyleSheet.create({
   noteInput: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     color: colors.text,
     fontSize: 15,

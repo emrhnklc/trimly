@@ -70,4 +70,36 @@ export class EmailService {
       to: email,
     });
   }
+
+  async sendAccountDeletionCode(email: string, code: string) {
+    if (!this.transporter) {
+      this.logger.log(`[DEV EMAIL] ${email} hesap silme kodu: ${code}`);
+      return;
+    }
+    await this.transporter.sendMail({
+      from: this.from,
+      subject: 'Trimly hesap silme doğrulama kodun',
+      text: `Hesabını silme kodun: ${code}. Bu kod 10 dakika geçerlidir. Bu işlemi sen istemediysen kodu paylaşma.`,
+      to: email,
+    });
+  }
+
+  async sendOwnershipTransferCode(
+    email: string,
+    code: string,
+    businessName: string,
+  ) {
+    if (!this.transporter) {
+      this.logger.log(
+        `[DEV EMAIL] ${email} ${businessName} sahiplik devri kodu: ${code}`,
+      );
+      return;
+    }
+    await this.transporter.sendMail({
+      from: this.from,
+      subject: 'Trimly işletme sahipliği devri doğrulama kodun',
+      text: `${businessName} işletmesinin sahipliğini devretme kodun: ${code}. Bu kod 10 dakika geçerlidir. Bu işlemi sen istemediysen kodu paylaşma.`,
+      to: email,
+    });
+  }
 }

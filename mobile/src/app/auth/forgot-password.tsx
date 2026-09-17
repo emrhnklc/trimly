@@ -24,9 +24,11 @@ export default function ForgotPasswordScreen() {
     accessCode?: string | string[];
     accessSlug?: string | string[];
     email?: string | string[];
+    invitationToken?: string | string[];
   }>();
   const accessCode = firstParam(params.accessCode);
   const accessSlug = firstParam(params.accessSlug);
+  const invitationToken = firstParam(params.invitationToken);
   const [step, setStep] = useState<"email" | "reset">("email");
   const [email, setEmail] = useState(firstParam(params.email) ?? "");
   const [code, setCode] = useState("");
@@ -58,6 +60,7 @@ export default function ForgotPasswordScreen() {
       params: {
         ...(email.trim() ? { email: email.trim().toLowerCase() } : {}),
         ...(accessSlug && accessCode ? { accessCode, accessSlug } : {}),
+        ...(invitationToken ? { invitationToken } : {}),
       },
     });
   }
@@ -108,6 +111,7 @@ export default function ForgotPasswordScreen() {
           email,
           passwordReset: "true",
           ...(accessSlug && accessCode ? { accessCode, accessSlug } : {}),
+          ...(invitationToken ? { invitationToken } : {}),
         },
       });
     } catch (reason) {

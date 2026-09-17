@@ -3,11 +3,7 @@ import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { BusinessRole } from '@prisma/client';
 
 export class CreateInvitationDto {
-  @IsIn([
-    BusinessRole.MANAGER,
-    BusinessRole.BARBER,
-    BusinessRole.APPRENTICE,
-  ])
+  @IsIn([BusinessRole.MANAGER, BusinessRole.BARBER, BusinessRole.APPRENTICE])
   role: BusinessRole;
 
   @IsOptional()

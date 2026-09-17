@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
+import { AppIconButton } from '@/components/ui/AppIconButton';
 import { Screen } from '@/components/ui/Screen';
 import {
   cancelBusinessAppointment,
@@ -30,6 +31,7 @@ import { BusinessAppointmentState } from '@/features/business-appointments/compo
 import { formatBusinessDate, getDateKey } from '@/features/business-appointments/date';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessScreenHeader } from '@/features/business/components/BusinessScreenHeader';
+import { useAppPreferences } from '@/features/preferences/AppPreferencesProvider';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
@@ -45,10 +47,12 @@ export default function BusinessAppointmentsRoute() {
 
 function BusinessAppointmentsScreen() {
   const router = useRouter();
+  const { language, translate } = useAppPreferences();
   const { token } = useAuth();
   const { activeMembership, can } = useBusiness();
   const [appointments, setAppointments] = useState<BusinessAppointment[]>([]);
   const [period, setPeriod] = useState<AppointmentPeriod>('today');
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null);
   const [referenceTime, setReferenceTime] = useState(() => Date.now());
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
@@ -140,9 +144,26 @@ function BusinessAppointmentsScreen() {
       .find((appointment) => appointment.status === 'CONFIRMED');
   }, [groupedAppointments.today, referenceTime]);
 
+  const historyMonths = useMemo(
+    () => Array.from(new Set(groupedAppointments.history.map((appointment) => getDateKey(
+      new Date(appointment.startsAt),
+      activeMembership?.barbershop.timezone ?? 'Europe/Istanbul',
+    ).slice(0, 7)))),
+    [activeMembership?.barbershop.timezone, groupedAppointments.history],
+  );
+
   if (!activeMembership) return null;
 
-  const selectedAppointments = groupedAppointments[period];
+  const activeHistoryMonth = historyMonths.includes(selectedHistoryMonth ?? '')
+    ? selectedHistoryMonth
+    : (historyMonths[0] ?? null);
+  const activeHistoryMonthIndex = activeHistoryMonth ? historyMonths.indexOf(activeHistoryMonth) : -1;
+  const selectedAppointments = period === 'history' && activeHistoryMonth
+    ? groupedAppointments.history.filter((appointment) =>
+      getDateKey(new Date(appointment.startsAt), activeMembership.barbershop.timezone)
+        .startsWith(activeHistoryMonth),
+    )
+    : groupedAppointments[period];
   const listedAppointments =
     period === 'today' && activeAppointment
       ? selectedAppointments.filter((appointment) => appointment.id !== activeAppointment.id)
@@ -150,16 +171,25 @@ function BusinessAppointmentsScreen() {
   const timeZone = activeMembership.barbershop.timezone;
   const emptyMessages: Record<AppointmentPeriod, { description: string; title: string }> = {
     today: {
-      description: 'Bugün için planlanmış bir randevu bulunmuyor.',
-      title: 'Bugün takvim sakin',
+      description: translate(
+        'Bugün için planlanmış bir randevu bulunmuyor.',
+        'There are no appointments scheduled for today.',
+      ),
+      title: translate('Bugün takvim sakin', 'Your calendar is clear today'),
     },
     upcoming: {
-      description: 'Bugünden sonraki onaylı randevular burada görünecek.',
-      title: 'Yaklaşan randevu yok',
+      description: translate(
+        'Bugünden sonraki onaylı randevular burada görünecek.',
+        'Confirmed future appointments will appear here.',
+      ),
+      title: translate('Yaklaşan randevu yok', 'No upcoming appointments'),
     },
     history: {
-      description: 'Tamamlanan, iptal edilen ve geçmiş randevular burada birikecek.',
-      title: 'Geçmiş henüz boş',
+      description: translate(
+        'Tamamlanan, iptal edilen ve geçmiş randevular burada birikecek.',
+        'Completed, cancelled and past appointments will appear here.',
+      ),
+      title: translate('Geçmiş henüz boş', 'No appointment history yet'),
     },
   };
 
@@ -233,14 +263,44 @@ function BusinessAppointmentsScreen() {
           onNotificationPress={() => router.push('/notifications')}
           showNotification
           subtitle={activeMembership.barbershop.name}
-          title="Randevular"
+          title={translate('Randevular', 'Appointments')}
         />
         <AppointmentPeriodTabs onChange={setPeriod} value={period} />
 
         <View style={styles.dateRow}>
-          <AppText style={styles.date} variant="label">
-            {formatBusinessDate(new Date(referenceTime), timeZone)}
-          </AppText>
+          {period === 'history' ? (
+            activeHistoryMonth ? (
+              <View style={styles.monthPicker}>
+                <AppIconButton
+                  accessibilityLabel="Önceki ay"
+                  disabled={activeHistoryMonthIndex >= historyMonths.length - 1}
+                  icon={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
+                  onPress={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex + 1])}
+                  size={17}
+                  variant="transparent"
+                />
+                <AppText numberOfLines={1} style={styles.monthLabel} variant="label">
+                  {formatMonthLabel(activeHistoryMonth, language)}
+                </AppText>
+                <AppIconButton
+                  accessibilityLabel="Sonraki ay"
+                  disabled={activeHistoryMonthIndex <= 0}
+                  icon={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                  onPress={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex - 1])}
+                  size={17}
+                  variant="transparent"
+                />
+              </View>
+            ) : <AppText style={styles.date} variant="label">{translate('Geçmiş', 'History')}</AppText>
+          ) : (
+            <AppText style={styles.date} variant="label">
+              {formatBusinessDate(
+                new Date(referenceTime),
+                timeZone,
+                language === 'en' ? 'en-US' : 'tr-TR',
+              )}
+            </AppText>
+          )}
           <View style={styles.countBadge}>
             <AppText color="primary" style={styles.count} variant="label">
               {selectedAppointments.length}
@@ -255,7 +315,7 @@ function BusinessAppointmentsScreen() {
             description={error}
             error
             onRetry={() => void loadAppointments()}
-            title="Randevular yüklenemedi"
+            title={translate('Randevular yüklenemedi', 'Appointments could not be loaded')}
           />
         ) : null}
 
@@ -303,10 +363,18 @@ function BusinessAppointmentsScreen() {
   );
 }
 
+function formatMonthLabel(monthKey: string, language: 'en' | 'tr') {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'tr-TR', { month: 'long', year: 'numeric' })
+    .format(new Date(year, month - 1, 1));
+}
+
 const styles = StyleSheet.create({
   content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
   dateRow: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.lg },
   date: { flex: 1, textTransform: 'capitalize' },
+  monthPicker: { alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: 999, flexDirection: 'row', height: 34, paddingHorizontal: 2 },
+  monthLabel: { fontSize: 11, minWidth: 106, textAlign: 'center' },
   countBadge: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,

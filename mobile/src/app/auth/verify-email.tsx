@@ -27,6 +27,7 @@ export default function VerifyEmailScreen() {
     devCode?: string | string[];
     email?: string | string[];
     intent?: string | string[];
+    invitationToken?: string | string[];
   }>();
   const { signIn } = useAuth();
   const email = firstParam(params.email)?.trim().toLowerCase() ?? "";
@@ -35,6 +36,7 @@ export default function VerifyEmailScreen() {
   const accessCode = firstParam(params.accessCode);
   const accessSlug = firstParam(params.accessSlug);
   const initialDevCode = firstParam(params.devCode);
+  const invitationToken = firstParam(params.invitationToken);
   const [code, setCode] = useState("");
   const [devCode, setDevCode] = useState(initialDevCode ?? null);
   const [cooldownSeconds, setCooldownSeconds] = useState(60);
@@ -60,6 +62,11 @@ export default function VerifyEmailScreen() {
         router.replace({
           pathname: "/access/[slug]",
           params: { code: accessCode, slug: accessSlug },
+        });
+      } else if (invitationToken) {
+        router.replace({
+          pathname: "/join/[token]",
+          params: { token: invitationToken },
         });
       } else if (intent === "owner") {
         router.replace({

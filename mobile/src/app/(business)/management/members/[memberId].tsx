@@ -2,13 +2,17 @@ import { useCallback, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
+  View,
 } from 'react-native';
 
+import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { AuthTextField } from '@/features/auth/components/AuthTextField';
 import { getManagementServices } from '@/features/business-management/api';
 import type { ManagementService } from '@/features/business-management/types';
 import {
@@ -20,14 +24,16 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import {
   assignBusinessMemberService,
+  confirmBusinessOwnershipTransfer,
   getBusinessMember,
+  requestBusinessOwnershipTransfer,
   unassignBusinessMemberService,
   updateBusinessMember,
   updateBusinessMemberBookable,
 } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 
 export default function EditBusinessMemberScreen() {
   const router = useRouter();
@@ -40,6 +46,10 @@ export default function EditBusinessMemberScreen() {
   const [isSubmitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [transferCode, setTransferCode] = useState('');
+  const [devTransferCode, setDevTransferCode] = useState<string | null>(null);
+  const [isTransferPending, setTransferPending] = useState(false);
+  const [isTransferring, setTransferring] = useState(false);
 
   const loadMember = useCallback(async () => {
     if (!activeMembership || !token || !memberId) return;
@@ -119,6 +129,59 @@ export default function EditBusinessMemberScreen() {
     }
   }
 
+  async function requestTransfer() {
+    if (!activeMembership || !token || !memberId || !member) return;
+    setTransferring(true);
+    setSubmitError(null);
+    try {
+      const result = await requestBusinessOwnershipTransfer(
+        activeMembership.barbershop.id,
+        memberId,
+        token,
+      );
+      setDevTransferCode(result.devOwnershipTransferCode ?? null);
+      setTransferPending(true);
+    } catch (reason) {
+      setSubmitError(reason instanceof Error ? reason.message : 'Doğrulama kodu gönderilemedi.');
+    } finally {
+      setTransferring(false);
+    }
+  }
+
+  function confirmTransferRequest() {
+    if (!member) return;
+    Alert.alert(
+      'Sahipliği devret',
+      `${member.user.firstName} ${member.user.lastName} işletmenin yeni sahibi olur. Sen yönetici olarak kalırsın. Devam etmek için e-posta kodu gönderilsin mi?`,
+      [
+        { style: 'cancel', text: 'Vazgeç' },
+        { onPress: () => void requestTransfer(), style: 'destructive', text: 'Kod gönder' },
+      ],
+    );
+  }
+
+  async function confirmTransfer() {
+    if (!activeMembership || !token || !memberId || transferCode.length !== 6) {
+      setSubmitError('E-postana gelen 6 haneli kodu girmelisin.');
+      return;
+    }
+    setTransferring(true);
+    setSubmitError(null);
+    try {
+      await confirmBusinessOwnershipTransfer(
+        activeMembership.barbershop.id,
+        memberId,
+        transferCode,
+        token,
+      );
+      router.dismissTo('/management/members');
+    } catch (reason) {
+      setSubmitError(reason instanceof Error ? reason.message : 'Sahiplik devredilemedi.');
+    } finally {
+      setTransferring(false);
+    }
+  }
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -126,10 +189,6 @@ export default function EditBusinessMemberScreen() {
           onBack={() => router.dismissTo('/management/members')}
           title="Çalışanı Düzenle"
         />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          Rol, erişim ve hizmet yetkinliklerini güvenli biçimde güncelle.
-        </AppText>
-
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && loadError ? (
@@ -143,14 +202,49 @@ export default function EditBusinessMemberScreen() {
         ) : null}
 
         {!isLoading && !loadError && member ? (
-          <BusinessMemberForm
-            canEditRoleAndStatus={can('EDIT_MEMBER_ROLE_AND_STATUS')}
-            error={submitError}
-            isSubmitting={isSubmitting}
-            member={member}
-            onSubmit={handleSubmit}
-            services={services}
-          />
+          <>
+            <BusinessMemberForm
+              canEditRoleAndStatus={can('EDIT_MEMBER_ROLE_AND_STATUS')}
+              error={submitError}
+              isSubmitting={isSubmitting}
+              member={member}
+              onSubmit={handleSubmit}
+              services={services}
+            />
+            {activeMembership.role === 'OWNER' && member.isActive ? (
+            <View style={styles.transferCard}>
+              <AppText color="danger" variant="heading">İşletme sahipliğini devret</AppText>
+              <AppText color="textMuted" style={styles.transferCopy} variant="bodySmall">
+                Bu çalışan yeni sahip olur; sen yönetici olarak işletmede kalırsın.
+              </AppText>
+              {isTransferPending ? (
+                <>
+                  <AuthTextField
+                    icon={{ ios: 'number', android: 'pin', web: 'pin' }}
+                    keyboardType="number-pad"
+                    label="E-posta doğrulama kodu"
+                    maxLength={6}
+                    onChangeText={(value) => setTransferCode(value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    value={transferCode}
+                  />
+                  {devTransferCode ? (
+                    <AppText color="primary" style={styles.devCode} variant="label">
+                      Geliştirme kodu: {devTransferCode}
+                    </AppText>
+                  ) : null}
+                  <AppButton disabled={isTransferring} onPress={() => void confirmTransfer()} variant="secondary">
+                    {isTransferring ? 'Devrediliyor…' : 'Sahipliği Onayla ve Devret'}
+                  </AppButton>
+                </>
+              ) : (
+                <AppButton disabled={isTransferring} onPress={confirmTransferRequest} variant="secondary">
+                  {isTransferring ? 'Kod gönderiliyor…' : 'Sahipliği Devret'}
+                </AppButton>
+              )}
+            </View>
+            ) : null}
+          </>
         ) : null}
       </ScrollView>
     </Screen>
@@ -158,7 +252,15 @@ export default function EditBusinessMemberScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { fontSize: 11, lineHeight: 16, marginBottom: spacing.lg, marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
+  transferCard: {
+    borderColor: '#E8C8C5',
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: spacing.xl,
+    padding: spacing.md,
+  },
+  transferCopy: { lineHeight: 18, marginBottom: spacing.md, marginTop: spacing.xs },
+  devCode: { marginBottom: spacing.sm },
 });

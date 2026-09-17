@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 import { AppText } from './AppText';
 
 type SectionHeaderProps = {
@@ -12,7 +12,7 @@ type SectionHeaderProps = {
 export function SectionHeader({ actionLabel, onActionPress, title }: SectionHeaderProps) {
   return (
     <View style={styles.container}>
-      <AppText style={styles.title} variant="heading">
+      <AppText style={styles.title} variant="sectionTitle">
         {title}
       </AppText>
       {actionLabel && onActionPress ? (
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    marginTop: spacing.xl,
+    marginTop: layout.sectionGap,
   },
   title: { flex: 1 },
   pressed: { opacity: 0.68 },

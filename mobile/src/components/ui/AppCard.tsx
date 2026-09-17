@@ -1,12 +1,16 @@
 import type { PropsWithChildren } from 'react';
 import { StyleSheet, View, type ViewProps } from 'react-native';
 
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function AppCard({ children, style, ...props }: PropsWithChildren<ViewProps>) {
+  const colors = useThemeColors();
+
   return (
-    <View style={[styles.card, style]} {...props}>
+    <View
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, style]}
+      {...props}>
       {children}
     </View>
   );
@@ -14,9 +18,7 @@ export function AppCard({ children, style, ...props }: PropsWithChildren<ViewPro
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     padding: spacing.md,
   },

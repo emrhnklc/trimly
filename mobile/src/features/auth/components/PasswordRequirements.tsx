@@ -15,6 +15,8 @@ export function PasswordRequirements({
   confirmation,
   password,
 }: PasswordRequirementsProps) {
+  if (!password) return null;
+
   const items = [
     ...passwordRequirements.map((requirement) => ({
       id: requirement.id,
@@ -69,6 +71,16 @@ export function PasswordRequirements({
 const styles = StyleSheet.create({
   container: { marginTop: spacing.sm },
   title: { fontFamily: "Inter_700Bold" },
-  list: { gap: spacing.xs, marginTop: spacing.xs },
-  row: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
+  list: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  row: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xs,
+    minWidth: "47%",
+  },
 });

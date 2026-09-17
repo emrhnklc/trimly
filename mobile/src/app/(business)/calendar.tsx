@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
@@ -38,8 +38,10 @@ import {
 import type { BusinessWorkingHours } from '@/features/schedules/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function BusinessCalendarScreen() {
+  const themeColors = useThemeColors();
   const { token } = useAuth();
   const { activeMembership, can } = useBusiness();
   const timeZone = activeMembership?.barbershop.timezone ?? 'Europe/Istanbul';
@@ -52,10 +54,14 @@ export default function BusinessCalendarScreen() {
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadVersion = useRef(0);
 
   const loadCalendar = useCallback(
     async (refreshing = false) => {
       if (!activeMembership || !token) return;
+
+      const requestVersion = ++loadVersion.current;
+      const isCurrentRequest = () => requestVersion === loadVersion.current;
 
       if (refreshing) setRefreshing(true);
       else setLoading(true);
@@ -81,20 +87,28 @@ export default function BusinessCalendarScreen() {
           workingHoursRequest,
         ]);
 
-        setAppointments(nextAppointments);
-        const activeMembers = nextMembers.filter((member) => member.isActive);
-        setMembers(activeMembers);
-        setSelectedMemberId((currentMemberId) =>
-          currentMemberId && activeMembers.some((member) => member.id === currentMemberId)
-            ? currentMemberId
-            : null,
+        const activeMembers = nextMembers.filter(
+          (member) => member.isActive && member.user,
         );
-        setWorkingHours(nextWorkingHours);
+        if (isCurrentRequest()) {
+          setAppointments(nextAppointments);
+          setMembers(activeMembers);
+          setSelectedMemberId((currentMemberId) =>
+            currentMemberId && activeMembers.some((member) => member.id === currentMemberId)
+              ? currentMemberId
+              : null,
+          );
+          setWorkingHours(nextWorkingHours);
+        }
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : 'Takvim yüklenemedi.');
+        if (isCurrentRequest()) {
+          setError(reason instanceof Error ? reason.message : 'Takvim yüklenemedi.');
+        }
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (isCurrentRequest()) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [activeMembership, can, token],
@@ -103,6 +117,10 @@ export default function BusinessCalendarScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadCalendar();
+
+      return () => {
+        loadVersion.current += 1;
+      };
     }, [loadCalendar]),
   );
 
@@ -180,7 +198,7 @@ export default function BusinessCalendarScreen() {
             {can('VIEW_ALL_APPOINTMENTS') ? (
               <View style={styles.filterSection}>
                 <View style={styles.sectionHeading}>
-                  <AppText variant="label">Çalışan</AppText>
+                <AppText variant="label">Çalışan</AppText>
                   <AppText color="textMuted" style={styles.memberCount} variant="bodySmall">
                     {members.length} aktif çalışan
                   </AppText>
@@ -204,7 +222,7 @@ export default function BusinessCalendarScreen() {
                     : 'Çalışma saati tanımlı değil'}
                 </AppText>
               </View>
-              <View style={styles.countBadge}>
+              <View style={[styles.countBadge, { backgroundColor: themeColors.surfaceMuted }]}>
                 <AppText color="primary" style={styles.count} variant="label">
                   {selectedAppointments.length}
                 </AppText>
@@ -212,7 +230,14 @@ export default function BusinessCalendarScreen() {
             </View>
 
             {!selectedWorkingHours && !selectedAppointments.length ? (
-              <View style={styles.closedCard}>
+              <View
+                style={[
+                  styles.closedCard,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}>
                 <AppText variant="label">İşletme bugün kapalı</AppText>
                 <AppText color="textMuted" style={styles.closedDescription} variant="bodySmall">
                   Bugün için çalışma saati veya randevu bulunmuyor.
@@ -251,7 +276,6 @@ const styles = StyleSheet.create({
   hours: { fontSize: 11, lineHeight: 15, marginTop: 2 },
   countBadge: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 28,
     justifyContent: 'center',
@@ -261,8 +285,6 @@ const styles = StyleSheet.create({
   count: { fontSize: 11, lineHeight: 15 },
   closedCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     marginTop: spacing.lg,

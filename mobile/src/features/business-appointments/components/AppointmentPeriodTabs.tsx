@@ -1,15 +1,16 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
+import { useAppPreferences } from '@/features/preferences/AppPreferencesProvider';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export type AppointmentPeriod = 'today' | 'upcoming' | 'history';
 
-const periods: { id: AppointmentPeriod; label: string }[] = [
-  { id: 'today', label: 'Bugün' },
-  { id: 'upcoming', label: 'Yaklaşan' },
-  { id: 'history', label: 'Geçmiş' },
+const periods: { id: AppointmentPeriod; label: { en: string; tr: string } }[] = [
+  { id: 'today', label: { en: 'Today', tr: 'Bugün' } },
+  { id: 'upcoming', label: { en: 'Upcoming', tr: 'Yaklaşan' } },
+  { id: 'history', label: { en: 'History', tr: 'Geçmiş' } },
 ];
 
 export function AppointmentPeriodTabs({
@@ -19,8 +20,11 @@ export function AppointmentPeriodTabs({
   onChange: (period: AppointmentPeriod) => void;
   value: AppointmentPeriod;
 }) {
+  const colors = useThemeColors();
+  const { language } = useAppPreferences();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {periods.map((period) => {
         const isSelected = period.id === value;
 
@@ -32,14 +36,14 @@ export function AppointmentPeriodTabs({
             onPress={() => onChange(period.id)}
             style={({ pressed }) => [
               styles.item,
-              isSelected && styles.selectedItem,
+              isSelected && { backgroundColor: colors.primary },
               pressed && styles.pressed,
             ]}>
             <AppText
               color={isSelected ? 'onPrimary' : 'textMuted'}
               style={styles.label}
               variant="label">
-              {period.label}
+              {period.label[language]}
             </AppText>
           </Pressable>
         );
@@ -50,8 +54,6 @@ export function AppointmentPeriodTabs({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -65,7 +67,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 36,
   },
-  selectedItem: { backgroundColor: colors.primary },
   label: { fontSize: 11, lineHeight: 15 },
   pressed: { opacity: 0.7 },
 });

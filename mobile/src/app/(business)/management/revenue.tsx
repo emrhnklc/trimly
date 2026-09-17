@@ -25,7 +25,7 @@ import { BusinessManagementState } from '@/features/business-management/componen
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 export default function BusinessRevenueScreen() {
   const router = useRouter();
@@ -100,10 +100,6 @@ export default function BusinessRevenueScreen() {
           onBack={() => router.dismissTo('/management')}
           title="Gelirler"
         />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          Tamamlanan işlemlerden oluşan dönemsel işletme performansını incele.
-        </AppText>
-
         <RevenuePeriodSelector onChange={selectPeriod} value={period} />
 
         {summary ? (
@@ -131,18 +127,12 @@ export default function BusinessRevenueScreen() {
             <RevenueMetrics summary={summary} />
 
             <View style={styles.sectionHeading}>
-              <AppText style={styles.sectionTitle} variant="heading">Gelir hareketi</AppText>
-              <AppText color="textMuted" variant="bodySmall">
-                Dönem içindeki tamamlanmış hizmetlerin dağılımı.
-              </AppText>
+              <AppText style={styles.sectionTitle} variant="sectionTitle">Gelir hareketi</AppText>
             </View>
             <RevenueBarChart period={period} points={summary.points} />
 
             <View style={styles.sectionHeading}>
-              <AppText style={styles.sectionTitle} variant="heading">Çalışan katkısı</AppText>
-              <AppText color="textMuted" variant="bodySmall">
-                Tamamlanan işlemlerin çalışanlara göre gelir dağılımı.
-              </AppText>
+              <AppText style={styles.sectionTitle} variant="sectionTitle">Çalışan katkısı</AppText>
             </View>
             <MemberRevenueList
               members={summary.byMember}
@@ -163,14 +153,13 @@ export default function BusinessRevenueScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
-  sectionHeading: { marginTop: spacing.xl },
-  sectionTitle: { fontSize: 18, lineHeight: 24, marginBottom: 2 },
+  sectionHeading: { marginTop: layout.sectionGap },
+  sectionTitle: { fontSize: 22, lineHeight: 28 },
   infoCard: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     marginTop: spacing.lg,
     padding: spacing.md,
   },

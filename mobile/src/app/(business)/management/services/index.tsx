@@ -16,7 +16,7 @@ import {
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { layout, spacing } from '@/theme/spacing';
 
 export default function ManagementServicesScreen() {
   const router = useRouter();
@@ -82,9 +82,6 @@ export default function ManagementServicesScreen() {
               onBack={() => router.dismissTo('/management')}
               title="Hizmetler"
             />
-            <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-              Fiyat, süre ve görünürlük ayarlarını buradan yönet.
-            </AppText>
             <ServiceStatusFilters onChange={setFilter} value={filter} />
 
             {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
@@ -101,7 +98,7 @@ export default function ManagementServicesScreen() {
 
             {!isLoading && !error ? (
               <View style={styles.listHeading}>
-                <AppText variant="label">Hizmet listesi</AppText>
+                <AppText style={styles.listTitle} variant="sectionTitle">Hizmetler</AppText>
                 <AppText color="textMuted" style={styles.count} variant="bodySmall">
                   {visibleServices.length} hizmet
                 </AppText>
@@ -149,15 +146,15 @@ export default function ManagementServicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { fontSize: 11, lineHeight: 16, marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   listHeading: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
-    marginTop: spacing.lg,
+    marginTop: layout.sectionGap,
   },
+  listTitle: { fontSize: 22, lineHeight: 28 },
   count: { fontSize: 11, lineHeight: 15 },
 });

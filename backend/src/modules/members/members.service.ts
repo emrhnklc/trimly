@@ -5,13 +5,167 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+import { EmailService } from '../../common/email/email.service';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UpdateBusinessMemberDto } from './dto/update-business-member.dto';
 
 @Injectable()
 export class MembersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
+
+  async requestOwnershipTransfer(
+    barbershopId: string,
+    targetMemberId: string,
+    currentOwnerId: string,
+  ) {
+    const [owner, target] = await Promise.all([
+      this.prisma.businessMember.findUnique({
+        where: {
+          userId_barbershopId: { userId: currentOwnerId, barbershopId },
+        },
+        select: {
+          id: true,
+          isActive: true,
+          role: true,
+          user: { select: { email: true } },
+          barbershop: { select: { name: true } },
+        },
+      }),
+      this.prisma.businessMember.findFirst({
+        where: { id: targetMemberId, barbershopId },
+        select: { id: true, isActive: true, role: true, userId: true },
+      }),
+    ]);
+    if (!owner?.isActive || owner.role !== 'OWNER') {
+      throw new BadRequestException(
+        'Sahiplik devrini yalnız mevcut işletme sahibi başlatabilir.',
+      );
+    }
+    if (
+      !target ||
+      !target.isActive ||
+      target.role === 'OWNER' ||
+      target.userId === currentOwnerId
+    ) {
+      throw new BadRequestException(
+        'Yeni sahip, bu işletmede aktif bir çalışan olmalıdır.',
+      );
+    }
+
+    const code = randomInt(100000, 1000000).toString();
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.ownershipTransferChallenge.updateMany({
+        where: { currentOwnerId, barbershopId, usedAt: null },
+        data: { usedAt: now },
+      }),
+      this.prisma.ownershipTransferChallenge.create({
+        data: {
+          currentOwnerId,
+          barbershopId,
+          targetMemberId,
+          codeHash: this.ownershipTransferCodeHash(
+            currentOwnerId,
+            targetMemberId,
+            code,
+          ),
+          expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+        },
+      }),
+    ]);
+    await this.emailService.sendOwnershipTransferCode(
+      owner.user.email,
+      code,
+      owner.barbershop.name,
+    );
+    return {
+      ownershipTransferVerificationRequired: true,
+      ...(this.emailService.usesDevelopmentPreview
+        ? { devOwnershipTransferCode: code }
+        : {}),
+    };
+  }
+
+  async confirmOwnershipTransfer(
+    barbershopId: string,
+    targetMemberId: string,
+    currentOwnerId: string,
+    code: string,
+  ) {
+    const challenge = await this.prisma.ownershipTransferChallenge.findFirst({
+      where: { currentOwnerId, barbershopId, targetMemberId, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (
+      !challenge ||
+      challenge.expiresAt <= new Date() ||
+      challenge.attempts >= 5
+    ) {
+      throw new BadRequestException(
+        'Sahiplik devri kodu geçersiz veya süresi dolmuş.',
+      );
+    }
+    const expected = Buffer.from(challenge.codeHash, 'hex');
+    const received = Buffer.from(
+      this.ownershipTransferCodeHash(currentOwnerId, targetMemberId, code),
+      'hex',
+    );
+    if (
+      expected.length !== received.length ||
+      !timingSafeEqual(expected, received)
+    ) {
+      await this.prisma.ownershipTransferChallenge.update({
+        where: { id: challenge.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new BadRequestException('Sahiplik devri kodu hatalı.');
+    }
+
+    const now = new Date();
+    await this.prisma.$transaction(async (transaction) => {
+      const [owner, target] = await Promise.all([
+        transaction.businessMember.findUnique({
+          where: {
+            userId_barbershopId: { userId: currentOwnerId, barbershopId },
+          },
+          select: { id: true, isActive: true, role: true },
+        }),
+        transaction.businessMember.findFirst({
+          where: { id: targetMemberId, barbershopId },
+          select: { id: true, isActive: true, role: true, userId: true },
+        }),
+      ]);
+      if (
+        !owner?.isActive ||
+        owner.role !== 'OWNER' ||
+        !target?.isActive ||
+        target.role === 'OWNER' ||
+        target.userId === currentOwnerId
+      ) {
+        throw new BadRequestException(
+          'İşletme üyelikleri değiştiği için sahiplik devri yapılamadı.',
+        );
+      }
+      await transaction.ownershipTransferChallenge.update({
+        where: { id: challenge.id },
+        data: { usedAt: now },
+      });
+      await transaction.businessMember.update({
+        where: { id: target.id },
+        data: { role: 'OWNER' },
+      });
+      await transaction.businessMember.update({
+        where: { id: owner.id },
+        data: { role: 'MANAGER' },
+      });
+    });
+    return { message: 'İşletme sahipliği devredildi.' };
+  }
 
   async createInvitation(
     barbershopId: string,
@@ -59,8 +213,80 @@ export class MembersService {
 
     return {
       ...invitation,
-      inviteUrl: `https://trimly.app/join/${token}`,
+      token,
     };
+  }
+
+  async previewInvitation(token: string) {
+    const invitation = await this.prisma.businessInvitation.findUnique({
+      where: { tokenHash: this.hashToken(token) },
+      select: {
+        id: true,
+        role: true,
+        expiresAt: true,
+        usedAt: true,
+        revokedAt: true,
+        barbershop: { select: { id: true, name: true, slug: true } },
+      },
+    });
+
+    if (!invitation) throw new NotFoundException('Davet bulunamadı.');
+
+    return {
+      id: invitation.id,
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      status: this.invitationStatus(invitation),
+      barbershop: invitation.barbershop,
+    };
+  }
+
+  async findInvitations(barbershopId: string) {
+    const invitations = await this.prisma.businessInvitation.findMany({
+      where: { barbershopId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        role: true,
+        expiresAt: true,
+        createdAt: true,
+        usedAt: true,
+        revokedAt: true,
+        acceptedByUser: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    });
+
+    return invitations.map((invitation) => ({
+      id: invitation.id,
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      createdAt: invitation.createdAt,
+      status: this.invitationStatus(invitation),
+      acceptedBy: invitation.acceptedByUser
+        ? `${invitation.acceptedByUser.firstName} ${invitation.acceptedByUser.lastName}`
+        : null,
+    }));
+  }
+
+  async revokeInvitation(barbershopId: string, invitationId: string) {
+    const invitation = await this.prisma.businessInvitation.findFirst({
+      where: { id: invitationId, barbershopId },
+      select: { id: true, usedAt: true, revokedAt: true },
+    });
+    if (!invitation) throw new NotFoundException('Davet bulunamadı.');
+    if (invitation.usedAt) {
+      throw new BadRequestException('Kullanılmış bir davet iptal edilemez.');
+    }
+    if (invitation.revokedAt) return { revoked: true };
+
+    await this.prisma.businessInvitation.update({
+      where: { id: invitation.id },
+      data: { revokedAt: new Date() },
+    });
+    return { revoked: true };
   }
 
   async acceptInvitation(token: string, userId: string) {
@@ -143,6 +369,17 @@ export class MembersService {
         },
       });
     });
+  }
+
+  private invitationStatus(invitation: {
+    expiresAt: Date;
+    revokedAt: Date | null;
+    usedAt: Date | null;
+  }) {
+    if (invitation.revokedAt) return 'REVOKED' as const;
+    if (invitation.usedAt) return 'USED' as const;
+    if (invitation.expiresAt <= new Date()) return 'EXPIRED' as const;
+    return 'ACTIVE' as const;
   }
 
   findByBarbershop(barbershopId: string) {
@@ -306,6 +543,19 @@ export class MembersService {
       },
       select: { id: true, role: true, isActive: true, isBookable: true },
     });
+  }
+
+  private ownershipTransferCodeHash(
+    currentOwnerId: string,
+    targetMemberId: string,
+    code: string,
+  ) {
+    const secret =
+      process.env.EMAIL_VERIFICATION_SECRET ?? process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET must be configured.');
+    return createHmac('sha256', secret)
+      .update(`ownership-transfer:${currentOwnerId}:${targetMemberId}:${code}`)
+      .digest('hex');
   }
 
   async assignService(

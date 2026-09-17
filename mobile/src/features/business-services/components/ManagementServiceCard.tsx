@@ -33,7 +33,7 @@ export function ManagementServiceCard({
           <View style={[styles.statusBadge, !service.isActive && styles.inactiveBadge]}>
             <View style={[styles.statusDot, !service.isActive && styles.inactiveDot]} />
             <AppText
-              color={service.isActive ? 'primary' : 'textMuted'}
+              color={service.isActive ? 'success' : 'textMuted'}
               style={styles.statusLabel}
               variant="label">
               {service.isActive ? 'Aktif' : 'Pasif'}
@@ -70,11 +70,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     marginBottom: spacing.sm,
-    minHeight: 92,
+    minHeight: 88,
     padding: spacing.sm,
   },
   inactive: { opacity: 0.72 },
@@ -82,17 +82,17 @@ const styles = StyleSheet.create({
   iconShell: {
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: radius.sm,
-    height: 48,
+    borderRadius: radius.smallCard,
+    height: 44,
     justifyContent: 'center',
-    width: 48,
+    width: 44,
   },
-  content: { flex: 1, marginHorizontal: spacing.sm },
+  content: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   titleRow: { alignItems: 'center', flexDirection: 'row' },
-  name: { flex: 1, fontSize: 14, lineHeight: 19 },
+  name: { flex: 1, fontSize: 16, lineHeight: 21, minWidth: 0 },
   statusBadge: {
     alignItems: 'center',
-    backgroundColor: '#F4E7C8',
+    backgroundColor: colors.successSurface,
     borderRadius: radius.pill,
     flexDirection: 'row',
     gap: 4,
@@ -100,8 +100,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
-  inactiveBadge: { backgroundColor: colors.background },
-  statusDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 5, width: 5 },
+  inactiveBadge: { backgroundColor: colors.surfaceMuted },
+  statusDot: { backgroundColor: colors.success, borderRadius: radius.pill, height: 5, width: 5 },
   inactiveDot: { backgroundColor: colors.textMuted },
   statusLabel: { fontSize: 8, lineHeight: 11 },
   description: { fontSize: 10, lineHeight: 14, marginTop: 3 },

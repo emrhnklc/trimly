@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
+import { BrandedPageHeader } from '@/components/ui/BrandedPageHeader';
 import { Screen } from '@/components/ui/Screen';
 import { BarbershopPreviewCard } from '@/features/barbershops/components/BarbershopPreviewCard';
 import {
@@ -12,12 +14,12 @@ import {
 import { BarbershopSearch } from '@/features/barbershops/components/BarbershopSearch';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
-import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BarbershopDiscoveryScreen() {
   const router = useRouter();
+  const { filter } = useLocalSearchParams<{ filter?: string }>();
   const [barbershops, setBarbershops] = useState<PublicBarbershop[]>([]);
   const [searchText, setSearchText] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
@@ -26,14 +28,15 @@ export default function BarbershopDiscoveryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
-  const loadBarbershops = useCallback(async (search?: string, refresh = false) => {
+  const loadBarbershops = useCallback(async (search?: string, refresh = false, location?: { latitude: number; longitude: number }) => {
     if (refresh) setIsRefreshing(true);
     else setIsLoading(true);
     setError(null);
 
     try {
-      setBarbershops(await getPublicBarbershops(search));
+      setBarbershops(await getPublicBarbershops(search, location));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'İşletmeler yüklenemedi.');
     } finally {
@@ -42,16 +45,42 @@ export default function BarbershopDiscoveryScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    const requestId = setTimeout(() => void loadBarbershops(), 0);
-    return () => clearTimeout(requestId);
-  }, [loadBarbershops]);
-
   function submitSearch() {
     const search = searchText.trim();
     setSubmittedSearch(search);
     void loadBarbershops(search);
   }
+
+  const changeFilter = useCallback(async (nextFilter: DiscoveryFilter) => {
+    setActiveFilter(nextFilter);
+    setLocationError(null);
+    if (nextFilter !== 'nearby') {
+      await loadBarbershops(submittedSearch);
+      return;
+    }
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setLocationError('Yakındaki işletmeleri gösterebilmemiz için konum izni vermelisin.');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      await loadBarbershops(submittedSearch, false, {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    } catch {
+      setLocationError('Konum alınamadı. Cihazının konum ayarlarını kontrol edip tekrar dene.');
+    }
+  }, [loadBarbershops, submittedSearch]);
+
+  useEffect(() => {
+    const requestId = setTimeout(
+      () => void (filter === 'nearby' ? changeFilter('nearby') : loadBarbershops()),
+      0,
+    );
+    return () => clearTimeout(requestId);
+  }, [changeFilter, filter, loadBarbershops]);
 
   const displayedBarbershops = useMemo(() => {
     if (activeFilter === 'popular') {
@@ -104,11 +133,10 @@ export default function BarbershopDiscoveryScreen() {
         }
         ListHeaderComponent={
           <View>
-            <HomeHeader />
-            <AppText style={styles.title} variant="displayLarge">Berberler</AppText>
-            <AppText color="textMuted" style={styles.subtitle}>
-              Tarzına en uygun berber dükkânını keşfet.
-            </AppText>
+            <BrandedPageHeader
+              subtitle="Tarzına en uygun berber dükkânını keşfet."
+              title="Berberler"
+            />
             <BarbershopSearch
               onChangeText={setSearchText}
               onFilterPress={() => setShowFilters((current) => !current)}
@@ -117,7 +145,7 @@ export default function BarbershopDiscoveryScreen() {
             />
             {showFilters ? (
               <View style={styles.filters}>
-                <BarbershopDiscoveryFilters activeFilter={activeFilter} onChange={setActiveFilter} />
+                <BarbershopDiscoveryFilters activeFilter={activeFilter} onChange={(filter) => void changeFilter(filter)} />
               </View>
             ) : null}
             <View style={styles.resultsHeader}>
@@ -126,6 +154,7 @@ export default function BarbershopDiscoveryScreen() {
                 <AppText color="primary" variant="bodySmall">{displayedBarbershops.length} sonuç</AppText>
               ) : null}
             </View>
+            {locationError ? <AppText color="danger" style={styles.locationError} variant="bodySmall">{locationError}</AppText> : null}
           </View>
         }
         refreshControl={
@@ -148,19 +177,18 @@ export default function BarbershopDiscoveryScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
-  title: { fontSize: 30, lineHeight: 36, marginTop: spacing.xl },
-  subtitle: { fontSize: 14, lineHeight: 20, marginTop: spacing.xs },
   filters: { marginHorizontal: -spacing.lg, marginTop: spacing.md, paddingLeft: spacing.lg },
   resultsHeader: {
-    alignItems: 'center',
+    alignItems: 'baseline',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
     marginTop: spacing.xl,
   },
-  separator: { height: spacing.xs },
+  separator: { height: spacing.sm },
   loader: { marginTop: spacing.xxl },
   emptyState: { alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.xxl },
   emptyTitle: { textAlign: 'center' },
   emptyDescription: { marginTop: spacing.xs, textAlign: 'center' },
+  locationError: { marginBottom: spacing.sm, textAlign: 'center' },
 });

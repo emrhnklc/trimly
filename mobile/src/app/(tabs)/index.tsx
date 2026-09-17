@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -43,36 +43,63 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadVersion = useRef(0);
 
   const loadHome = useCallback(async (refreshing = false) => {
     if (!token) return;
+
+    const requestVersion = ++loadVersion.current;
+    const isCurrentRequest = () => requestVersion === loadVersion.current;
 
     if (refreshing) setIsRefreshing(true);
     else setIsLoading(true);
     setError(null);
 
     try {
-      const [nextBarbershops, nextAppointments, favorites] = await Promise.all([
+      const [barbershopsResult, appointmentsResult, favoritesResult] = await Promise.allSettled([
         getPublicBarbershops(),
         getMyAppointments(token),
         getFavoriteBarbershops(token),
       ]);
 
-      setBarbershops(nextBarbershops);
-      setAppointments(nextAppointments);
-      setFavoriteIds(favorites.map(({ barbershop }) => barbershop.id));
-      setReferenceTime(Date.now());
+      if (isCurrentRequest() && barbershopsResult.status === 'fulfilled') {
+        setBarbershops(barbershopsResult.value);
+      }
+      if (isCurrentRequest() && appointmentsResult.status === 'fulfilled') {
+        setAppointments(appointmentsResult.value);
+      }
+      if (isCurrentRequest() && favoritesResult.status === 'fulfilled') {
+        setFavoriteIds(favoritesResult.value.map(({ barbershop }) => barbershop.id));
+      }
+
+      if (
+        barbershopsResult.status === 'rejected' &&
+        appointmentsResult.status === 'rejected' &&
+        favoritesResult.status === 'rejected'
+      ) {
+        throw barbershopsResult.reason;
+      }
+
+      if (isCurrentRequest()) setReferenceTime(Date.now());
     } catch (reason: unknown) {
-      setError(reason instanceof Error ? reason.message : 'Ana sayfa yüklenemedi.');
+      if (isCurrentRequest()) {
+        setError(reason instanceof Error ? reason.message : 'Ana sayfa yüklenemedi.');
+      }
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (isCurrentRequest()) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, [token]);
 
   useFocusEffect(
     useCallback(() => {
       void loadHome();
+
+      return () => {
+        loadVersion.current += 1;
+      };
     }, [loadHome]),
   );
 
@@ -145,20 +172,14 @@ export default function HomeScreen() {
       icon: { ios: 'location.fill', android: 'near_me', web: 'near_me' },
       id: 'nearby',
       label: 'Yakındaki Berberler',
-      onPress: () => router.push('/barbers'),
+      onPress: () => router.push({ pathname: '/barbers', params: { filter: 'nearby' } }),
     },
     {
-      description: nextAppointment ? 'Detayını hızlıca gör' : 'Yeni randevu planla',
-      icon: { ios: 'calendar.badge.clock', android: 'event', web: 'event' },
-      id: 'next-appointment',
-      label: 'En Yakın Randevu',
-      onPress: () => openNextAppointment(nextAppointment),
-    },
-    {
-      description: 'Stil arşivi yakında',
+      description: 'Beğenilenler ve kendi stillerin',
       icon: { ios: 'photo.stack', android: 'photo_library', web: 'photo_library' },
       id: 'saved-styles',
       label: 'Kaydettiğin Stiller',
+      onPress: () => router.push('/profile/history'),
     },
   ];
 

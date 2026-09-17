@@ -14,6 +14,10 @@ Temel farkı, yalnız randevu oluşturmak değil; tamamlanan tıraşın fotoğra
 
 Bir kullanıcı için ayrıca "müşteri" veya "işletme" modu veritabanında saklanmaz. Kullanıcının işletme üyeliklerinden işletme yetkileri türetilir; mobil arayüzde yalnızca görünüm/mod seçimi bulunur.
 
+Müşteri ve işletme profillerine geçiş tek bir **Profillerim** ekranından yapılır. Müşteri kimliği ile kullanıcının aktif bütün işletme üyelikleri burada ayrı profil kartları olarak gösterilir; seçili profil işaretlenir ve karta tek dokunuş ilgili ana ekrana geçirir. Yeni işletme oluşturma ve çalışan davetine katılma girişleri de bu merkezde bulunur. Böylece müşteri profili, işletme profili ve hesap ayarlarında birbirinden farklı “mod değiştir” kontrolleri kullanılmaz.
+
+Uygulama tercihleri cihazda kalıcı tutulur. Tema seçimi **Sistem / Açık / Koyu**, dil seçimi **Türkçe / English** seçeneklerini sunar ve aynı hesapta hem müşteri hem işletme görünümünde ortak kullanılır. Tema altyapısı ortak ekran, kart, metin, düğme ve alt navigasyon bileşenlerinden başlayarak bütün ekranlara yayılır; yeni ekranlar sabit renk yerine semantik tema renklerini kullanmalıdır. İngilizce metinler merkezi tercih altyapısından seçilir ve yeni kullanıcı metinleri Türkçe/İngilizce karşılıklarıyla eklenmelidir.
+
 Kullanıcı kendi profilini JWT ile `GET /users/me` ve `PATCH /users/me` üzerinden yönetir. Şifre hash'i gibi hassas alanlar bu yanıtlarda asla dönmez.
 
 ### E-posta doğrulama
@@ -40,7 +44,7 @@ Mobil uygulamadaki ilk ekran, canlı `GET /barbershops` isteğiyle işletmeleri 
 
 ### Keşif
 
-İlk çalışan keşif sürümünde isimle arama ve işletme listesi yeterlidir. Ancak ürün kararı olarak işletme konumu zorunludur: işletme profilinde adresin yanında koordinat (`latitude`, `longitude`) tutulacaktır. Böylece sonraki keşif adımında “yakınımdakiler”, il/ilçe seçimi ve mesafeye göre sıralama eklenebilir. Müşterinin canlı konumu yalnız açık izniyle kullanılır; kullanıcı ayrıca elle konum/ilçe arayabilmelidir.
+İşletme profilinde adresin yanında koordinat (`latitude`, `longitude`) tutulur. Yeni işletme oluşturma akışında adres ve cihazdan doğrulanan koordinat zorunludur; koordinatı bulunmayan eski veya API üzerinden taslak oluşturulan işletmeler keşfette yayınlanmaz. Owner veya manager işletme ayarlarında cihazın bulunduğu konumu işletme konumu olarak kaydedebilir. Müşteri “Yakınımdaki” filtresini seçtiğinde yalnız açık foreground izniyle cihaz konumu alınır; API Haversine mesafesini hesaplayıp koordinatı bulunan işletmeleri yakınlığa göre sıralar ve kartlarda metre/kilometre değerini gösterir. Herkese açık işletme detayındaki “Yol Tarifi” eylemi koordinatı Apple Maps veya Google Maps'e aktarır; Trimly bu aşamada ücretli bir harita SDK'sı ya da geocoding API'si kullanmaz. İzin verilmezse normal keşif kullanılmaya devam eder ve kullanıcıya açıklayıcı mesaj gösterilir. İl/ilçe veya haritadan manuel nokta seçimi sonraki geliştirmedir.
 
 Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: `trimly.app/b/ali-barber`. QR kod bu bağlantıyı içerir.
 
@@ -64,7 +68,7 @@ Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: 
 - Kod, her randevuda yeniden istenen bir parola değildir. Başarılı kullanım kullanıcı-işletme erişimi olarak kaydedilir. İşletme kodunu yenileyebilir ve daha önce verilmiş müşteri erişimini kaldırabilir. Tahmin edilebilir kısa kod tek başına kalıcı yetki taşımaz; backend deneme sınırı ve güvenli doğrulama uygular.
 - Berber portföyü, müşterinin özel tıraş geçmişinden tamamen ayrı tutulacaktır. Berber kendi portföyüne fotoğraf, başlık ve model etiketleri ekler. Müşteri geçmişindeki fotoğraf, yalnız açık rızayla ayrı bir portföy kaydına dönüştürülebilir.
 - İşletme oluştururken konum zorunlu ürün verisidir. Adres, koordinat, il ve ilçe ile desteklenir. Önce mevcut adres alanı korunur; koordinat/mesafe sorgusu için veritabanı ve harita/geocoding altyapısı ayrı teknik adımda eklenir.
-- Yorum yalnız gerçekten tamamlanmış randevusu olan müşteri tarafından bırakılabilir. Yorumlara fotoğraf ekleme, berber yanıtı, şikâyet/moderasyon ve müşteri izni kuralları olmadan açılmaz.
+- Yorum yalnız gerçekten tamamlanmış randevusu olan müşteri tarafından bırakılabilir. Her randevu tek bir doğrulanmış yoruma bağlanır; müşteri 1–5 yıldız verir, isteğe bağlı en fazla 1000 karakter yorum ve en fazla üç fotoğraf ekler. Yorum ve fotoğraflar sonradan güncellenebilir veya silinebilir. Herkese açık gösterimde müşterinin soyadı yalnız baş harfiyle sunulur. Berber yanıtı ile şikâyet/moderasyon araçları ayrı aşamada eklenir.
 
 ### İleri aşama — portföy ve keşif
 
@@ -72,15 +76,67 @@ Her işletmenin benzersiz bir `slug` değeri olur. Örnek profil bağlantısı: 
 - `StyleTag`: `TAPER_FADE`, `LOW_FADE`, `SKIN_FADE`, `BUZZ_CUT`, `BEARD` gibi aranabilir model etiketleri. Bir portföy kaydında birden çok etiket olabilir.
 - Keşif filtreleri: model etiketi, hizmet, il/ilçe, mesafe ve müsaitlik.
 - Konum tabanlı sorgular için işletme koordinatı, mesafe hesabı ve gerektiğinde PostGIS/uygun coğrafi indeks kullanılacaktır.
-- Doğrulanmış yorum, puan, opsiyonel yorum fotoğrafı, berber yanıtı ve raporlama/moderasyon akışı portföyden sonraki aşamada ele alınacaktır.
+- Doğrulanmış yorum, puan ve opsiyonel yorum fotoğrafı randevu ve işletme profili akışına eklendi. Sıradaki yorum geliştirmeleri berber yanıtı, şikâyet ve moderasyon akışıdır.
+
+### Ürün fikri notu — sosyal stil keşfi
+
+Trimly ileride kullanıcıların açıkça yayınlamayı seçtiği tıraşları sergileyebildiği, diğer kullanıcıların stilleri beğenip “Beğendiklerim” koleksiyonuna kaydedebildiği bir keşif akışı sunabilir. Bu özellik genel amaçlı bir sosyal ağ olarak değil, stil keşfinden ilgili işletme/berbere ve randevuya geçiş sağlayan bir ürün yüzeyi olarak başlamalıdır.
+
+İlk sürümde herkese açık stil akışı, beğenme/kaydetme, stil etiketleri, berber ve işletme bağlantısı yeterlidir. Takip sistemi ve yorumlar; spam, taciz, bildirim yükü ve moderasyon araçları çözülmeden açılmamalıdır. Kullanıcı kendi paylaşımını istediği anda yayından kaldırabilmeli; paylaşımın kaldırılması özel tıraş geçmişini otomatik olarak silmemelidir.
+
+### İşletme galerisi, berber portföyü ve yayın izni
+
+- **İşletme galerisi** mekânı anlatır: dış cephe, koltuklar, çalışma ortamı, hijyen ve ekip görselleri. Owner/manager tarafından yönetilir.
+- **Tıraşlar / Stil Portföyü** yapılan işleri anlatır. Her kayıt işletmeye ve işi yapan `BusinessMember` kaydına bağlanır; işletme profilinde tüm çalışmalar gösterilebilir ve berbere göre filtrelenebilir.
+- MVP'de ayrı bir bağımsız berber sosyal profili açmak yerine işletme profiline “Mekân” ve “Tıraşlar” bölümleri eklenir. Ekip üyesine dokunulduğunda aynı işletme içindeki portföyü filtrelenir.
+- Fotoğrafın müşterinin özel tıraş geçmişine kaydedilmesi ile herkese açık portföyde yayınlanması iki ayrı amaç ve iki ayrı rızadır. Özel geçmiş izni, yayın izni yerine geçmez.
+- Kamera açılmadan önce fotoğrafın özel geçmiş için çekilmesine izin alınır. Fotoğraf çekildikten ve müşteri sonucu görebildikten sonra berber ayrıca “Portföyde yayınlama izni iste” talebi gönderebilir.
+- Yayın izni varsayılan olarak kapalıdır. Talep müşterinin kendi Trimly hesabında/onay ekranında kabul edilmeden fotoğraf public hale gelmez; berber müşterinin yerine onay veremez.
+- Müşteri daha sonra izni geri çekebilir. Bu durumda portföy kaydı hemen gizlenir; özel tıraş kaydının saklanması/silinmesi ayrı tercihle yönetilir.
+- Yüzün göründüğü fotoğraflarda bunun açıkça belirtilmesi, mümkünse varsayılan kadrajın saç/sakal sonucuna odaklanması ve production storage alanlarının private/imzalı URL düzenini koruması gerekir.
 
 ### İleri aşama — Trimly Plus
 
-Plus, temel berber/model/konum aramasını kısıtlamaz; zaman kazandıran ve otomasyon sağlayan özellikleri sunar:
+Trimly Plus'ın ürün vaadi “daha çok menü” değil, **“Trimly seni tanır ve her tıraşını daha kolay hale getirir”** olmalıdır. Plus; temel berber/model/konum aramasını, normal randevu hatırlatmalarını, favorileri, randevu/tıraş geçmişini veya güvenlik ve gizlilik kontrollerini kısıtlamaz. Ücretli değer zaman kazandırma, öncelik, kişiselleştirme ve otomasyondan gelir.
 
-- Haftalık, iki haftada bir veya aylık tekrarlayan randevu tercihi.
-- Favori berberde istenen saat boşaldığında öncelikli bildirim.
-- Gelişmiş “aynısını tekrar iste” ve kişisel stil tercihleri.
+#### Plus'ın önerilen dört ana sütunu
+
+1. **Akıllı Stil Hafızası:** Önceki tıraşlardaki fotoğraf, berber, hizmet ve müşterinin/berberin notlarını anlamlı bir stil profiline dönüştürür. “Yanlar 0.5, üstler makas, ense doğal” gibi tercihler yeniden anlatılmadan kullanılabilir. Temel randevu ve tıraş geçmişi herkese açık kalır; Plus karşılaştırma, gelişmiş notlar, tercihlerden otomatik özet ve koleksiyon düzenleme sunar.
+2. **Akıllı Tekrar ve Bakım Döngüsü:** Herkes aynı berber ve hizmetle yeniden randevu başlatabilir. Plus; önceki gün/saat alışkanlıklarına göre uygun slotları öne çıkarır, kullanıcının ortalama 24–28 günlük bakım döngüsünü öğrenir ve doğru zamanda alternatifleriyle önerir.
+3. **Öncelikli Boş Slot ve Esneklik Asistanı:** Kullanıcı “Bugün 18:00–21:00, Bornova, favorilerimden biri veya benzeri” gibi ölçütler tanımlar. Uygun slotları sistem toplar; favori berberde iptal açıldığında Plus kullanıcısına erken bildirim veya süreli öncelik verilebilir. Adil kullanım için öncelik süresi sınırlı olmalı ve normal kullanıcıların randevu almasını kalıcı olarak engellememelidir.
+4. **Kişisel Berber ve Stil Eşleştirme:** Kayıtlı stiller, geçmiş hizmetler, fiyat aralığı, konum ve kesim tercihleriyle daha isabetli sıralama yapılır. Temel stil/model araması ücretsiz kalır. Kişiselleştirme açık rızalı, kapatılabilir ve “neden önerildi?” açıklaması gösterebilir olmalıdır.
+
+#### Paketi güçlendiren Plus özellikleri
+
+- **Stil İstek Kartları:** Kullanıcı referans fotoğraf, kesim notu ve saç/sakal tercihlerinden tekrar kullanılabilir şablonlar oluşturur; seçilen kart randevu öncesi berbere iletilir. Randevuya tek seferlik temel not/fotoğraf eklemek ücretsiz kalmalı, kayıtlı şablonlar ve akıllı öneriler Plus olabilir.
+- **Fotoğraflı Stil Koleksiyonları:** “Yaz”, “Kısa”, “Düğün” ve “Sakal” gibi klasörler; notlar ve önce/sonra karşılaştırmaları. Temel kaydedilen stiller ücretsiz, gelişmiş koleksiyon ve karşılaştırma araçları Plus olabilir.
+- **Favori Berber Takibi:** Yeni çalışma saati, izin dönüşü, yeni hizmet ve fiyat değişikliği gibi güncellemeleri kişiselleştirilmiş özet halinde sunar. Favori işletmenin normal kampanya bildirimi herkese açık kalır; gelişmiş filtreler, fiyat takibi ve erken erişim Plus olabilir.
+- **Plus kampanyaları ve son dakika fırsatları:** İşletmeler boş saatleri doldurmak için Plus'a özel veya Plus'ın önce gördüğü süreli fırsatlar açabilir. Normal işletme kampanyaları paywall arkasına taşınmaz. İndirim maliyetini kimin karşıladığı, kullanım sınırı ve kötüye kullanım kuralları kampanya modelinde açıkça tutulur.
+- **Fiyat ve bakım bütçesi:** Hizmet fiyat değişikliği, aylık/altı aylık bakım harcaması ve isteğe bağlı bütçe görünümü. Tek başına abonelik nedeni değil, paketi destekleyen bir özelliktir.
+- **Aile/yakın profilleri:** Çocuk veya yakını adına randevu oluşturma ve yönetme. Yetki, yaş, bildirim, fotoğraf gizliliği ve rıza modeli çözülmeden açılmamalıdır; güçlü fakat ileri aşama bir Plus adayıdır.
+- **Tıraş öncesi hazırlık:** Seçilen hizmet ve kullanıcının tercihlerine göre kısa hazırlık önerileri. Faydalı içerik olarak sunulabilir ancak tek başına Plus'ın ana satış nedeni değildir.
+- **Reklamsız deneyim ve öncelikli destek:** Uygulamada sponsorlu yüzeyler veya ölçekli destek operasyonu oluşursa ikincil Plus avantajı olabilir.
+
+#### Herkese açık kalması gerekenler
+
+- Favori işletmelerin standart kampanya bildirimleri; kullanıcı işletme bazında açıp kapatabilmelidir.
+- Temel randevu hatırlatmaları, favoriler, randevu geçmişi ve müşterinin kendi tıraş fotoğraflarına erişimi.
+- Temel “aynı berber ve hizmetle tekrar randevu al” akışı.
+- Fotoğraf paylaşım izni, izni geri çekme, seçili berberle paylaşma ve benzeri güvenlik/gizlilik kontrolleri. Gizlilik daha düşük abonelik katmanında zayıflatılmaz.
+- Temel stil/model araması ve işletme keşfi.
+
+Abonelik sona erdiğinde müşterinin geçmişi, fotoğrafları veya oluşturduğu veriler silinmez. Plus'a özel akıllı özetler, otomasyonlar ve gelişmiş düzenleme kapanabilir; kullanıcının kendi verisi okunabilir ve dışa aktarılabilir kalır.
+
+#### Olası ilk Plus sürümü
+
+İlk ücretli sürüm bütün fikirleri aynı anda içermemelidir. En anlaşılır başlangıç paketi:
+
+- Akıllı Stil Hafızası ve tekrar kullanılabilir stil kartları
+- Akıllı “son tıraşı tekrarla” ve bakım zamanı önerisi
+- Favori berber için öncelikli boş slot bildirimi
+- Esnek saat/konum ölçütleriyle randevu asistanı
+
+Kişisel eşleştirme, fiyat takibi, Plus kampanyaları ve aile profilleri kullanım verisi ve operasyon ihtiyacı görüldükçe eklenir. Fiyatlandırmadan önce bu dört özelliğin müşteriye ayda kaç dakika veya kaç lira kazandırdığı gerçek kullanıcılarla ölçülmelidir.
 
 Tekrarlayan randevu doğrudan, sonsuza kadar slot kapatan bir yapı olmayacaktır. `RecurringBookingPlan`; işletme, çalışan, hizmet, sıklık, tercih edilen gün/saat ve aktiflik bilgisini taşır. Sistem her oluşacak randevuda güncel vardiya, izin, fiyat ve availability kurallarını kontrol eder: uygunsa randevu oluşturur/bildirim gönderir, uygun değilse alternatif saat sunar. Kullanıcı planı duraklatabilir, tek seferi atlayabilir veya iptal edebilir.
 
@@ -124,7 +180,7 @@ MVP'de rollerden türetilen sabit bir permission haritası kullanılacak. Özel 
 
 ## Çalışan daveti ve bookable kuralı
 
-Owner veya yetkili yönetici süreli, rolü önceden seçilmiş ve en fazla kullanım sayısı belirlenmiş bir davet oluşturur. Davet bağlantısı/kodu tahmin edilemeyen güvenli bir token ile temsil edilir; okunabilir kısa kod yalnız kullanıcı deneyimi içindir.
+Owner veya yetkili yönetici süreli, rolü önceden seçilmiş ve tek kullanımlık bir davet oluşturur. Davet bağlantısı/kodu tahmin edilemeyen güvenli bir token ile temsil edilir; rolü davet edilen kullanıcı değiştiremez.
 
 Her `BusinessMember` için `isBookable` alanı bulunur:
 
@@ -141,6 +197,10 @@ Owner veya manager, `PUT /barbershops/:barbershopId/members/:memberId/bookable` 
 - **Çalışan Davet Kodum:** Ekibe `MANAGER`, `BARBER` veya `APPRENTICE` olarak katılım için süreli, tek kullanımlık davet bağlantısı oluşturur.
 
 Çalışan davet ekranına hem `Yönetim > Çalışanlar` içinden hem de işletme profilindeki kısayoldan ulaşılır. Bu iki yönetim kısayolu yalnız gerekli yetkileri bulunan owner ve manager rollerinde gösterilir.
+
+Çalışan daveti QR ve Expo/production deep link olarak paylaşılır. Link açıldığında işletme adı, atanacak rol, geçerlilik ve davet durumu giriş yapılmadan görülebilir. Kullanıcı giriş veya kayıt/e-posta doğrulama akışına giderse token korunur ve doğrulama sonrasında aynı davete geri döner. Owner/manager son davetleri `ACTIVE`, `USED`, `EXPIRED` ve `REVOKED` durumlarıyla görür; kullanılmamış aktif daveti iptal edebilir.
+
+Özel müşteri erişiminde owner/manager kodla erişim kazanmış aktif müşterileri görür ve tekil erişimi kaldırabilir. Erişimi kaldırılan müşteri, işletme `CODE_REQUIRED` durumundayken yeni kodu doğrulamadan tekrar randevu alamaz.
 
 Owner, `PATCH /barbershops/:barbershopId/members/:memberId` ile owner olmayan bir çalışanın rolünü değiştirebilir veya üyeliğini pasife alabilir. Pasife alınan kişi otomatik olarak müşteri randevusuna kapatılır. Owner rolünü değiştirmek ya da devretmek daha hassas olduğu için ayrı bir sahiplik devri akışında ele alınır.
 
@@ -222,7 +282,7 @@ Fotoğraf binary verisi PostgreSQL'e konmaz. Dosya storage servisinde tutulur; v
 
 Fotoğraflar kişisel veri kabul edilir. MVP'de müşteri fotoğrafı eklenmeden önce işletmenin müşteriden izin aldığını doğrulayan bir akış ve müşterinin kaydı sildirme talebi için ürün kararı gerekir. Storage erişimi public, tahmin edilebilir URL olmamalıdır; gerektiğinde imzalı URL kullanılır.
 
-Local geliştirmede fotoğraflar backend'in gitignore'daki `uploads/haircut-photos/` klasöründe dosya olarak saklanır. Berber, tamamlanmış randevunun tıraş kaydı oluşturulduktan sonra `POST /barbershops/:barbershopId/appointments/:appointmentId/haircut-record/photos` üzerinden JPEG/PNG/WebP ve en fazla 5 MB dosya yükler. Müşteri fotoğrafı yalnız JWT ile `GET /haircut-records/:recordId/photos/:photoId` üzerinden görür; berbere fotoğraf okuma API'si verilmez. Production'da bu local storage Supabase/S3 gibi private storage ve imzalı URL yapısına taşınmalıdır.
+Local geliştirmede fotoğraflar backend'in gitignore'daki `uploads/` klasöründe dosya olarak saklanır. Profil fotoğrafı mobil galeriden seçilir ve JWT ile `POST /users/me/profile-photo` üzerinden JPEG/PNG/WebP ve en fazla 5 MB olarak yüklenir; dosya imzası ve MIME türü doğrulanır. Fotoğraf uygulamadaki herkese açık profil kartlarında kullanılabildiğinden `GET /users/profile-images/:fileName` ile yalnız rastgele oluşturulmuş dosya adı üzerinden sunulur; eski uygulama fotoğrafı değiştirildiğinde veya kaldırıldığında silinir. Berber, tamamlanmış randevunun tıraş kaydı oluşturulduktan sonra `POST /barbershops/:barbershopId/appointments/:appointmentId/haircut-record/photos` üzerinden JPEG/PNG/WebP ve en fazla 5 MB dosya yükler. Müşteri tıraş fotoğrafını yalnız JWT ile `GET /haircut-records/:recordId/photos/:photoId` üzerinden görür; berbere fotoğraf okuma API'si verilmez. Production'da local storage Supabase/S3 gibi object storage'a taşınmalı; profil fotoğrafları public CDN, tıraş fotoğrafları private storage ve imzalı URL ile sunulmalıdır.
 
 ### Tıraş fotoğrafı çekim kuralı
 
@@ -230,6 +290,8 @@ Local geliştirmede fotoğraflar backend'in gitignore'daki `uploads/haircut-phot
 - Çekilen fotoğraf cihazın Fotoğraflar/Galeri uygulamasına kaydedilmez. Dosya yalnız uygulamanın geçici önbelleğinde tutulur, Trimly'nin private storage alanına yüklenir ve işlem tamamlandığında geçici kopya temizlenir.
 - Bu akış yalnız kamera izni ister; medya galerisi erişim izni istemez. Kamera izni verilmezse fotoğraf ekleme yapılamaz ancak randevunun tamamlanması engellenmez.
 - Kamera açılmadan önce müşterinin açık rızasının alındığı işletme çalışanı tarafından doğrulanır. Fotoğraf yüklemek zorunlu değildir.
+- Her tıraş fotoğrafında yükleyen taraf `BUSINESS` veya `CUSTOMER` olarak tutulur. İşletme yalnız kendi kamera akışında çektiği fotoğraf için portföy yayın izni isteyebilir; müşterinin sonradan kendi geçmişine eklediği fotoğraf işletme cevabına dahil edilmez.
+- İşletmenin private fotoğraf okuma erişimi kayıt tamamlandığında kapanır. Müşteriler ekranından veya tamamlanmış randevu detayından fotoğraf URL'si verilmez; eski private URL doğrudan çağrılsa da reddedilir. Müşteri yayın izni verirse işletme aynı çalışmayı yalnız public portföy kaydı üzerinden görebilir.
 
 “Aynısını tekrar iste” seçeneği önceki kayıttaki işletme, çalışan ve hizmet seçimini taşır. Yeni tarih/saat yine güncel uygunluk kurallarına göre seçilir.
 
@@ -296,21 +358,21 @@ Salt okunur takvim, hizmet kataloğu ve profil ekranlarını deneyen örnek appr
 - Referral, abonelik ve ödüller
 - Online ödeme
 - SMS/WhatsApp hatırlatma
-- Yorum/puanlama, kampanyalar, kuponlar ve gelişmiş analytics
+- Berber yanıtı ve yorum moderasyonu, kampanyalar, kuponlar ve gelişmiş analytics
 
 ## Bundan sonraki ilerleme sırası
 
 Yeni büyüme özelliklerine geçmeden önce mevcut MVP aşağıdaki sırayla tamamlanıp sağlamlaştırılır:
 
 1. **Auth güvenliği:** E-posta doğrulama ve şifremi unuttum/sıfırlama akışı tamamlandı. Sıradaki auth işi production SMTP sağlayıcısının bağlanmasıdır. Telefon numarası doğrulaması daha sonra SMS sağlayıcısıyla eklenebilir.
-2. **Kullanıcı profili:** Doğum tarihi gibi kayıt alanlarını veritabanına bağlama; profil fotoğrafını URL yazmak yerine güvenli yükleme akışına taşıma.
+2. **Kullanıcı profili:** Opsiyonel doğum tarihi veritabanına ve profil düzenleme akışına bağlandı. Sıradaki iş profil fotoğrafını URL yazmak yerine güvenli yükleme akışına taşımaktır.
 3. **İşletme kurulumu ve galeri:** İşletme oluştururken en az üç görsel alma, kapak/profil/galeri ayrımı ve görsel yönetimi.
-4. **Konum tabanlı keşif:** İşletme koordinatları, cihaz konum izni, gerçek mesafe hesabı ve “Yakındaki Berberler” filtresi.
+4. **Konum tabanlı keşif:** İşletme koordinatları, cihaz konum izni, gerçek mesafe hesabı ve “Yakındaki Berberler” filtresi tamamlandı. Sıradaki konum işi manuel il/ilçe ve haritadan nokta seçimidir.
 5. **Production dosya saklama:** Local `uploads` yerine private Supabase Storage/S3, imzalı fotoğraf erişimi, sıkıştırma ve silme politikası.
 6. **Gerçek cihaz bildirimleri:** Apple/Android imzalı build, push credential ayarları ve iOS/Android cihaz testleri.
 7. **MVP kalite turu:** Rol/yetki, eşzamanlı randevu, saat dilimi, izin, iptal, no-show ve fotoğraf gizliliği senaryolarının uçtan uca testi.
 8. **Canlıya hazırlık:** Backend ve PostgreSQL deployment, secret yönetimi, loglama, hata izleme, yedekleme, gizlilik metinleri ve mağaza hazırlıkları.
-9. **Sosyal özellikler:** Gerçek yorum/puanlama, işletme portföyü ve stil/model araması.
+9. **Sosyal özellikler:** Doğrulanmış yorum/puanlama ve işletme portföyü tamamlandı; sırada stil/model araması ile yorum moderasyonu var.
 10. **Gelir özellikleri:** Trimly Plus, tekrarlayan randevu, referral/ödül sistemi ve online ödeme.
 
 Apple ve Google ile giriş, temel e-posta/şifre auth akışı tamamlanıp production kimlik bilgileri hazırlandıktan sonra eklenir. İş ilanları ve Trimly Mağaza ise çekirdek randevu ürünü gerçek kullanıcılarla doğrulandıktan sonraki en ileri aşamadır.

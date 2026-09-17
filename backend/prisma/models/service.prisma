@@ -12,6 +12,7 @@ model Service {
   barbershop        Barbershop              @relation(fields: [barbershopId], references: [id])
   memberAssignments BusinessMemberService[]
   appointments      Appointment[]
+  campaigns         CampaignService[]
 
   @@index([barbershopId, isActive])
 }

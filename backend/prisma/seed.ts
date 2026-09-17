@@ -35,6 +35,8 @@ type ShopSeed = {
   description: string;
   address: string;
   phone: string;
+  latitude: number;
+  longitude: number;
   owner: { email: string; firstName: string; lastName: string };
   manager?: { email: string; firstName: string; lastName: string };
   barber: { email: string; firstName: string; lastName: string };
@@ -55,6 +57,8 @@ const shops: ShopSeed[] = [
       'Klasik kesimden modern fade modellerine, sıcak ve özenli bir berber deneyimi.',
     address: 'Alsancak, Konak / İzmir',
     phone: '+90 232 555 10 10',
+    latitude: 38.4372,
+    longitude: 27.1434,
     owner: {
       email: 'owner.alsancak@trimly.dev',
       firstName: 'Emir',
@@ -103,6 +107,8 @@ const shops: ShopSeed[] = [
       'Kordon manzarasında klasik berber kültürü ve modern dokunuşlar.',
     address: 'Kordon, Konak / İzmir',
     phone: '+90 232 555 20 20',
+    latitude: 38.4327,
+    longitude: 27.1367,
     owner: {
       email: 'owner.kordon@trimly.dev',
       firstName: 'Burak',
@@ -140,6 +146,8 @@ const shops: ShopSeed[] = [
     description: 'Hızlı, temiz ve ulaşılabilir mahalle berberliği.',
     address: 'Kazımdirik, Bornova / İzmir',
     phone: '+90 232 555 30 30',
+    latitude: 38.4565,
+    longitude: 27.2162,
     owner: {
       email: 'owner.bornova@trimly.dev',
       firstName: 'Can',
@@ -227,6 +235,9 @@ async function seedShop(shop: ShopSeed, passwordHash: string) {
       description: shop.description,
       address: shop.address,
       phone: shop.phone,
+      latitude: shop.latitude,
+      longitude: shop.longitude,
+      isDiscoverable: true,
       timezone: 'Europe/Istanbul',
     },
     create: {
@@ -235,6 +246,9 @@ async function seedShop(shop: ShopSeed, passwordHash: string) {
       description: shop.description,
       address: shop.address,
       phone: shop.phone,
+      latitude: shop.latitude,
+      longitude: shop.longitude,
+      isDiscoverable: true,
       timezone: 'Europe/Istanbul',
     },
   });

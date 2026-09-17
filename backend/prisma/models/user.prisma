@@ -7,14 +7,24 @@ model User {
   phone           String?   @unique
   firstName       String
   lastName        String
+  birthDate       DateTime?
+  provinceCode    String?
+  province        String?
+  district        String?
+  neighborhood    String?
   profileImageUrl String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
   memberships                 BusinessMember[]
   customerAppointments        Appointment[]
   acceptedInvitations         BusinessInvitation[]
   favoriteBarbershops         FavoriteBarbershop[]
+  favoriteBarbershopPhotos    FavoriteBarbershopPhoto[]
+  customerPortfolioItems      BarberPortfolioItem[]
+  favoritePortfolioItems      FavoritePortfolioItem[]
+  appointmentReviews          AppointmentReview[]
   barbershopAccesses          CustomerBarbershopAccess[]
   barbershopAccessAttempts    CustomerBarbershopAccessAttempt[]
   pushDevices                 PushDevice[]
@@ -22,6 +32,53 @@ model User {
   notifications               AppNotification[]
   emailVerificationChallenges EmailVerificationChallenge[]
   passwordResetChallenges     PasswordResetChallenge[]
+  authSessions                AuthSession[]
+  accountDeletionChallenges   AccountDeletionChallenge[]
+  ownershipTransferChallenges OwnershipTransferChallenge[]
+}
+
+model AccountDeletionChallenge {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model OwnershipTransferChallenge {
+  id             String    @id @default(cuid())
+  currentOwnerId String
+  barbershopId   String
+  targetMemberId String
+  codeHash       String
+  attempts       Int       @default(0)
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  currentOwner User @relation(fields: [currentOwnerId], references: [id], onDelete: Cascade)
+
+  @@index([currentOwnerId, barbershopId, createdAt])
+  @@index([expiresAt])
+}
+
+model AuthSession {
+  id           String    @id @default(cuid())
+  userId       String
+  deviceName   String
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  revokedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, lastActiveAt])
 }
 
 model PasswordResetChallenge {

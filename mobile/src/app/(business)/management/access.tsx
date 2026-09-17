@@ -1,6 +1,7 @@
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { Image } from 'expo-image';
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import {
   ActivityIndicator,
@@ -30,8 +31,13 @@ import { createBarbershopAccessLink } from '@/features/barbershops/deep-link';
 import { BusinessManagementState } from '@/features/business-management/components/BusinessManagementState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import {
+  getCustomerBarbershopAccesses,
+  revokeCustomerBarbershopAccess,
+} from '@/features/members/api';
+import type { CustomerBarbershopAccess } from '@/features/members/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 type AccessModeOption = {
   description: string;
@@ -65,14 +71,20 @@ function formatUpdatedAt(value: string | null) {
 
 export default function BusinessAccessSettingsScreen() {
   const router = useRouter();
+  const { returnTo, source } = useLocalSearchParams<{
+    returnTo?: string;
+    source?: string;
+  }>();
   const { token } = useAuth();
   const { activeMembership, can } = useBusiness();
   const [settings, setSettings] = useState<BarbershopAccessSettings | null>(null);
   const [selectedMode, setSelectedMode] = useState<BarbershopAccessMode | null>(null);
   const [visibleCode, setVisibleCode] = useState<string | null>(null);
+  const [customerAccesses, setCustomerAccesses] = useState<CustomerBarbershopAccess[]>([]);
   const [isLoading, setLoading] = useState(true);
   const [isSaving, setSaving] = useState(false);
   const [isRotating, setRotating] = useState(false);
+  const [revokingCustomerId, setRevokingCustomerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -82,11 +94,12 @@ export default function BusinessAccessSettingsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const loaded = await getBarbershopAccessSettings(
-        activeMembership.barbershop.id,
-        token,
-      );
+      const [loaded, accesses] = await Promise.all([
+        getBarbershopAccessSettings(activeMembership.barbershop.id, token),
+        getCustomerBarbershopAccesses(activeMembership.barbershop.id, token),
+      ]);
       setSettings(loaded);
+      setCustomerAccesses(accesses);
       setSelectedMode(loaded.accessMode);
       setVisibleCode(null);
     } catch (reason) {
@@ -106,7 +119,7 @@ export default function BusinessAccessSettingsScreen() {
 
   const canManage = can('MANAGE_BUSINESS_PROFILE');
   const hasChanges = Boolean(settings && selectedMode !== settings.accessMode);
-  const isBusy = isSaving || isRotating;
+  const isBusy = isSaving || isRotating || Boolean(revokingCustomerId);
 
   async function createNewCode() {
     if (!token || !activeMembership || isBusy) return null;
@@ -200,17 +213,64 @@ export default function BusinessAccessSettingsScreen() {
     });
   }
 
+  function confirmCustomerRevoke(access: CustomerBarbershopAccess) {
+    const name = `${access.user.firstName} ${access.user.lastName}`;
+    Alert.alert(
+      'Müşteri erişimini kaldır',
+      `${name}, özel erişim kodunu yeniden kullanmadan bu işletmeden randevu alamayacak.`,
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Erişimi Kaldır',
+          style: 'destructive',
+          onPress: () => void revokeCustomer(access.user.id),
+        },
+      ],
+    );
+  }
+
+  async function revokeCustomer(customerId: string) {
+    if (!token || !activeMembership || revokingCustomerId) return;
+    setRevokingCustomerId(customerId);
+    setError(null);
+    try {
+      await revokeCustomerBarbershopAccess(
+        activeMembership.barbershop.id,
+        customerId,
+        token,
+      );
+      setCustomerAccesses((current) =>
+        current.filter(({ user }) => user.id !== customerId),
+      );
+      setSuccess('Müşterinin özel işletme erişimi kaldırıldı.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Müşteri erişimi kaldırılamadı.');
+    } finally {
+      setRevokingCustomerId(null);
+    }
+  }
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <BusinessDetailHeader
-          onBack={() => router.back()}
-          title="Randevu Erişimi"
-        />
-        <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-          İşletmene kimlerin ulaşabileceğini ve randevu alabileceğini belirle.
-        </AppText>
+          onBack={() => {
+            if (returnTo === 'profile') {
+              router.replace('/(business)/profile');
+              return;
+            }
+            if (returnTo === 'business') {
+              router.dismissTo({
+                pathname: '/management/business',
+                params: source === 'profile' ? { source } : {},
+              });
+              return;
+            }
 
+            router.dismissTo('/management');
+          }}
+          title={returnTo === 'profile' ? 'Davet ve Erişim' : 'Randevu Erişimi'}
+        />
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && error && !settings ? (
@@ -241,7 +301,40 @@ export default function BusinessAccessSettingsScreen() {
               </View>
             </View>
 
-            <AppText style={styles.sectionTitle} variant="heading">Erişim biçimi</AppText>
+            {can('INVITE_MEMBERS') ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() =>
+                  router.push({
+                    pathname: '/management/members/invite',
+                    params: { source: 'profile' },
+                  })
+                }
+                style={({ pressed }) => pressed && styles.pressed}>
+                <AppCard style={styles.employeeInviteCard}>
+                  <View style={styles.employeeInviteIcon}>
+                    <SymbolView
+                      name={{ ios: 'person.badge.plus', android: 'group_add', web: 'group_add' }}
+                      size={23}
+                      tintColor={colors.primary}
+                    />
+                  </View>
+                  <View style={styles.employeeInviteCopy}>
+                    <AppText variant="label">Çalışan davetleri</AppText>
+                    <AppText color="textMuted" variant="bodySmall">
+                      Rol seç, QR veya bağlantı oluştur ve davetleri yönet.
+                    </AppText>
+                  </View>
+                  <SymbolView
+                    name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                    size={18}
+                    tintColor={colors.textMuted}
+                  />
+                </AppCard>
+              </Pressable>
+            ) : null}
+
+            <AppText style={styles.sectionTitle} variant="sectionTitle">Erişim biçimi</AppText>
             <View accessibilityRole="radiogroup" style={styles.options}>
               {accessModeOptions.map((option) => {
                 const selected = option.mode === selectedMode;
@@ -280,7 +373,7 @@ export default function BusinessAccessSettingsScreen() {
 
             {selectedMode === 'CODE_REQUIRED' ? (
               <>
-                <AppText style={styles.sectionTitle} variant="heading">Özel erişim kodu</AppText>
+                <AppText style={styles.sectionTitle} variant="sectionTitle">Özel erişim kodu</AppText>
                 <AppCard style={styles.codeCard}>
                   {visibleCode ? (
                     <>
@@ -347,6 +440,49 @@ export default function BusinessAccessSettingsScreen() {
                     </>
                   )}
                 </AppCard>
+
+                <AppText style={styles.sectionTitle} variant="sectionTitle">Erişim verilen müşteriler</AppText>
+                <AppCard style={styles.customersCard}>
+                  {customerAccesses.length ? (
+                    customerAccesses.map((access, index) => (
+                      <View
+                        key={access.user.id}
+                        style={[
+                          styles.customerRow,
+                          index < customerAccesses.length - 1 && styles.customerDivider,
+                        ]}>
+                        {access.user.profileImageUrl ? (
+                          <Image source={access.user.profileImageUrl} style={styles.customerAvatar} />
+                        ) : (
+                          <View style={[styles.customerAvatar, styles.customerAvatarPlaceholder]}>
+                            <AppText color="primary" variant="label">
+                              {access.user.firstName.slice(0, 1).toLocaleUpperCase('tr-TR')}
+                            </AppText>
+                          </View>
+                        )}
+                        <View style={styles.customerCopy}>
+                          <AppText variant="label">
+                            {access.user.firstName} {access.user.lastName}
+                          </AppText>
+                          <AppText color="textMuted" variant="bodySmall">
+                            {formatAccessDate(access.grantedAt)} tarihinde erişti
+                          </AppText>
+                        </View>
+                        <Pressable
+                          accessibilityRole="button"
+                          disabled={!canManage || revokingCustomerId === access.user.id}
+                          onPress={() => confirmCustomerRevoke(access)}
+                          style={({ pressed }) => [styles.removeAccessButton, pressed && styles.pressed]}>
+                          <AppText color="danger" variant="label">Kaldır</AppText>
+                        </Pressable>
+                      </View>
+                    ))
+                  ) : (
+                    <AppText color="textMuted" style={styles.emptyCustomers} variant="bodySmall">
+                      Henüz kodla erişim kazanmış müşteri yok.
+                    </AppText>
+                  )}
+                </AppCard>
               </>
             ) : null}
 
@@ -381,13 +517,12 @@ export default function BusinessAccessSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 116, paddingHorizontal: spacing.md },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   heroCard: {
     alignItems: 'center',
     backgroundColor: colors.darkSurface,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     flexDirection: 'row',
     marginTop: spacing.xl,
     padding: spacing.md,
@@ -403,13 +538,23 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1, marginLeft: spacing.md },
   heroTitle: { fontSize: 18, lineHeight: 24 },
   heroDescription: { color: '#EADFCB', marginTop: 3 },
-  sectionTitle: { fontSize: 17, lineHeight: 23, marginBottom: spacing.sm, marginTop: spacing.xl },
+  employeeInviteCard: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.sm },
+  employeeInviteIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.md,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  employeeInviteCopy: { flex: 1, gap: 2, marginHorizontal: spacing.sm },
+  sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: spacing.sm, marginTop: layout.sectionGap },
   options: { gap: spacing.sm },
   option: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 104,
@@ -460,6 +605,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 46,
   },
+  customersCard: { paddingVertical: spacing.xxs },
+  customerRow: { alignItems: 'center', flexDirection: 'row', minHeight: 62, paddingVertical: spacing.xs },
+  customerDivider: { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+  customerAvatar: { borderRadius: radius.pill, height: 40, width: 40 },
+  customerAvatarPlaceholder: { alignItems: 'center', backgroundColor: colors.surfaceMuted, justifyContent: 'center' },
+  customerCopy: { flex: 1, marginLeft: spacing.sm },
+  removeAccessButton: { paddingHorizontal: spacing.xs, paddingVertical: spacing.sm },
+  emptyCustomers: { paddingVertical: spacing.md, textAlign: 'center' },
   updatedAt: { marginBottom: spacing.sm, marginTop: spacing.sm },
   message: { borderRadius: radius.md, marginBottom: spacing.sm, marginTop: spacing.sm, padding: spacing.sm },
   errorMessage: { backgroundColor: '#F8E7E3' },
@@ -468,3 +621,11 @@ const styles = StyleSheet.create({
   infoMessage: { backgroundColor: colors.surfaceMuted },
   pressed: { opacity: 0.7 },
 });
+
+function formatAccessDate(value: string) {
+  return new Intl.DateTimeFormat('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
+}

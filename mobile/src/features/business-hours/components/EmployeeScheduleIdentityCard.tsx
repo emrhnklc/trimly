@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
     backgroundColor: colors.darkSurface,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     flexDirection: 'row',
     marginTop: spacing.md,
     padding: spacing.md,
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7E9C5',
     justifyContent: 'center',
   },
-  copy: { flex: 1, marginHorizontal: spacing.sm },
+  copy: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   name: { fontSize: 16, lineHeight: 22 },
   role: { color: '#DED2C7', marginTop: 2 },
   statusIcon: {

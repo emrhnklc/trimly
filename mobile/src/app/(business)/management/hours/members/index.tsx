@@ -12,7 +12,7 @@ import { BusinessDetailHeader } from '@/features/business/components/BusinessDet
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 export default function EmployeeSchedulesScreen() {
   const router = useRouter();
@@ -68,10 +68,6 @@ export default function EmployeeSchedulesScreen() {
               onBack={() => router.dismissTo('/management/hours')}
               title="Çalışan Vardiyaları"
             />
-            <AppText color="textMuted" style={styles.subtitle} variant="bodySmall">
-              Çalışma günlerini ve saatlerini düzenlemek için bir çalışan seç.
-            </AppText>
-
             <View style={styles.infoCard}>
               <AppText variant="label">İşletme saatleri üst sınırdır</AppText>
               <AppText color="textMuted" style={styles.infoDescription} variant="bodySmall">
@@ -93,7 +89,7 @@ export default function EmployeeSchedulesScreen() {
 
             {!isLoading && !error ? (
               <View style={styles.listHeading}>
-                <AppText variant="label">Ekip</AppText>
+                <AppText style={styles.sectionTitle} variant="heading">Ekip</AppText>
                 <AppText color="textMuted" variant="bodySmall">{orderedMembers.length} çalışan</AppText>
               </View>
             ) : null}
@@ -133,12 +129,11 @@ export default function EmployeeSchedulesScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: spacing.lg },
-  subtitle: { marginTop: spacing.xs, textAlign: 'center' },
+  content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   infoCard: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.md,
-    marginTop: spacing.lg,
+    borderRadius: radius.card,
+    marginTop: spacing.md,
     padding: spacing.md,
   },
   infoDescription: { marginTop: 2 },
@@ -150,4 +145,5 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     marginTop: spacing.lg,
   },
+  sectionTitle: { fontSize: 22, lineHeight: 28 },
 });

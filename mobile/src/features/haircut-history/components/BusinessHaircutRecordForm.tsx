@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
@@ -12,10 +12,12 @@ import { fontFamily } from '@/theme/typography';
 type BusinessHaircutRecordFormProps = {
   appointment: BusinessAppointmentDetail;
   error: string | null;
+  isSaved: boolean;
   isSubmitting: boolean;
   notes: string;
   onChangeNotes: (value: string) => void;
   onChangeStyleName: (value: string) => void;
+  onAddPhoto: () => void;
   onSubmit: () => void;
   styleName: string;
 };
@@ -23,10 +25,12 @@ type BusinessHaircutRecordFormProps = {
 export function BusinessHaircutRecordForm({
   appointment,
   error,
+  isSaved,
   isSubmitting,
   notes,
   onChangeNotes,
   onChangeStyleName,
+  onAddPhoto,
   onSubmit,
   styleName,
 }: BusinessHaircutRecordFormProps) {
@@ -100,10 +104,34 @@ export function BusinessHaircutRecordForm({
           {isSubmitting
             ? 'Kaydediliyor…'
             : appointment.status === 'COMPLETED'
-              ? 'Tıraş Kaydını Güncelle'
-              : 'Tıraşı Tamamla ve Kaydet'}
+              ? 'Notları Güncelle'
+              : 'Tıraşı Tamamla ve Devam Et'}
         </AppButton>
       </View>
+
+      {isSaved ? (
+        <View style={styles.photoSuccessCard}>
+          <View style={styles.photoSuccessIcon}>
+            <SymbolView
+              name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
+              size={20}
+              tintColor={colors.primary}
+            />
+          </View>
+          <View style={styles.photoSuccessCopy}>
+            <AppText variant="label">Randevu tamamlandı</AppText>
+            <AppText color="textMuted" variant="bodySmall">
+              Müşteri izin verirse sonucu şimdi fotoğraflayabilirsin.
+            </AppText>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onAddPhoto}
+            style={({ pressed }) => [styles.photoAddButton, pressed && styles.pressed]}>
+            <AppText color="primary" variant="label">Fotoğraf Ekle</AppText>
+          </Pressable>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -150,4 +178,30 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   submitButton: { marginTop: spacing.xl },
+  photoSuccessCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: radius.card,
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+  },
+  photoSuccessIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  photoSuccessCopy: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
+  photoAddButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    justifyContent: 'center',
+    minHeight: 40,
+    paddingHorizontal: spacing.sm,
+  },
+  pressed: { opacity: 0.68 },
 });

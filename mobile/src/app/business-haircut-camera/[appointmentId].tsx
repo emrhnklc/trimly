@@ -72,7 +72,10 @@ export default function BusinessHaircutCameraScreen() {
         { uri: photoUri, mimeType: 'image/jpeg' },
         token,
       );
-      router.back();
+      router.dismissTo({
+        pathname: '/business-appointments/[appointmentId]',
+        params: { appointmentId },
+      });
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Fotoğraf yüklenemedi.');
     } finally {

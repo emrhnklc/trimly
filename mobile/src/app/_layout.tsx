@@ -18,6 +18,7 @@ import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { AppModeProvider, useAppMode } from '@/features/app-mode/AppModeProvider';
 import { BusinessProvider, useBusiness } from '@/features/business/BusinessProvider';
 import { PushNotificationsManager } from '@/features/notifications/PushNotificationsManager';
+import { AppPreferencesProvider, useAppPreferences } from '@/features/preferences/AppPreferencesProvider';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -36,16 +37,23 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <BusinessProvider>
-        <AppModeProvider>
-          <PushNotificationsManager />
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </AppModeProvider>
-      </BusinessProvider>
-    </AuthProvider>
+    <AppPreferencesProvider>
+      <AuthProvider>
+        <BusinessProvider>
+          <AppModeProvider>
+            <PushNotificationsManager />
+            <AppStatusBar />
+            <RootNavigator />
+          </AppModeProvider>
+        </BusinessProvider>
+      </AuthProvider>
+    </AppPreferencesProvider>
   );
+}
+
+function AppStatusBar() {
+  const { resolvedTheme } = useAppPreferences();
+  return <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />;
 }
 
 function RootNavigator() {
@@ -75,6 +83,10 @@ function RootNavigator() {
 
       <Stack.Protected guard={Boolean(user)}>
         <Stack.Screen name="business" />
+        <Stack.Screen name="business-access" />
+        <Stack.Screen name="data-export" />
+        <Stack.Screen name="account-delete" />
+        <Stack.Screen name="application-settings" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="barbers/[slug]" />
         <Stack.Screen name="appointments/preview" />
@@ -85,10 +97,16 @@ function RootNavigator() {
         <Stack.Screen name="business-haircut-camera/[appointmentId]" />
         <Stack.Screen name="business-customers/[customerId]" />
         <Stack.Screen name="favorites" />
+        <Stack.Screen name="campaigns" />
         <Stack.Screen name="notifications" />
+        <Stack.Screen name="password/change" />
+        <Stack.Screen name="sessions" />
+        <Stack.Screen name="profiles" />
       </Stack.Protected>
 
+      <Stack.Screen name="legal/[document]" />
       <Stack.Screen name="access/[slug]" />
+      <Stack.Screen name="join/[token]" />
     </Stack>
   );
 }

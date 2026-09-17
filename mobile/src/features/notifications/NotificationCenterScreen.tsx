@@ -37,7 +37,7 @@ function formatNotificationDate(value: string) {
 export function NotificationCenterScreen() {
   const router = useRouter();
   const { token } = useAuth();
-  const { enterBusinessMode } = useAppMode();
+  const { enterBusinessMode, enterCustomerMode } = useAppMode();
   const { memberships } = useBusiness();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -82,7 +82,11 @@ export function NotificationCenterScreen() {
       await markAppNotificationAsRead(notification.id, token).catch(() => undefined);
     }
 
-    if (notification.type === 'APPOINTMENT_REMINDER') {
+    if (
+      notification.type === 'APPOINTMENT_REMINDER' ||
+      notification.type === 'PORTFOLIO_CONSENT_REQUEST'
+    ) {
+      await enterCustomerMode();
       router.replace({
         pathname: '/appointments/[appointmentId]',
         params: { appointmentId: notification.appointment.id },

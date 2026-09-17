@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,14 +13,15 @@ import { SymbolView } from 'expo-symbols';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
+import { BrandedPageHeader } from '@/components/ui/BrandedPageHeader';
 import { Screen } from '@/components/ui/Screen';
 import { getMyAppointments } from '@/features/appointments/api';
 import { CustomerAppointmentCard } from '@/features/appointments/components/CustomerAppointmentCard';
 import type { CustomerAppointment } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { HomeHeader } from '@/features/home/components/HomeHeader';
 import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function AppointmentsScreen() {
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function AppointmentsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null);
 
   const loadAppointments = useCallback(
     async (refreshing = false) => {
@@ -62,18 +65,33 @@ export default function AppointmentsScreen() {
     const nextUpcoming = appointments
       .filter(
         (appointment) =>
-          appointment.status === 'CONFIRMED' &&
-          new Date(appointment.startsAt).getTime() >= referenceTime,
+          (appointment.status === 'ARRIVED' ||
+            (appointment.status === 'CONFIRMED' &&
+              new Date(appointment.startsAt).getTime() >= referenceTime)),
       )
       .sort((first, second) =>
         first.startsAt.localeCompare(second.startsAt),
       );
-    const nextHistory = appointments.filter(
-      (appointment) => !nextUpcoming.some(({ id }) => id === appointment.id),
-    );
+    const nextHistory = appointments
+      .filter((appointment) => !nextUpcoming.some(({ id }) => id === appointment.id))
+      .sort((first, second) => second.startsAt.localeCompare(first.startsAt));
 
     return { history: nextHistory, upcoming: nextUpcoming };
   }, [appointments, referenceTime]);
+
+  const historyMonths = useMemo(
+    () => Array.from(new Set(history.map((appointment) => getMonthKey(appointment.startsAt)))),
+    [history],
+  );
+  const activeHistoryMonth = historyMonths.includes(selectedHistoryMonth ?? '')
+    ? selectedHistoryMonth
+    : (historyMonths[0] ?? null);
+  const activeHistoryMonthIndex = activeHistoryMonth
+    ? historyMonths.indexOf(activeHistoryMonth)
+    : -1;
+  const filteredHistory = activeHistoryMonth
+    ? history.filter((appointment) => getMonthKey(appointment.startsAt) === activeHistoryMonth)
+    : [];
 
   return (
     <Screen>
@@ -88,13 +106,10 @@ export default function AppointmentsScreen() {
           />
         }
         showsVerticalScrollIndicator={false}>
-        <HomeHeader />
-        <View style={styles.header}>
-          <AppText style={styles.title} variant="displayLarge">Randevularım</AppText>
-          <AppText color="textMuted" style={styles.subtitle}>
-            Yaklaşan ve geçmiş randevularını tek yerden takip et.
-          </AppText>
-        </View>
+        <BrandedPageHeader
+          subtitle="Yaklaşan ve geçmiş randevularını tek yerden takip et."
+          title="Randevularım"
+        />
 
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
@@ -126,7 +141,7 @@ export default function AppointmentsScreen() {
             </View>
             <AppText style={styles.stateTitle} variant="heading">Henüz randevun yok</AppText>
             <AppText color="textMuted" style={styles.stateDescription}>
-              Sana uygun işletmeyi ve saati seçerek ilk randevunu oluşturabilirsin.
+              İlk randevunu kolayca oluşturabilirsin.
             </AppText>
             <View style={styles.stateButton}>
               <AppButton onPress={() => router.push('/barbers')}>Berberleri Keşfet</AppButton>
@@ -147,22 +162,36 @@ export default function AppointmentsScreen() {
               }
               title="Yaklaşan"
             />
-            <AppointmentSection
-              appointments={history}
-              emptyMessage="Geçmiş randevun bulunmuyor."
+            <HistoryAppointmentSection
+              appointments={filteredHistory}
+              canGoToNewerMonth={activeHistoryMonthIndex > 0}
+              canGoToOlderMonth={activeHistoryMonthIndex >= 0 && activeHistoryMonthIndex < historyMonths.length - 1}
+              month={activeHistoryMonth}
               onAppointmentPress={(appointmentId) =>
                 router.push({
                   pathname: '/appointments/[appointmentId]',
                   params: { appointmentId },
                 })
               }
-              title="Geçmiş"
+              onNextMonth={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex - 1])}
+              onPreviousMonth={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex + 1])}
             />
           </View>
         ) : null}
       </ScrollView>
     </Screen>
   );
+}
+
+function getMonthKey(dateValue: string) {
+  const date = new Date(dateValue);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function formatMonthLabel(monthKey: string) {
+  const [year, month] = monthKey.split('-').map(Number);
+  return new Intl.DateTimeFormat('tr-TR', { month: 'long', year: 'numeric' })
+    .format(new Date(year, month - 1, 1));
 }
 
 function AppointmentSection({
@@ -179,7 +208,7 @@ function AppointmentSection({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <AppText variant="heading">{title}</AppText>
+        <AppText variant="sectionTitle">{title}</AppText>
         <View style={styles.countBadge}>
           <AppText color="primary" variant="label">{appointments.length}</AppText>
         </View>
@@ -199,11 +228,100 @@ function AppointmentSection({
   );
 }
 
+function HistoryAppointmentSection({
+  appointments,
+  canGoToNewerMonth,
+  canGoToOlderMonth,
+  month,
+  onAppointmentPress,
+  onNextMonth,
+  onPreviousMonth,
+}: {
+  appointments: CustomerAppointment[];
+  canGoToNewerMonth: boolean;
+  canGoToOlderMonth: boolean;
+  month: string | null;
+  onAppointmentPress: (appointmentId: string) => void;
+  onNextMonth: () => void;
+  onPreviousMonth: () => void;
+}) {
+  const themeColors = useThemeColors();
+  return (
+    <View style={styles.section}>
+      <View style={styles.historyHeader}>
+        <AppText variant="sectionTitle">Geçmiş</AppText>
+        {month ? (
+          <View style={[styles.monthPicker, { backgroundColor: themeColors.surfaceMuted }]}>
+            <MonthArrowButton
+              accessibilityLabel="Önceki ay"
+              disabled={!canGoToOlderMonth}
+              direction="left"
+              onPress={onPreviousMonth}
+            />
+            <AppText numberOfLines={1} style={styles.monthLabel} variant="label">{formatMonthLabel(month)}</AppText>
+            <MonthArrowButton
+              accessibilityLabel="Sonraki ay"
+              disabled={!canGoToNewerMonth}
+              direction="right"
+              onPress={onNextMonth}
+            />
+          </View>
+        ) : null}
+      </View>
+      {appointments.length ? (
+        appointments.map((appointment) => (
+          <CustomerAppointmentCard
+            appointment={appointment}
+            key={appointment.id}
+            onPress={() => onAppointmentPress(appointment.id)}
+          />
+        ))
+      ) : (
+        <AppText color="textMuted">Geçmiş randevun bulunmuyor.</AppText>
+      )}
+    </View>
+  );
+}
+
+function MonthArrowButton({
+  accessibilityLabel,
+  direction,
+  disabled,
+  onPress,
+}: {
+  accessibilityLabel: string;
+  direction: 'left' | 'right';
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const themeColors = useThemeColors();
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      disabled={disabled}
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.monthArrow,
+        disabled && styles.monthArrowDisabled,
+        pressed && styles.monthArrowPressed,
+      ]}>
+      <SymbolView
+        name={
+          direction === 'left'
+            ? { ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }
+            : { ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }
+        }
+        size={14}
+        tintColor={themeColors.textMuted}
+      />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
-  header: { marginBottom: spacing.lg, marginTop: spacing.xl },
-  title: { fontSize: 30, lineHeight: 36 },
-  subtitle: { fontSize: 14, lineHeight: 20, marginTop: spacing.xs },
+  content: { paddingBottom: 112, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   stateBox: { alignItems: 'center', marginTop: spacing.xxxl, paddingHorizontal: spacing.lg },
   stateTitle: { marginTop: spacing.sm, textAlign: 'center' },
@@ -217,15 +335,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 64,
   },
-  section: { marginTop: spacing.lg },
-  sectionHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
+  section: { marginTop: layout.sectionGap },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  historyHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
+  monthPicker: { alignItems: 'center', borderRadius: radius.pill, flexDirection: 'row', height: 30, paddingHorizontal: 2 },
+  monthArrow: { alignItems: 'center', height: 30, justifyContent: 'center', width: 30 },
+  monthArrowDisabled: { opacity: 0.35 },
+  monthArrowPressed: { opacity: 0.65 },
+  monthLabel: { fontSize: 11, minWidth: 98, textAlign: 'center' },
   countBadge: {
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     justifyContent: 'center',
-    minHeight: 24,
-    minWidth: 24,
-    paddingHorizontal: 6,
+    minHeight: 20,
+    minWidth: 20,
+    paddingHorizontal: 5,
   },
 });

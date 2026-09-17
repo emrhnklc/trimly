@@ -130,6 +130,7 @@ describe('Business customers (e2e)', () => {
           customerId: customer.user.id,
           serviceId: service.id,
           serviceNameSnapshot: service.name,
+          originalPriceSnapshot: service.price,
           priceSnapshot: service.price,
           durationMinutes: service.durationMinutes,
           startsAt: completedStart,
@@ -143,6 +144,7 @@ describe('Business customers (e2e)', () => {
           customerId: customer.user.id,
           serviceId: service.id,
           serviceNameSnapshot: service.name,
+          originalPriceSnapshot: service.price,
           priceSnapshot: service.price,
           durationMinutes: service.durationMinutes,
           startsAt: upcomingStart,
@@ -151,6 +153,24 @@ describe('Business customers (e2e)', () => {
         },
       ],
     });
+
+    await expect(
+      prisma.appointment.create({
+        data: {
+          barbershopId,
+          businessMemberId: barbershop.members[0].id,
+          customerId: customer.user.id,
+          serviceId: service.id,
+          serviceNameSnapshot: service.name,
+          originalPriceSnapshot: service.price,
+          priceSnapshot: service.price,
+          durationMinutes: service.durationMinutes,
+          startsAt: upcomingStart,
+          endsAt: new Date(upcomingStart.getTime() + 30 * 60 * 1000),
+          status: 'ARRIVED',
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'P2039' });
 
     const revenueAnchor = DateTime.fromJSDate(completedStart)
       .setZone('Europe/Istanbul')
@@ -356,6 +376,7 @@ describe('Business customers (e2e)', () => {
         customerId: customer.user.id,
         serviceId: service.id,
         serviceNameSnapshot: service.name,
+        originalPriceSnapshot: service.price,
         priceSnapshot: service.price,
         durationMinutes: service.durationMinutes,
         startsAt: arrivalStart,
@@ -429,6 +450,7 @@ describe('Business customers (e2e)', () => {
         customerId: customer.user.id,
         serviceId: service.id,
         serviceNameSnapshot: service.name,
+        originalPriceSnapshot: service.price,
         priceSnapshot: service.price,
         durationMinutes: service.durationMinutes,
         startsAt: reminderStart,
@@ -493,6 +515,7 @@ describe('Business customers (e2e)', () => {
         customerId: customer.user.id,
         serviceId: service.id,
         serviceNameSnapshot: service.name,
+        originalPriceSnapshot: service.price,
         priceSnapshot: service.price,
         durationMinutes: service.durationMinutes,
         startsAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
