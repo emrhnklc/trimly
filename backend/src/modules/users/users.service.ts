@@ -38,6 +38,7 @@ const publicUserSelect = {
       barbershop: {
         select: {
           id: true,
+          isDiscoverable: true,
           name: true,
           slug: true,
           profileImageUrl: true,
@@ -310,6 +311,18 @@ export class UsersService {
           }),
           ...(dto.birthDate !== undefined && {
             birthDate: dto.birthDate ? parseBirthDate(dto.birthDate) : null,
+          }),
+          ...(dto.provinceCode !== undefined && {
+            provinceCode: dto.provinceCode?.trim() || null,
+          }),
+          ...(dto.province !== undefined && {
+            province: dto.province?.trim() || null,
+          }),
+          ...(dto.district !== undefined && {
+            district: dto.district?.trim() || null,
+          }),
+          ...(dto.neighborhood !== undefined && {
+            neighborhood: dto.neighborhood?.trim() || null,
           }),
         },
         select: publicUserSelect,

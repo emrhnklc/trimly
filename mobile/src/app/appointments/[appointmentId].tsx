@@ -19,7 +19,11 @@ import { FullscreenImageViewer } from '@/components/ui/FullscreenImageViewer';
 import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
-import { cancelMyAppointment, getMyAppointment } from '@/features/appointments/api';
+import {
+  cancelMyAppointment,
+  getMyAppointment,
+  respondToAppointmentChangeProposal,
+} from '@/features/appointments/api';
 import type {
   AppointmentStatus,
   CustomerAppointment,
@@ -32,6 +36,7 @@ import { resolveApiUrl } from '@/lib/api/client';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 const statusLabels: Record<AppointmentStatus, string> = {
   CONFIRMED: 'Onaylandı',
@@ -48,6 +53,7 @@ export default function AppointmentDetailScreen() {
   const [appointment, setAppointment] = useState<CustomerAppointment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isRespondingToChange, setIsRespondingToChange] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [updatingPortfolioId, setUpdatingPortfolioId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -146,6 +152,31 @@ export default function AppointmentDetailScreen() {
     }
   }
 
+  async function respondToChangeProposal(response: 'accept' | 'reject') {
+    if (!appointmentId || !token || isRespondingToChange) return;
+
+    setIsRespondingToChange(true);
+    setError(null);
+    try {
+      await respondToAppointmentChangeProposal(appointmentId, response, token);
+      await loadAppointment();
+      Alert.alert(
+        response === 'accept' ? 'Değişiklik kabul edildi' : 'Teklif reddedildi',
+        response === 'accept'
+          ? 'Randevun yeni tarih ve saate taşındı.'
+          : 'Mevcut randevun değişmeden devam ediyor. İstersen bu randevuyu cezasız iptal edebilirsin.',
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'Değişiklik teklifi yanıtlanamadı.',
+      );
+    } finally {
+      setIsRespondingToChange(false);
+    }
+  }
+
   function goBack() {
     if (router.canGoBack()) router.back();
     else router.replace('/appointments');
@@ -196,8 +227,22 @@ export default function AppointmentDetailScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <AppointmentSummary appointment={appointment} />
 
+          {appointment.changeProposal ? (
+            <CustomerChangeProposalCard
+              disabled={isRespondingToChange}
+              onAccept={() => void respondToChangeProposal('accept')}
+              onReject={() => void respondToChangeProposal('reject')}
+              proposal={appointment.changeProposal}
+            />
+          ) : null}
+
           <AppText style={styles.sectionTitle} variant="heading">Randevu Bilgileri</AppText>
           <AppCard style={styles.detailCard}>
+            <DetailRow
+              icon={{ ios: 'person.2', android: 'group', web: 'group' }}
+              label="Randevu sahibi"
+              value={appointment.attendeeNameSnapshot}
+            />
             <DetailRow
               icon={{ ios: 'person', android: 'person', web: 'person' }}
               label="Berber"
@@ -292,6 +337,69 @@ export default function AppointmentDetailScreen() {
         </ScrollView>
       ) : null}
     </Screen>
+  );
+}
+
+function CustomerChangeProposalCard({
+  disabled,
+  onAccept,
+  onReject,
+  proposal,
+}: {
+  disabled: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  proposal: NonNullable<CustomerAppointment['changeProposal']>;
+}) {
+  const themeColors = useThemeColors();
+  const barberName = `${proposal.proposedBusinessMember.user.firstName} ${proposal.proposedBusinessMember.user.lastName}`;
+
+  return (
+    <AppCard style={[styles.changeProposalCard, { borderColor: themeColors.primary }]}>
+      <View style={styles.changeProposalTitleRow}>
+        <View style={[styles.changeProposalIcon, { backgroundColor: themeColors.surfaceMuted }]}>
+          <SymbolView
+            name={{ ios: 'calendar.badge.clock', android: 'pending_actions', web: 'pending_actions' }}
+            size={22}
+            tintColor={themeColors.primary}
+          />
+        </View>
+        <View style={styles.changeProposalTitleCopy}>
+          <AppText variant="heading">Değişiklik teklifi</AppText>
+          <AppText color="textMuted" variant="bodySmall">
+            İşletme randevunda değişiklik öneriyor.
+          </AppText>
+        </View>
+      </View>
+      <View style={[styles.changeProposalDetails, { backgroundColor: themeColors.surfaceMuted }]}>
+        <AppText variant="label">{formatDateTime(proposal.proposedStartsAt)}</AppText>
+        <AppText color="textMuted" style={styles.changeProposalMeta} variant="bodySmall">
+          {proposal.proposedServiceName} · {proposal.proposedDurationMinutes} dk
+        </AppText>
+        <AppText color="textMuted" variant="bodySmall">Berber: {barberName}</AppText>
+        <AppText color="textMuted" variant="bodySmall">
+          Fiyat: ₺{formatPrice(proposal.proposedPrice)}
+        </AppText>
+        <AppText color="textMuted" style={styles.changeProposalMeta} variant="bodySmall">
+          Açıklama: {proposal.reason}
+        </AppText>
+      </View>
+      <AppText color="textMuted" style={styles.changeProposalExpiry} variant="bodySmall">
+        Son yanıt zamanı: {formatDateTime(proposal.expiresAt)}
+      </AppText>
+      <View style={styles.changeProposalActions}>
+        <View style={styles.changeProposalAction}>
+          <AppButton disabled={disabled} onPress={onReject} variant="secondary">
+            Reddet
+          </AppButton>
+        </View>
+        <View style={styles.changeProposalAction}>
+          <AppButton disabled={disabled} onPress={onAccept}>
+            Kabul Et
+          </AppButton>
+        </View>
+      </View>
+    </AppCard>
   );
 }
 
@@ -422,8 +530,20 @@ function HaircutRecordSection({
 }
 
 function AppointmentSummary({ appointment }: { appointment: CustomerAppointment }) {
+  const themeColors = useThemeColors();
   const startsAt = new Date(appointment.startsAt);
   const isCancelled = appointment.status === 'CANCELLED';
+  const isConfirmed = appointment.status === 'CONFIRMED';
+  const statusBackground = isCancelled
+    ? themeColors.dangerSurface
+    : isConfirmed
+      ? themeColors.successSurface
+      : themeColors.surfaceMuted;
+  const statusColor = isCancelled
+    ? themeColors.danger
+    : isConfirmed
+      ? themeColors.success
+      : themeColors.textMuted;
 
   return (
     <AppCard style={styles.summaryCard}>
@@ -443,8 +563,8 @@ function AppointmentSummary({ appointment }: { appointment: CustomerAppointment 
         <AppText color="textMuted" style={styles.summaryMeta}>
           {formatDateTime(appointment.startsAt)}
         </AppText>
-        <View style={[styles.statusBadge, isCancelled && styles.cancelledBadge]}>
-          <AppText color={isCancelled ? 'danger' : 'textMuted'} variant="bodySmall">
+        <View style={[styles.statusBadge, { backgroundColor: statusBackground }]}>
+          <AppText style={{ color: statusColor }} variant="bodySmall">
             {statusLabels[appointment.status]}
           </AppText>
         </View>
@@ -525,6 +645,15 @@ const styles = StyleSheet.create({
   centerText: { marginTop: spacing.xs, textAlign: 'center' },
   retryButton: { marginTop: spacing.xl, minWidth: 180 },
   content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  changeProposalCard: { gap: spacing.md, marginTop: spacing.md },
+  changeProposalTitleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm },
+  changeProposalIcon: { alignItems: 'center', borderRadius: radius.smallCard, height: 48, justifyContent: 'center', width: 48 },
+  changeProposalTitleCopy: { flex: 1 },
+  changeProposalDetails: { borderRadius: radius.smallCard, gap: 3, padding: spacing.sm },
+  changeProposalMeta: { marginTop: spacing.xxs },
+  changeProposalExpiry: { lineHeight: 18 },
+  changeProposalActions: { flexDirection: 'row', gap: spacing.xs },
+  changeProposalAction: { flex: 1 },
   summaryCard: { alignItems: 'center', flexDirection: 'row', padding: spacing.sm },
   dateBox: {
     alignItems: 'center',
@@ -539,13 +668,11 @@ const styles = StyleSheet.create({
   summaryMeta: { marginTop: spacing.xs, textTransform: 'capitalize' },
   statusBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.xs,
     paddingVertical: 3,
   },
-  cancelledBadge: { backgroundColor: '#F8E8E5' },
   sectionTitle: {
     fontFamily: fontFamily.display,
     marginBottom: spacing.sm,

@@ -23,7 +23,11 @@ const appointmentReminderSchedules: Array<{
     leadMinutes: 24 * 60,
     minimumLeadMinutes: 12 * 60,
   },
-  { field: 'reminder2hSentAt', leadMinutes: 2 * 60, minimumLeadMinutes: 0 },
+  {
+    field: 'reminder2hSentAt',
+    leadMinutes: 2 * 60,
+    minimumLeadMinutes: 115,
+  },
 ];
 
 @Injectable()
@@ -142,6 +146,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
         select: {
           id: true,
           startsAt: true,
+          updatedAt: true,
           serviceNameSnapshot: true,
           customer: {
             select: {
@@ -158,6 +163,21 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       });
 
       for (const appointment of appointments) {
+        const reminderThreshold = new Date(
+          appointment.startsAt.getTime() - schedule.leadMinutes * 60 * 1000,
+        );
+        if (appointment.updatedAt > reminderThreshold) {
+          await this.prisma.appointment.updateMany({
+            where: {
+              id: appointment.id,
+              status: 'CONFIRMED',
+              [schedule.field]: null,
+            },
+            data: { [schedule.field]: now },
+          });
+          continue;
+        }
+
         if (
           appointment.customer.notificationPreference
             ?.appointmentRemindersEnabled === false
@@ -219,7 +239,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
           id: true,
           startsAt: true,
           serviceNameSnapshot: true,
-          customer: { select: { firstName: true, lastName: true } },
+          attendeeNameSnapshot: true,
           barbershop: {
             select: {
               id: true,
@@ -249,7 +269,7 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       const startsAt = DateTime.fromJSDate(appointment.startsAt)
         .setZone(appointment.barbershop.timezone)
         .toFormat('HH:mm');
-      const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
+      const customerName = appointment.attendeeNameSnapshot;
       const title = 'Yeni randevu';
       const body = `${customerName} — ${appointment.serviceNameSnapshot} — ${startsAt}`;
       const recipientUserIds = [
@@ -335,6 +355,68 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
       const message =
         error instanceof Error ? error.message : 'Bilinmeyen hata';
       this.logger.warn(`Portföy izin bildirimi gönderilemedi: ${message}`);
+    }
+  }
+
+  async notifyAppointmentChangeProposal(proposalId: string) {
+    try {
+      const proposal = await this.prisma.appointmentChangeProposal.findUnique({
+        where: { id: proposalId },
+        select: {
+          appointment: {
+            select: {
+              id: true,
+              customer: {
+                select: {
+                  id: true,
+                  pushDevices: { select: { expoPushToken: true } },
+                },
+              },
+              barbershop: {
+                select: { id: true, name: true, timezone: true },
+              },
+            },
+          },
+          proposedStartsAt: true,
+          reason: true,
+        },
+      });
+      if (!proposal) return;
+
+      const appointment = proposal.appointment;
+      const proposedTime = DateTime.fromJSDate(proposal.proposedStartsAt)
+        .setZone(appointment.barbershop.timezone)
+        .setLocale('tr')
+        .toFormat('d LLLL HH:mm');
+      const title = 'Randevu değişiklik teklifi';
+      const body = `${appointment.barbershop.name}, randevunu ${proposedTime} olarak değiştirmeyi teklif ediyor. Açıklama: ${proposal.reason}`;
+
+      await this.prisma.appNotification.create({
+        data: {
+          userId: appointment.customer.id,
+          barbershopId: appointment.barbershop.id,
+          appointmentId: appointment.id,
+          type: 'APPOINTMENT_CHANGE_PROPOSAL',
+          title,
+          body,
+        },
+      });
+      await this.sendExpoPush(
+        appointment.customer.pushDevices.map((device) => device.expoPushToken),
+        {
+          appointmentId: appointment.id,
+          barbershopId: appointment.barbershop.id,
+          type: 'APPOINTMENT_CHANGE_PROPOSAL',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Bilinmeyen hata';
+      this.logger.warn(
+        `Randevu değişiklik teklifi bildirimi gönderilemedi: ${message}`,
+      );
     }
   }
 

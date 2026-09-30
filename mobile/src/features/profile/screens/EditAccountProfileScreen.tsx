@@ -3,9 +3,9 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter, useSegments } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter, useSegments } from "expo-router";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
-import { useMemo, useState, type PropsWithChildren } from "react";
+import { useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -25,6 +25,7 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
 import { Screen } from "@/components/ui/Screen";
 import { SettingsPageHeader } from "@/components/ui/SettingsPageHeader";
+import { UnsavedChangesSheet } from "@/components/ui/UnsavedChangesSheet";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
   removeMyProfilePhoto,
@@ -36,6 +37,16 @@ import {
   birthDateToInput,
   formatBirthDateInput,
 } from "@/features/profile/birth-date";
+import {
+  LocationSelectField,
+  type LocationOption,
+} from "@/features/locations/components/LocationSelectField";
+import {
+  getDistricts,
+  getNeighborhoods,
+  getProvinces,
+} from "@/features/locations/api";
+import { goBackOrReplace } from "@/lib/navigation/goBackOrReplace";
 import { layout, radius, spacing } from "@/theme/spacing";
 import { useThemeColors } from "@/theme/useThemeColors";
 
@@ -43,6 +54,8 @@ const earliestBirthDate = new Date(1900, 0, 1);
 
 export function EditAccountProfileScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const segments = useSegments();
   const colors = useThemeColors();
   const { token, updateUser, user } = useAuth();
@@ -52,6 +65,25 @@ export function EditAccountProfileScreen() {
   const [birthDate, setBirthDate] = useState(
     birthDateToInput(user?.birthDate ?? null),
   );
+  const [province, setProvince] = useState<LocationOption | null>(
+    user?.provinceCode && user.province
+      ? { label: user.province, value: user.provinceCode }
+      : null,
+  );
+  const [district, setDistrict] = useState<LocationOption | null>(
+    user?.district ? { label: user.district, value: user.district } : null,
+  );
+  const [neighborhood, setNeighborhood] = useState<LocationOption | null>(
+    user?.neighborhood
+      ? { label: user.neighborhood, value: user.neighborhood }
+      : null,
+  );
+  const [provinces, setProvinces] = useState<LocationOption[]>([]);
+  const [districts, setDistricts] = useState<LocationOption[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<LocationOption[]>([]);
+  const [isLoadingProvinces, setLoadingProvinces] = useState(true);
+  const [isLoadingDistricts, setLoadingDistricts] = useState(false);
+  const [isLoadingNeighborhoods, setLoadingNeighborhoods] = useState(false);
   const [draftBirthDate, setDraftBirthDate] = useState(() =>
     inputToDate(birthDate),
   );
@@ -62,7 +94,9 @@ export function EditAccountProfileScreen() {
   } | null>(null);
   const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUnsavedChangesVisible, setUnsavedChangesVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const allowNavigation = useRef(false);
 
   const normalizedBirthDate = birthDate ? birthDateInputToIso(birthDate) : null;
   const isDirty = useMemo(() => {
@@ -72,6 +106,9 @@ export function EditAccountProfileScreen() {
       lastName.trim() !== user.lastName ||
       phoneDigits(phone) !== phoneDigits(user.phone ?? "") ||
       normalizedBirthDate !== (user.birthDate?.slice(0, 10) ?? null) ||
+      (province?.value ?? null) !== user.provinceCode ||
+      (district?.label ?? null) !== user.district ||
+      (neighborhood?.label ?? null) !== user.neighborhood ||
       Boolean(selectedPhoto) ||
       isPhotoRemoved
     );
@@ -80,15 +117,71 @@ export function EditAccountProfileScreen() {
     isPhotoRemoved,
     lastName,
     normalizedBirthDate,
+    province,
+    district,
+    neighborhood,
     phone,
     selectedPhoto,
     user,
   ]);
 
+  useEffect(() => {
+    let isActive = true;
+    async function loadLocations() {
+      try {
+        const provinceItems = await getProvinces();
+        if (!isActive) return;
+        setProvinces(provinceItems.map((item) => ({ label: item.name, value: item.code })));
+        if (!user?.provinceCode) return;
+
+        setLoadingDistricts(true);
+        const districtItems = await getDistricts(user.provinceCode);
+        if (!isActive) return;
+        setDistricts(districtItems.map((item) => ({ label: item, value: item })));
+        if (!user.district) return;
+
+        setLoadingNeighborhoods(true);
+        const neighborhoodItems = await getNeighborhoods(user.provinceCode, user.district);
+        if (isActive) {
+          setNeighborhoods(neighborhoodItems.map((item) => ({ label: item, value: item })));
+        }
+      } catch {
+        if (isActive) setError("Konum seçenekleri yüklenemedi. Lütfen tekrar dene.");
+      } finally {
+        if (isActive) {
+          setLoadingProvinces(false);
+          setLoadingDistricts(false);
+          setLoadingNeighborhoods(false);
+        }
+      }
+    }
+    void loadLocations();
+    return () => { isActive = false; };
+  }, [user?.district, user?.provinceCode]);
+
+  useEffect(
+    () => navigation.addListener("beforeRemove", (event) => {
+      if (!isDirty || allowNavigation.current) return;
+      event.preventDefault();
+      setUnsavedChangesVisible(true);
+    }),
+    [isDirty, navigation],
+  );
+
   if (!user || !token) return null;
 
-  const profileHome =
-    segments[0] === "(business)" ? "/(business)/profile" : "/(tabs)/profile";
+  const isBusinessProfile = segments[0] === "(business)";
+  const profileHome = isBusinessProfile ? "/(business)/profile" : "/(tabs)/profile";
+  const returnRoute = returnTo === "business-settings"
+    ? "/(business)/profile/settings"
+    : returnTo === "customer-settings"
+      ? "/(tabs)/profile/settings"
+      : profileHome;
+  const leaveScreen = () => goBackOrReplace(router, returnRoute);
+  const requestBack = () => {
+    if (isDirty) setUnsavedChangesVisible(true);
+    else leaveScreen();
+  };
   const hasSavedProfilePhoto = Boolean(user.profileImageUrl);
   const previewUrl =
     selectedPhoto?.uri ?? (isPhotoRemoved ? "" : user.profileImageUrl);
@@ -141,6 +234,41 @@ export function EditAccountProfileScreen() {
     if (event.type === "set" && selected) setBirthDate(dateToInput(selected));
   }
 
+  async function selectProvince(option: LocationOption) {
+    setProvince(option);
+    setDistrict(null);
+    setNeighborhood(null);
+    setDistricts([]);
+    setNeighborhoods([]);
+    setLoadingDistricts(true);
+    setError(null);
+    try {
+      const items = await getDistricts(option.value);
+      setDistricts(items.map((item) => ({ label: item, value: item })));
+    } catch {
+      setError("İlçe listesi alınamadı. Lütfen tekrar dene.");
+    } finally {
+      setLoadingDistricts(false);
+    }
+  }
+
+  async function selectDistrict(option: LocationOption) {
+    if (!province) return;
+    setDistrict(option);
+    setNeighborhood(null);
+    setNeighborhoods([]);
+    setLoadingNeighborhoods(true);
+    setError(null);
+    try {
+      const items = await getNeighborhoods(province.value, option.value);
+      setNeighborhoods(items.map((item) => ({ label: item, value: item })));
+    } catch {
+      setError("Mahalle listesi alınamadı. Lütfen tekrar dene.");
+    } finally {
+      setLoadingNeighborhoods(false);
+    }
+  }
+
   async function saveProfile() {
     if (!token) return;
     const trimmedFirstName = firstName.trim();
@@ -153,6 +281,10 @@ export function EditAccountProfileScreen() {
       setError("Geçerli bir doğum tarihi seçmelisin.");
       return;
     }
+    if ((province && !district) || (!province && district)) {
+      setError("Konum için il ve ilçe seçmelisin.");
+      return;
+    }
 
     setIsSaving(true);
     setError(null);
@@ -163,6 +295,10 @@ export function EditAccountProfileScreen() {
           lastName: trimmedLastName,
           phone: phone.trim(),
           birthDate: normalizedBirthDate,
+          provinceCode: province?.value ?? null,
+          province: province?.label ?? null,
+          district: district?.label ?? null,
+          neighborhood: neighborhood?.label ?? null,
         },
         token,
       );
@@ -172,7 +308,9 @@ export function EditAccountProfileScreen() {
         updatedUser = await removeMyProfilePhoto(token);
       }
       await updateUser(updatedUser);
-      router.replace(profileHome);
+      setUnsavedChangesVisible(false);
+      allowNavigation.current = true;
+      leaveScreen();
     } catch (reason: unknown) {
       setError(
         reason instanceof Error ? reason.message : "Profil güncellenemedi.",
@@ -194,7 +332,7 @@ export function EditAccountProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           <SettingsPageHeader
-            onBackPress={() => router.replace(profileHome)}
+            onBackPress={requestBack}
             title="Hesap Bilgileri"
           />
 
@@ -230,28 +368,18 @@ export function EditAccountProfileScreen() {
               <AppText numberOfLines={2} variant="cardTitle">
                 {`${firstName.trim()} ${lastName.trim()}`.trim() || "Profilin"}
               </AppText>
-              <Pressable
-                accessibilityRole="button"
-                onPress={openPhotoMenu}
-                style={({ pressed }) => [
-                  styles.photoAction,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <AppText color="primary" variant="label">
-                  Fotoğrafı Değiştir
-                </AppText>
-              </Pressable>
             </View>
-            <SymbolView
-              name={{
-                ios: "camera.fill",
-                android: "photo_camera",
-                web: "photo_camera",
-              }}
-              size={19}
-              tintColor={colors.primary}
-            />
+            <Pressable
+              accessibilityLabel="Profil fotoğrafını değiştir"
+              accessibilityRole="button"
+              onPress={openPhotoMenu}
+              style={({ pressed }) => [styles.photoMenuButton, { backgroundColor: colors.background }, pressed && styles.pressed]}>
+              <SymbolView
+                name={{ ios: "photo", android: "photo_camera", web: "photo_camera" }}
+                size={19}
+                tintColor={colors.primary}
+              />
+            </Pressable>
           </AppCard>
 
           <ProfileSection title="Kişisel Bilgiler">
@@ -304,6 +432,37 @@ export function EditAccountProfileScreen() {
                   value={birthDate}
                 />
               )}
+            </AppCard>
+          </ProfileSection>
+
+          <ProfileSection title="Konum">
+            <AppCard style={styles.formCard}>
+              <LocationSelectField
+                label="İl"
+                loading={isLoadingProvinces}
+                onChange={(option) => void selectProvince(option)}
+                options={provinces}
+                placeholder="İl seç"
+                value={province}
+              />
+              <LocationSelectField
+                disabled={!province}
+                label="İlçe"
+                loading={isLoadingDistricts}
+                onChange={(option) => void selectDistrict(option)}
+                options={districts}
+                placeholder="İlçe seç"
+                value={district}
+              />
+              <LocationSelectField
+                disabled={!district}
+                label="Mahalle"
+                loading={isLoadingNeighborhoods}
+                onChange={setNeighborhood}
+                options={neighborhoods}
+                placeholder="Mahalle seç (isteğe bağlı)"
+                value={neighborhood}
+              />
             </AppCard>
           </ProfileSection>
 
@@ -429,6 +588,18 @@ export function EditAccountProfileScreen() {
           </Pressable>
         </Modal>
       </KeyboardAvoidingView>
+      <UnsavedChangesSheet
+        description="Hesap bilgilerinde yaptığın değişiklikler henüz kaydedilmedi."
+        isSaving={isSaving}
+        onContinue={() => setUnsavedChangesVisible(false)}
+        onDiscard={() => {
+          setUnsavedChangesVisible(false);
+          allowNavigation.current = true;
+          leaveScreen();
+        }}
+        onSave={() => void saveProfile()}
+        visible={isUnsavedChangesVisible}
+      />
     </Screen>
   );
 }
@@ -591,20 +762,20 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: "center",
-    flexDirection: "row",
+    justifyContent: "center",
     marginTop: spacing.md,
     minHeight: 96,
     padding: spacing.md,
   },
-  avatar: { borderRadius: radius.pill, height: 64, width: 64 },
+  avatar: { borderRadius: radius.pill, height: 64, left: spacing.md, position: "absolute", width: 64 },
   avatarPlaceholder: {
     alignItems: "center",
     borderWidth: 1,
     justifyContent: "center",
   },
   initial: { fontSize: 30, lineHeight: 36 },
-  profileIdentity: { flex: 1, marginLeft: spacing.sm },
-  photoAction: { marginTop: spacing.xs },
+  profileIdentity: { maxWidth: "58%" },
+  photoMenuButton: { alignItems: "center", borderRadius: radius.pill, height: 40, justifyContent: "center", position: "absolute", right: spacing.md, width: 40 },
   section: { marginTop: spacing.xl },
   sectionTitle: { fontSize: 20, lineHeight: 26, marginBottom: spacing.sm },
   formCard: { gap: 14, padding: spacing.md },

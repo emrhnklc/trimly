@@ -11,6 +11,7 @@ import { CampaignCard } from '@/features/campaigns/components/CampaignCard';
 import type { Campaign } from '@/features/campaigns/types';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 
@@ -70,7 +71,7 @@ export default function ManagementCampaignsScreen() {
               actionIcon={{ ios: 'plus', android: 'add', web: 'add' }}
               actionLabel="Yeni kampanya ekle"
               onAction={() => router.push('/management/campaigns/new')}
-              onBack={() => router.dismissTo('/management')}
+              onBack={() => goBackOrReplace(router, '/(business)/management')}
               title="Kampanyalar"
             />
             <AppText color="textMuted" style={styles.intro}>

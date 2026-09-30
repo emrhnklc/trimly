@@ -22,6 +22,7 @@ import {
 } from '@/features/business-services/components/ServiceForm';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 
@@ -96,7 +97,7 @@ export default function EditManagementServiceScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <BusinessDetailHeader
-            onBack={() => router.dismissTo('/management/services')}
+            onBack={() => goBackOrReplace(router, '/(business)/management/services')}
             title="Hizmeti Düzenle"
           />
           {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}

@@ -7,6 +7,7 @@ import { AppText } from '@/components/ui/AppText';
 import type { CustomerAppointment } from '@/features/appointments/types';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function RepeatLastTrimCard({
   appointment,
@@ -15,6 +16,7 @@ export function RepeatLastTrimCard({
   appointment: CustomerAppointment | null;
   onPress: () => void;
 }) {
+  const themeColors = useThemeColors();
   const lastTrimDate = appointment
     ? new Intl.DateTimeFormat('tr-TR', {
         day: 'numeric',
@@ -28,7 +30,7 @@ export function RepeatLastTrimCard({
       accessibilityLabel={appointment ? 'Son tıraşını yeniden planla' : 'İlk randevunu planla'}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.card, { backgroundColor: themeColors.darkSurface, borderColor: themeColors.darkSurface }, pressed && styles.pressed]}>
       <Image
         contentFit="cover"
         source={require('../../../../assets/images/home/repeat-last-trim.png')}
@@ -50,7 +52,7 @@ export function RepeatLastTrimCard({
         <SymbolView
           name={{ ios: 'arrow.clockwise', android: 'refresh', web: 'refresh' }}
           size={23}
-          tintColor={colors.onPrimary}
+          tintColor={themeColors.onPrimary}
         />
       </View>
     </Pressable>
@@ -60,7 +62,8 @@ export function RepeatLastTrimCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.darkSurface,
+    borderColor: colors.darkSurface,
+    borderWidth: 1,
     borderRadius: radius.md,
     flexDirection: 'row',
     marginTop: layout.sectionGap,
@@ -69,7 +72,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   pressed: { opacity: 0.76 },
-  backgroundImage: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  backgroundImage: { bottom: -2, left: -2, position: 'absolute', right: -2, top: -2 },
   overlay: {
     backgroundColor: 'rgba(12, 8, 5, 0.58)',
     bottom: 0,

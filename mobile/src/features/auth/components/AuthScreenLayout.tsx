@@ -6,14 +6,16 @@ import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { spacing } from '@/theme/spacing';
+import { typography } from '@/theme/typography';
 
 type AuthScreenLayoutProps = PropsWithChildren<{
   description: string;
   onBackPress?: () => void;
   title: string;
+  titleVariant?: keyof typeof typography;
 }>;
 
-export function AuthScreenLayout({ children, description, onBackPress, title }: AuthScreenLayoutProps) {
+export function AuthScreenLayout({ children, description, onBackPress, title, titleVariant = 'displayLarge' }: AuthScreenLayoutProps) {
   return (
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
@@ -36,7 +38,7 @@ export function AuthScreenLayout({ children, description, onBackPress, title }: 
             <View style={styles.topBarSpacer} />
           </View>
 
-          <AppText style={styles.title} variant="displayLarge">{title}</AppText>
+          <AppText style={styles.title} variant={titleVariant}>{title}</AppText>
           <AppText color="textMuted" style={styles.description}>{description}</AppText>
           {children}
         </ScrollView>

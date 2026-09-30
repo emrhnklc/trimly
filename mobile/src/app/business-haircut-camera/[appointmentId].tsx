@@ -15,11 +15,18 @@ import { BusinessDetailHeader } from '@/features/business/components/BusinessDet
 import { uploadBusinessHaircutPhoto } from '@/features/haircut-history/api';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
+
+const MAX_HAIRCUT_PHOTOS = 8;
 
 export default function BusinessHaircutCameraScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { appointmentId } = useLocalSearchParams<{ appointmentId?: string }>();
+  const { appointmentId, photoCount } = useLocalSearchParams<{
+    appointmentId?: string;
+    photoCount?: string;
+  }>();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
   const cameraRef = useRef<CameraView>(null);
@@ -30,10 +37,17 @@ export default function BusinessHaircutCameraScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [isCapturing, setCapturing] = useState(false);
   const [isUploading, setUploading] = useState(false);
+  const [uploadedCount, setUploadedCount] = useState(() => {
+    const parsedCount = Number(photoCount ?? 0);
+    return Number.isFinite(parsedCount)
+      ? Math.min(Math.max(parsedCount, 0), MAX_HAIRCUT_PHOTOS)
+      : 0;
+  });
+  const [uploadSucceeded, setUploadSucceeded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function openCamera() {
-    if (!consentConfirmed) return;
+    if (!consentConfirmed || uploadedCount >= MAX_HAIRCUT_PHOTOS) return;
 
     setError(null);
     const result = permission?.granted ? permission : await requestPermission();
@@ -41,6 +55,8 @@ export default function BusinessHaircutCameraScreen() {
       setError('Fotoğraf çekmek için kamera izni verilmelidir.');
       return;
     }
+    setCameraReady(false);
+    setUploadSucceeded(false);
     setCameraOpen(true);
   }
 
@@ -72,10 +88,10 @@ export default function BusinessHaircutCameraScreen() {
         { uri: photoUri, mimeType: 'image/jpeg' },
         token,
       );
-      router.dismissTo({
-        pathname: '/business-appointments/[appointmentId]',
-        params: { appointmentId },
-      });
+      setUploadedCount((current) => Math.min(current + 1, MAX_HAIRCUT_PHOTOS));
+      setPhotoUri(null);
+      setCameraOpen(false);
+      setUploadSucceeded(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Fotoğraf yüklenemedi.');
     } finally {
@@ -98,7 +114,7 @@ export default function BusinessHaircutCameraScreen() {
         <Pressable
           accessibilityLabel="Kamerayı kapat"
           accessibilityRole="button"
-          onPress={() => router.back()}
+          onPress={() => setCameraOpen(false)}
           style={[styles.closeButton, { top: insets.top + spacing.sm }]}
         >
           <SymbolView
@@ -169,47 +185,70 @@ export default function BusinessHaircutCameraScreen() {
         <BusinessDetailHeader onBack={() => router.back()} title="Tıraş Fotoğrafı" />
       </View>
       <View style={styles.consentContent}>
-        <View style={styles.consentIcon}>
+        <View style={[styles.consentIcon, { backgroundColor: themeColors.surfaceMuted }]}>
           <SymbolView
             name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
             size={30}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         </View>
-        <AppText style={styles.consentTitle} variant="heading">Önce müşteri izni</AppText>
+        <AppText style={styles.consentTitle} variant="heading">
+          {uploadSucceeded ? 'Fotoğraf eklendi' : 'Önce müşteri izni'}
+        </AppText>
         <AppText color="textMuted" style={styles.consentDescription}>
-          Fotoğraf yalnız tıraş geçmişi için kullanılacak. İşletme galerisinde görünmeyecek ve telefon galerisine kaydedilmeyecek.
+          {uploadSucceeded
+            ? `${uploadedCount}/${MAX_HAIRCUT_PHOTOS} fotoğraf eklendi. İstersen farklı bir açıdan devam edebilirsin.`
+            : 'Fotoğraf yalnız tıraş geçmişi için kullanılacak. İşletme galerisinde görünmeyecek ve telefon galerisine kaydedilmeyecek.'}
         </AppText>
 
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: consentConfirmed }}
-          onPress={() => setConsentConfirmed((value) => !value)}
-          style={({ pressed }) => [styles.consentRow, pressed && styles.pressed]}
-        >
-          <View style={[styles.checkbox, consentConfirmed && styles.checkboxChecked]}>
-            {consentConfirmed ? (
-              <SymbolView
-                name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-                size={15}
-                tintColor="#FFFFFF"
-              />
-            ) : null}
-          </View>
-          <AppText style={styles.consentLabel} variant="label">
-            Müşteriden fotoğraf çekme ve Trimly’ye yükleme izni aldım.
-          </AppText>
-        </Pressable>
+        {!uploadSucceeded ? (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: consentConfirmed }}
+            onPress={() => setConsentConfirmed((value) => !value)}
+            style={({ pressed }) => [styles.consentRow, { backgroundColor: themeColors.surface, borderColor: themeColors.border }, pressed && styles.pressed]}
+          >
+            <View style={[styles.checkbox, { borderColor: themeColors.border }, consentConfirmed && [styles.checkboxChecked, { backgroundColor: themeColors.primary, borderColor: themeColors.primary }]]}>
+              {consentConfirmed ? (
+                <SymbolView
+                  name={{ ios: 'checkmark', android: 'check', web: 'check' }}
+                  size={15}
+                  tintColor="#FFFFFF"
+                />
+              ) : null}
+            </View>
+            <AppText style={styles.consentLabel} variant="label">
+              Müşteriden fotoğraf çekme ve Trimly’ye yükleme izni aldım.
+            </AppText>
+          </Pressable>
+        ) : null}
 
         {error ? (
-          <View style={styles.errorBox}>
+          <View style={[styles.errorBox, { backgroundColor: themeColors.dangerSurface }]}>
             <AppText color="danger" variant="bodySmall">{error}</AppText>
           </View>
         ) : null}
         <View style={styles.openButton}>
-          <AppButton disabled={!consentConfirmed} onPress={() => void openCamera()}>
-            Kamerayı Aç
-          </AppButton>
+          {uploadedCount < MAX_HAIRCUT_PHOTOS ? (
+            <AppButton disabled={!consentConfirmed} onPress={() => void openCamera()}>
+              {uploadSucceeded ? 'Bir Fotoğraf Daha Çek' : 'Kamerayı Aç'}
+            </AppButton>
+          ) : null}
+          {uploadSucceeded || uploadedCount >= MAX_HAIRCUT_PHOTOS ? (
+            <View style={styles.backToRecordButton}>
+              <AppButton
+                onPress={() =>
+                  router.dismissTo({
+                    pathname: '/business-haircut-record/[appointmentId]',
+                    params: { appointmentId: appointmentId ?? '' },
+                  })
+                }
+                variant="secondary"
+              >
+                Tıraş Kaydına Dön
+              </AppButton>
+            </View>
+          ) : null}
         </View>
         <AppText color="textMuted" style={styles.galleryNote} variant="bodySmall">
           Galeriden yükleme kapalıdır; yalnız şimdi çekilen fotoğraf kabul edilir.
@@ -223,27 +262,28 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.md },
   consentContent: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.xxl },
   consentIcon: {
-    alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: radius.pill,
+    alignItems: 'center', borderRadius: radius.pill,
     height: 68, justifyContent: 'center', width: 68,
   },
   consentTitle: { fontSize: 21, lineHeight: 28, marginTop: spacing.md },
   consentDescription: { lineHeight: 21, marginTop: spacing.xs, textAlign: 'center' },
   consentRow: {
-    alignItems: 'flex-start', backgroundColor: colors.surface, borderColor: colors.border,
+    alignItems: 'flex-start',
     borderRadius: radius.md, borderWidth: 1, flexDirection: 'row', marginTop: spacing.xl,
     padding: spacing.md, width: '100%',
   },
   checkbox: {
-    alignItems: 'center', borderColor: colors.border, borderRadius: 6, borderWidth: 1,
+    alignItems: 'center', borderRadius: 6, borderWidth: 1,
     height: 24, justifyContent: 'center', width: 24,
   },
-  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkboxChecked: {},
   consentLabel: { flex: 1, lineHeight: 20, marginLeft: spacing.sm },
   errorBox: {
-    backgroundColor: '#F8E8E5', borderRadius: radius.md, marginTop: spacing.md,
+    borderRadius: radius.md, marginTop: spacing.md,
     padding: spacing.sm, width: '100%',
   },
   openButton: { marginTop: spacing.xl, width: '100%' },
+  backToRecordButton: { marginTop: spacing.sm },
   galleryNote: { marginTop: spacing.sm, textAlign: 'center' },
   pressed: { opacity: 0.68 },
   disabled: { opacity: 0.5 },

@@ -16,4 +16,9 @@ export class CreateAppointmentDto {
   @IsString()
   @MinLength(1)
   campaignId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  dependentProfileId?: string;
 }

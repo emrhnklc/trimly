@@ -11,10 +11,12 @@ export type PublicBarbershop = {
   longitude: number | null;
   distanceKm: number | null;
   isDiscoverable: boolean;
+  isBookingOpen?: boolean;
   ratingAverage: number | null;
   ratingCount: number;
   createdAt?: string;
   members?: PublicBarber[];
+  serviceNames?: string[];
 };
 
 export type BarbershopAccessResult = {
@@ -40,6 +42,7 @@ export type RotatedBarbershopAccessCode = {
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
+  isBookingOpen: boolean;
   galleryPhotos: { id: string; sortOrder: number; url: string }[];
   members: PublicBarber[];
   phone: string | null;
@@ -75,6 +78,41 @@ export type BookingSettings = {
   slotIntervalMinutes: number;
   customerCancellationEnabled: boolean;
   cancellationNoticeMinutes: number;
+  pendingSlotIntervalMinutes?: number | null;
+  slotIntervalEffectiveFrom?: string | null;
+};
+
+export type BarbershopReadinessRequirement =
+  | "LOCATION"
+  | "PHONE"
+  | "PROFILE_PHOTO"
+  | "COVER_PHOTO"
+  | "GALLERY_PHOTOS"
+  | "ACTIVE_SERVICE"
+  | "BOOKABLE_MEMBER"
+  | "BUSINESS_HOURS"
+  | "MEMBER_WORKING_HOURS";
+
+export type BarbershopReadiness = {
+  acceptsBookings: boolean;
+  isBookingOpen: boolean;
+  isDiscoverable: boolean;
+  isReadyToPublish: boolean;
+  checks: {
+    location: boolean;
+    phone: boolean;
+    profilePhoto: boolean;
+    coverPhoto: boolean;
+    galleryPhotos: boolean;
+    activeService: boolean;
+    bookableMember: boolean;
+    businessHours: boolean;
+    memberWorkingHours: boolean;
+  };
+  missingRequirements: {
+    code: BarbershopReadinessRequirement;
+    label: string;
+  }[];
 };
 
 export type UpdateBookingSettingsInput = Pick<
@@ -87,6 +125,7 @@ export type UpdateBookingSettingsInput = Pick<
 >;
 
 export type UpdateBarbershopProfileInput = {
+  acceptsBookings?: boolean;
   name: string;
   description: string;
   phone: string;
@@ -99,6 +138,7 @@ export type UpdateBarbershopProfileInput = {
 };
 
 export type EditableBarbershopProfile = {
+  acceptsBookings: boolean;
   id: string;
   name: string;
   slug: string;

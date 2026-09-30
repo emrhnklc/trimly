@@ -17,6 +17,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { DateTime } from 'luxon';
+import { canMarkCustomerArrived } from './appointment-time-rules';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../database/prisma.service';
@@ -51,6 +52,32 @@ const appointmentReviewSelect = {
   },
 } as const;
 
+const appointmentChangeProposalSelect = {
+  id: true,
+  status: true,
+  proposedStartsAt: true,
+  proposedEndsAt: true,
+  proposedDurationMinutes: true,
+  proposedPrice: true,
+  reason: true,
+  proposedService: { select: { id: true } },
+  proposedServiceName: true,
+  proposedBusinessMember: {
+    select: {
+      id: true,
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          profileImageUrl: true,
+        },
+      },
+    },
+  },
+  expiresAt: true,
+  createdAt: true,
+} as const;
+
 const customerAppointmentSelect = {
   id: true,
   startsAt: true,
@@ -65,6 +92,9 @@ const customerAppointmentSelect = {
   discountAmount: true,
   priceSnapshot: true,
   durationMinutes: true,
+  dependentProfileId: true,
+  attendeeNameSnapshot: true,
+  appointmentLocalDate: true,
   cancelledAt: true,
   completedAt: true,
   barbershop: {
@@ -96,6 +126,11 @@ const customerAppointmentSelect = {
 
 const customerAppointmentDetailSelect = {
   ...customerAppointmentSelect,
+  changeProposals: {
+    orderBy: { createdAt: 'desc' as const },
+    take: 1,
+    select: appointmentChangeProposalSelect,
+  },
   review: { select: appointmentReviewSelect },
   haircutRecord: {
     select: {
@@ -208,10 +243,25 @@ function presentCustomerAppointment(appointment: CustomerAppointmentRecord) {
 function presentCustomerAppointmentDetail(
   appointment: CustomerAppointmentDetailRecord,
 ) {
-  const { haircutRecord, review, ...appointmentRecord } = appointment;
+  const { changeProposals, haircutRecord, review, ...appointmentRecord } =
+    appointment;
+  const latestProposal = changeProposals[0];
+  const presentedAppointment = presentCustomerAppointment(appointmentRecord);
+  const rejectedProposalCancellation =
+    latestProposal?.status === 'REJECTED' &&
+    appointmentRecord.status === AppointmentStatus.CONFIRMED;
 
   return {
-    ...presentCustomerAppointment(appointmentRecord),
+    ...presentedAppointment,
+    ...(rejectedProposalCancellation && {
+      canCancel: true,
+      cancellationReason: null,
+    }),
+    changeProposal:
+      latestProposal?.status === 'PENDING' &&
+      latestProposal.expiresAt > new Date()
+        ? latestProposal
+        : null,
     review: review
       ? {
           ...review,
@@ -350,6 +400,27 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     try {
       const appointment = await this.prisma.$transaction(
         async (transaction) => {
+          const attendee = dto.dependentProfileId
+            ? await transaction.dependentProfile.findFirst({
+                where: {
+                  id: dto.dependentProfileId,
+                  ownerId: customerId,
+                  archivedAt: null,
+                },
+                select: { id: true, firstName: true, lastName: true },
+              })
+            : await transaction.user.findUnique({
+                where: { id: customerId, deletedAt: null },
+                select: { id: true, firstName: true, lastName: true },
+              });
+          if (!attendee) {
+            throw new BadRequestException(
+              dto.dependentProfileId
+                ? 'Seçilen yakın profili kullanılamıyor.'
+                : 'Müşteri profili bulunamadı.',
+            );
+          }
+
           let campaignId: string | null = null;
           let campaignTitleSnapshot: string | null = null;
           let campaignBenefitSnapshot: string | null = null;
@@ -475,6 +546,9 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
             data: {
               barbershopId,
               customerId,
+              dependentProfileId: dto.dependentProfileId ?? null,
+              attendeeNameSnapshot: `${attendee.firstName} ${attendee.lastName}`,
+              appointmentLocalDate: new Date(`${localDate}T00:00:00.000Z`),
               businessMemberId: dto.memberId,
               serviceId: service.id,
               campaignId,
@@ -545,6 +619,11 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         customerId: true,
         status: true,
         startsAt: true,
+        changeProposals: {
+          orderBy: { createdAt: 'desc' },
+          select: { status: true },
+          take: 1,
+        },
         barbershop: {
           select: {
             bookingSettings: {
@@ -571,19 +650,23 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       cancellationSettings,
     );
 
-    if (!cancellationPolicy.canCancel) {
+    const hasRejectedBusinessProposal =
+      appointment.changeProposals[0]?.status === 'REJECTED';
+    if (!cancellationPolicy.canCancel && !hasRejectedBusinessProposal) {
       throw new BadRequestException(
         cancellationPolicy.cancellationReason ?? 'Bu randevu iptal edilemez.',
       );
     }
 
-    return this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        status: 'CANCELLED',
+    return this.transitionAppointment(
+      appointment.id,
+      [AppointmentStatus.CONFIRMED],
+      'Bu randevu artık iptal edilemez.',
+      {
+        status: AppointmentStatus.CANCELLED,
         cancelledAt: new Date(),
       },
-    });
+    );
   }
 
   async findForBarbershop(barbershopId: string) {
@@ -600,11 +683,15 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         arrivedAt: true,
         autoCompleteAt: true,
         completedAt: true,
+        haircutRecord: { select: { id: true, finalizedAt: true } },
         serviceNameSnapshot: true,
         campaignTitleSnapshot: true,
         campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
+        dependentProfileId: true,
+        attendeeNameSnapshot: true,
+        appointmentLocalDate: true,
         customer: {
           select: {
             id: true,
@@ -647,11 +734,15 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         arrivedAt: true,
         autoCompleteAt: true,
         completedAt: true,
+        haircutRecord: { select: { id: true, finalizedAt: true } },
         serviceNameSnapshot: true,
         campaignTitleSnapshot: true,
         campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
+        dependentProfileId: true,
+        attendeeNameSnapshot: true,
+        appointmentLocalDate: true,
         customer: {
           select: {
             id: true,
@@ -696,6 +787,9 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
+        dependentProfileId: true,
+        attendeeNameSnapshot: true,
+        appointmentLocalDate: true,
         customer: {
           select: {
             id: true,
@@ -740,6 +834,12 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
             },
           },
         },
+        changeProposals: {
+          where: { status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: appointmentChangeProposalSelect,
+        },
       },
     });
 
@@ -774,7 +874,11 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       user: appointment.businessMember.user,
     };
 
-    const businessHaircutRecord = appointment.haircutRecord;
+    const {
+      changeProposals,
+      haircutRecord: businessHaircutRecord,
+      ...appointmentRecord
+    } = appointment;
     const haircutRecord = businessHaircutRecord
       ? {
           ...businessHaircutRecord,
@@ -788,8 +892,12 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       : null;
 
     return {
-      ...appointment,
+      ...appointmentRecord,
       businessMember,
+      changeProposal:
+        changeProposals[0] && changeProposals[0].expiresAt > new Date()
+          ? changeProposals[0]
+          : null,
       completedVisitCount,
       haircutRecord,
     };
@@ -1244,14 +1352,16 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    return this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
+    return this.transitionAppointment(
+      appointment.id,
+      [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
+      'Bu randevu artık tamamlanamaz.',
+      {
         status: 'COMPLETED',
         completedAt: new Date(),
         autoCompleteAt: null,
       },
-    });
+    );
   }
 
   async markArrivedForBusiness(
@@ -1277,9 +1387,9 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     const now = new Date();
-    if (now < appointment.startsAt) {
+    if (!canMarkCustomerArrived(appointment.startsAt, now)) {
       throw new BadRequestException(
-        'Müşteri gelişi randevu saati geldiğinde işaretlenebilir.',
+        'Müşteri gelişi randevudan en erken 15 dakika önce işaretlenebilir.',
       );
     }
 
@@ -1292,14 +1402,16 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         ? appointment.endsAt
         : arrivedServiceEnd;
 
-    return this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
+    return this.transitionAppointment(
+      appointment.id,
+      [AppointmentStatus.CONFIRMED],
+      'Bu randevu için geliş kaydı artık oluşturulamaz.',
+      {
         status: AppointmentStatus.ARRIVED,
         arrivedAt,
         autoCompleteAt,
       },
-    });
+    );
   }
 
   async undoArrivalForBusiness(
@@ -1317,14 +1429,16 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Bu randevunun geliş kaydı geri alınamaz.');
     }
 
-    return this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
+    return this.transitionAppointment(
+      appointment.id,
+      [AppointmentStatus.ARRIVED],
+      'Bu randevunun geliş kaydı artık geri alınamaz.',
+      {
         status: AppointmentStatus.CONFIRMED,
         arrivedAt: null,
         autoCompleteAt: null,
       },
-    });
+    );
   }
 
   async cancelForBusiness(
@@ -1333,6 +1447,10 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     userId: string,
     dto: CancelAppointmentDto,
   ) {
+    const cancellationReason = dto.reason.trim();
+    if (cancellationReason.length < 3) {
+      throw new BadRequestException('İptal nedeni en az 3 karakter olmalıdır.');
+    }
     const appointment = await this.findManageableAppointment(
       barbershopId,
       appointmentId,
@@ -1346,16 +1464,18 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Bu randevu iptal edilemez.');
     }
 
-    return this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
+    return this.transitionAppointment(
+      appointment.id,
+      [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
+      'Bu randevu artık iptal edilemez.',
+      {
         status: 'CANCELLED',
         cancelledAt: new Date(),
-        cancellationReason: dto.reason?.trim(),
+        cancellationReason,
         arrivedAt: null,
         autoCompleteAt: null,
       },
-    });
+    );
   }
 
   async rescheduleForBusiness(
@@ -1364,12 +1484,21 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     userId: string,
     dto: RescheduleAppointmentDto,
   ) {
+    const proposalReason = dto.reason.trim();
+    if (proposalReason.length < 3) {
+      throw new BadRequestException(
+        'Değişiklik açıklaması en az 3 karakter olmalıdır.',
+      );
+    }
     const appointment = await this.findManageableAppointment(
       barbershopId,
       appointmentId,
       userId,
       {
         serviceId: true,
+        serviceNameSnapshot: true,
+        priceSnapshot: true,
+        startsAt: true,
         businessMemberId: true,
         barbershop: { select: { timezone: true } },
       },
@@ -1377,6 +1506,13 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     if (appointment.status !== 'CONFIRMED') {
       throw new BadRequestException('Bu randevu yeniden planlanamaz.');
+    }
+
+    const now = new Date();
+    if (appointment.startsAt <= now) {
+      throw new BadRequestException(
+        'Başlangıç saati gelen randevu için değişiklik teklifi gönderilemez.',
+      );
     }
 
     const requestedStart = DateTime.fromISO(dto.startsAt, { setZone: true });
@@ -1396,10 +1532,15 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     }
 
     const memberId = dto.memberId ?? appointment.businessMemberId;
+    const serviceId = dto.serviceId ?? appointment.serviceId;
     const availability = await this.availabilityService.findAvailableSlots(
       barbershopId,
-      { memberId, serviceId: appointment.serviceId, date },
-      { excludeAppointmentId: appointment.id, ignoreBookingWindow: true },
+      { memberId, serviceId, date },
+      {
+        excludeAppointmentId: appointment.id,
+        ignoreBookingState: true,
+        ignoreBookingWindow: true,
+      },
     );
     const selectedSlot = availability.slots.find(
       (slot) =>
@@ -1411,27 +1552,238 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException('Yeni seçilen saat uygun değil.');
     }
 
+    if (
+      memberId === appointment.businessMemberId &&
+      serviceId === appointment.serviceId &&
+      requestedStart.toMillis() === appointment.startsAt.getTime()
+    ) {
+      throw new BadRequestException('Teklif için farklı bir saat seçmelisin.');
+    }
+
+    const [membership, service] = await Promise.all([
+      this.prisma.businessMember.findUnique({
+        where: { userId_barbershopId: { userId, barbershopId } },
+        select: { id: true },
+      }),
+      this.prisma.service.findFirst({
+        where: { id: serviceId, barbershopId, isActive: true },
+        select: { durationMinutes: true, id: true, name: true, price: true },
+      }),
+    ]);
+    if (!membership) {
+      throw new ForbiddenException('Bu randevuyu yönetme yetkin yok.');
+    }
+    if (!service) {
+      throw new NotFoundException('Hizmet bulunamadı.');
+    }
+
+    await this.prisma.appointmentChangeProposal.updateMany({
+      where: {
+        appointmentId: appointment.id,
+        status: 'PENDING',
+        expiresAt: { lte: now },
+      },
+      data: { status: 'EXPIRED', respondedAt: now },
+    });
+
+    const proposedStartsAt = new Date(selectedSlot.startsAt);
+    const expiresAt = new Date(
+      Math.min(
+        appointment.startsAt.getTime(),
+        proposedStartsAt.getTime(),
+        now.getTime() + 24 * 60 * 60 * 1000,
+      ),
+    );
+    const proposedPrice =
+      serviceId === appointment.serviceId
+        ? appointment.priceSnapshot
+        : service.price;
+
     try {
-      return await this.prisma.appointment.update({
-        where: { id: appointment.id },
+      const proposal = await this.prisma.appointmentChangeProposal.create({
         data: {
-          businessMemberId: memberId,
-          startsAt: new Date(selectedSlot.startsAt),
-          endsAt: new Date(selectedSlot.endsAt),
+          appointmentId: appointment.id,
+          createdByMemberId: membership.id,
+          proposedBusinessMemberId: memberId,
+          proposedServiceId: service.id,
+          proposedServiceName: service.name,
+          proposedStartsAt,
+          proposedEndsAt: new Date(selectedSlot.endsAt),
+          proposedDurationMinutes: service.durationMinutes,
+          proposedPrice,
+          reason: proposalReason,
+          expiresAt,
         },
+        select: appointmentChangeProposalSelect,
       });
+
+      void this.notificationsService.notifyAppointmentChangeProposal(
+        proposal.id,
+      );
+      return proposal;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2039'
+        error.code === 'P2002'
       ) {
         throw new ConflictException(
-          'Bu saat az önce başka biri tarafından alındı.',
+          'Bu randevu için zaten yanıt bekleyen bir değişiklik teklifi var.',
         );
       }
 
       throw error;
     }
+  }
+
+  async respondToChangeProposal(
+    appointmentId: string,
+    customerId: string,
+    response: 'ACCEPTED' | 'REJECTED',
+  ) {
+    const now = new Date();
+    const proposal = await this.prisma.appointmentChangeProposal.findFirst({
+      where: {
+        appointmentId,
+        status: 'PENDING',
+        appointment: { customerId },
+      },
+      include: {
+        appointment: {
+          select: {
+            businessMemberId: true,
+            customerId: true,
+            serviceId: true,
+            status: true,
+            barbershop: { select: { id: true, timezone: true } },
+          },
+        },
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException(
+        'Yanıt bekleyen değişiklik teklifi bulunamadı.',
+      );
+    }
+    if (proposal.expiresAt <= now) {
+      await this.prisma.appointmentChangeProposal.updateMany({
+        where: { id: proposal.id, status: 'PENDING' },
+        data: { status: 'EXPIRED', respondedAt: now },
+      });
+      throw new BadRequestException('Bu değişiklik teklifinin süresi dolmuş.');
+    }
+    if (response === 'REJECTED') {
+      const rejected = await this.prisma.appointmentChangeProposal.updateMany({
+        where: { id: proposal.id, status: 'PENDING' },
+        data: { status: 'REJECTED', respondedAt: now },
+      });
+      if (rejected.count === 0) {
+        throw new ConflictException('Bu teklif daha önce yanıtlanmış.');
+      }
+      return { success: true, status: 'REJECTED' as const };
+    }
+    if (proposal.appointment.status !== AppointmentStatus.CONFIRMED) {
+      throw new BadRequestException('Bu randevu artık değiştirilemez.');
+    }
+
+    const date = DateTime.fromJSDate(proposal.proposedStartsAt)
+      .setZone(proposal.appointment.barbershop.timezone)
+      .toISODate();
+    if (!date) throw new BadRequestException('Teklif tarihi geçersiz.');
+
+    const availability = await this.availabilityService.findAvailableSlots(
+      proposal.appointment.barbershop.id,
+      {
+        memberId: proposal.proposedBusinessMemberId,
+        serviceId: proposal.proposedServiceId,
+        date,
+      },
+      {
+        excludeAppointmentId: appointmentId,
+        ignoreBookingState: true,
+        ignoreBookingWindow: true,
+      },
+    );
+    const isStillAvailable = availability.slots.some(
+      (slot) =>
+        DateTime.fromISO(slot.startsAt).toMillis() ===
+        proposal.proposedStartsAt.getTime(),
+    );
+    if (!isStillAvailable) {
+      throw new ConflictException(
+        'Teklif edilen saat artık uygun değil. İşletmeden yeni teklif isteyebilirsin.',
+      );
+    }
+
+    const serviceChanged =
+      proposal.proposedServiceId !== proposal.appointment.serviceId;
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        const claimed = await transaction.appointmentChangeProposal.updateMany({
+          where: {
+            id: proposal.id,
+            status: 'PENDING',
+            expiresAt: { gt: now },
+          },
+          data: { status: 'ACCEPTED', respondedAt: now },
+        });
+        if (claimed.count === 0) {
+          throw new BadRequestException('Bu teklif daha önce yanıtlanmış.');
+        }
+
+        await transaction.appointment.update({
+          where: { id: appointmentId, status: AppointmentStatus.CONFIRMED },
+          data: {
+            businessMemberId: proposal.proposedBusinessMemberId,
+            serviceId: proposal.proposedServiceId,
+            serviceNameSnapshot: proposal.proposedServiceName,
+            startsAt: proposal.proposedStartsAt,
+            endsAt: proposal.proposedEndsAt,
+            durationMinutes: proposal.proposedDurationMinutes,
+            priceSnapshot: proposal.proposedPrice,
+            reminder24hSentAt: null,
+            reminder2hSentAt: null,
+            ...(serviceChanged && {
+              campaignId: null,
+              campaignTitleSnapshot: null,
+              campaignBenefitSnapshot: null,
+              originalPriceSnapshot: proposal.proposedPrice,
+              discountAmount: 0,
+            }),
+          },
+        });
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2039' || error.code === 'P2025')
+      ) {
+        throw new ConflictException(
+          'Randevu bu sırada değişti veya seçilen saat doldu.',
+        );
+      }
+      throw error;
+    }
+
+    return { success: true, status: 'ACCEPTED' as const };
+  }
+
+  async cancelChangeProposal(
+    barbershopId: string,
+    appointmentId: string,
+    userId: string,
+  ) {
+    await this.findManageableAppointment(barbershopId, appointmentId, userId);
+    const updated = await this.prisma.appointmentChangeProposal.updateMany({
+      where: { appointmentId, status: 'PENDING' },
+      data: { status: 'CANCELLED', respondedAt: new Date() },
+    });
+    if (updated.count === 0) {
+      throw new NotFoundException(
+        'İptal edilecek değişiklik teklifi bulunamadı.',
+      );
+    }
+    return { success: true };
   }
 
   async markNoShowForBusiness(
@@ -1480,10 +1832,38 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    return this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: { status: 'NO_SHOW' },
-    });
+    return this.transitionAppointment(
+      appointment.id,
+      [AppointmentStatus.CONFIRMED],
+      'Bu randevu artık gelmedi olarak işaretlenemez.',
+      { status: AppointmentStatus.NO_SHOW },
+    );
+  }
+
+  private async transitionAppointment(
+    appointmentId: string,
+    allowedStatuses: AppointmentStatus[],
+    conflictMessage: string,
+    data: Prisma.AppointmentUpdateInput,
+  ) {
+    try {
+      return await this.prisma.appointment.update({
+        where: {
+          id: appointmentId,
+          status: { in: allowedStatuses },
+        },
+        data,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new BadRequestException(conflictMessage);
+      }
+
+      throw error;
+    }
   }
 
   private async findManageableAppointment<

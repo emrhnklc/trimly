@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { MemberRoleSelector, type AssignableBusinessRole } from './MemberRoleSelector';
 
 const expiryOptions = [
@@ -22,12 +22,13 @@ export function InvitationForm({
   isSubmitting: boolean;
   onSubmit: (role: AssignableBusinessRole, expiresInHours: number) => Promise<void>;
 }) {
+  const themeColors = useThemeColors();
   const [role, setRole] = useState<AssignableBusinessRole>('BARBER');
   const [expiresInHours, setExpiresInHours] = useState(24);
 
   return (
     <View>
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
         <AppText style={styles.sectionTitle} variant="label">Çalışan rolü</AppText>
         <AppText color="textMuted" style={styles.description} variant="bodySmall">
           Rol bağlantının içine güvenli biçimde kaydedilir; davet edilen kişi rol seçemez.
@@ -37,7 +38,7 @@ export function InvitationForm({
         </View>
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
         <AppText style={styles.sectionTitle} variant="label">Bağlantı geçerlilik süresi</AppText>
         <View style={styles.expiryRow}>
           {expiryOptions.map((option) => {
@@ -51,7 +52,8 @@ export function InvitationForm({
                 onPress={() => setExpiresInHours(option.hours)}
                 style={({ pressed }) => [
                   styles.expiryOption,
-                  selected && styles.selectedExpiry,
+                  { backgroundColor: themeColors.background, borderColor: themeColors.border },
+                  selected && [styles.selectedExpiry, { backgroundColor: themeColors.darkSurface, borderColor: themeColors.darkSurface }],
                   pressed && styles.pressed,
                 ]}>
                 <AppText color={selected ? 'onPrimary' : 'text'} style={styles.expiryLabel} variant="label">
@@ -64,7 +66,7 @@ export function InvitationForm({
       </View>
 
       {error ? (
-        <View style={styles.errorBox}>
+        <View style={[styles.errorBox, { backgroundColor: themeColors.dangerSurface }]}>
           <AppText color="danger" style={styles.errorText} variant="bodySmall">{error}</AppText>
         </View>
       ) : null}
@@ -80,8 +82,6 @@ export function InvitationForm({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     marginBottom: spacing.sm,
@@ -93,17 +93,15 @@ const styles = StyleSheet.create({
   expiryRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   expiryOption: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
     minHeight: 42,
   },
-  selectedExpiry: { backgroundColor: colors.darkSurface, borderColor: colors.darkSurface },
+  selectedExpiry: {},
   expiryLabel: { fontSize: 10, lineHeight: 14 },
-  errorBox: { backgroundColor: '#F8E8E5', borderRadius: radius.sm, padding: spacing.sm },
+  errorBox: { borderRadius: radius.sm, padding: spacing.sm },
   errorText: { textAlign: 'center' },
   submit: { marginTop: spacing.md },
   pressed: { opacity: 0.68 },

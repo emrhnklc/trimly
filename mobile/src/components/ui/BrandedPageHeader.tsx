@@ -8,10 +8,12 @@ import { AppText } from "./AppText";
 export function BrandedPageHeader({
   rightAccessory,
   subtitle,
+  titleAccessory,
   title,
 }: {
   rightAccessory?: ReactNode;
   subtitle?: string;
+  titleAccessory?: ReactNode;
   title?: string;
 }) {
   return (
@@ -23,9 +25,12 @@ export function BrandedPageHeader({
       </View>
       {title ? (
         <>
-          <AppText style={styles.title} variant="pageTitle">
-            {title}
-          </AppText>
+          <View style={styles.titleRow}>
+            <AppText style={styles.title} variant="pageTitle">
+              {title}
+            </AppText>
+            {titleAccessory}
+          </View>
           {subtitle ? (
             <AppText color="textMuted" style={styles.subtitle}>
               {subtitle}
@@ -48,6 +53,12 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   side: { alignItems: "flex-end", width: 44 },
-  title: { marginTop: spacing.xs },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  title: { flexShrink: 1 },
   subtitle: { marginTop: spacing.xs },
 });

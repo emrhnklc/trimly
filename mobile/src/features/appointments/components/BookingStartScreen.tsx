@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView } from 'expo-symbols';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,8 +14,8 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import type { CustomerAppointment } from '@/features/appointments/types';
 import type { PublicBarbershop } from '@/features/barbershops/types';
 import type { FavoriteBarbershop } from '@/features/favorites/types';
-import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type BookingStartScreenProps = {
   error: string | null;
@@ -43,14 +42,18 @@ export function BookingStartScreen({
   onRetry,
   onSearchPress,
 }: BookingStartScreenProps) {
+  const colors = useThemeColors();
   const { width } = useWindowDimensions();
   const favoriteCardWidth =
     favorites.length === 1
       ? Math.min(width - layout.screenHorizontalPadding * 2, 380)
-      : Math.min((width - layout.screenHorizontalPadding * 2) * 0.76, 280);
+      : Math.max(
+          154,
+          (width - layout.screenHorizontalPadding * 2 - layout.cardGap) / 2,
+        );
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} style={styles.scroll}>
       <View style={styles.intro}>
         <AppText style={styles.title} variant="pageTitle">Başlayalım</AppText>
         <AppText color="textMuted" style={styles.subtitle}>
@@ -58,7 +61,6 @@ export function BookingStartScreen({
         </AppText>
       </View>
 
-      {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
       {!isLoading && error ? (
         <View style={styles.errorState}>
           <AppText color="danger" style={styles.errorText}>{error}</AppText>
@@ -110,7 +112,11 @@ export function BookingStartScreen({
             accessibilityLabel="Berber veya konum ara"
             accessibilityRole="button"
             onPress={onSearchPress}
-            style={({ pressed }) => [styles.searchBox, pressed && styles.pressed]}>
+            style={({ pressed }) => [
+              styles.searchBox,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              pressed && styles.pressed,
+            ]}>
             <SymbolView
               name={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
               size={20}
@@ -125,7 +131,7 @@ export function BookingStartScreen({
           </Pressable>
 
           <View style={styles.trustNote}>
-            <View style={styles.trustIcon}>
+            <View style={[styles.trustIcon, { backgroundColor: colors.surfaceMuted }]}>
               <SymbolView
                 name={{ ios: 'checkmark.shield', android: 'verified_user', web: 'verified_user' }}
                 size={21}
@@ -151,6 +157,7 @@ function LastVisitCard({
   barbershop: PublicBarbershop | null;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   const imageUrl = barbershop?.profileImageUrl ?? barbershop?.coverImageUrl;
   const title = appointment?.barbershop.name ?? 'İlk berberini keşfet';
   const barberName = appointment
@@ -162,11 +169,15 @@ function LastVisitCard({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.lastCard, pressed && styles.pressed]}>
+      style={({ pressed }) => [
+        styles.lastCard,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        pressed && styles.pressed,
+      ]}>
       {imageUrl ? (
         <Image contentFit="cover" source={imageUrl} style={styles.lastImage} />
       ) : (
-        <View style={[styles.lastImage, styles.imagePlaceholder]}>
+        <View style={[styles.lastImage, styles.imagePlaceholder, { backgroundColor: colors.surfaceMuted }]}>
           <SymbolView
             name={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
             size={28}
@@ -190,10 +201,15 @@ function LastVisitCard({
           </AppText>
         </View>
       </View>
-      <View style={styles.continuePill}>
+      <View style={[styles.continuePill, { backgroundColor: colors.primary }]}>
         <AppText color="onPrimary" style={styles.continueText} variant="label">
           {appointment ? 'Tekrarla' : 'Keşfet'}
         </AppText>
+        <SymbolView
+          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          size={14}
+          tintColor={colors.onPrimary}
+        />
       </View>
     </Pressable>
   );
@@ -208,6 +224,7 @@ function FavoriteShopCard({
   cardWidth: number;
   onPress: () => void;
 }) {
+  const colors = useThemeColors();
   const imageUrl = barbershop.profileImageUrl ?? barbershop.coverImageUrl;
 
   return (
@@ -217,14 +234,14 @@ function FavoriteShopCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.favoriteCard,
-        { width: cardWidth },
+        { backgroundColor: colors.surface, borderColor: colors.border, width: cardWidth },
         pressed && styles.pressed,
       ]}>
       <View style={styles.favoriteImageArea}>
         {imageUrl ? (
           <Image contentFit="cover" source={imageUrl} style={styles.favoriteImage} />
         ) : (
-          <View style={[styles.favoriteImage, styles.imagePlaceholder]}>
+          <View style={[styles.favoriteImage, styles.imagePlaceholder, { backgroundColor: colors.surfaceMuted }]}>
             <SymbolView
               name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
               size={30}
@@ -232,7 +249,7 @@ function FavoriteShopCard({
             />
           </View>
         )}
-        <View style={styles.heartBadge}>
+        <View style={[styles.heartBadge, { backgroundColor: colors.surface }]}>
           <SymbolView
             name={{ ios: 'heart.fill', android: 'favorite', web: 'favorite' }}
             size={14}
@@ -251,10 +268,11 @@ function FavoriteShopCard({
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1 },
   content: { paddingBottom: 112, paddingHorizontal: layout.screenHorizontalPadding },
   intro: { marginTop: spacing.sm },
   title: { fontSize: 30, lineHeight: 36 },
-  subtitle: { fontSize: 15, lineHeight: 21, marginTop: spacing.xxs },
+  subtitle: { fontSize: 15, lineHeight: 21, marginTop: spacing.xxs, opacity: 0.78 },
   loader: { marginTop: spacing.xxxl },
   errorState: { alignItems: 'center', marginTop: spacing.xxxl },
   errorText: { textAlign: 'center' },
@@ -268,24 +286,24 @@ const styles = StyleSheet.create({
   },
   lastCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 118,
-    padding: spacing.md,
+    padding: spacing.xs,
   },
-  lastImage: { borderRadius: radius.pill, height: 62, width: 62 },
-  imagePlaceholder: { alignItems: 'center', backgroundColor: colors.darkSurface, justifyContent: 'center' },
+  lastImage: { borderRadius: radius.smallCard, height: 92, width: 92 },
+  imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   lastContent: { flex: 1, marginLeft: spacing.sm },
   lastTitle: { fontSize: 17, lineHeight: 22 },
   lastMeta: { fontSize: 14, lineHeight: 19, marginTop: 2 },
   lastServiceRow: { alignItems: 'flex-start', flexDirection: 'row', marginTop: spacing.xs },
   lastService: { flex: 1, fontSize: 13, lineHeight: 18, marginLeft: spacing.xxs },
   continuePill: {
-    backgroundColor: colors.primary,
+    alignItems: 'center',
     borderRadius: radius.pill,
+    flexDirection: 'row',
+    gap: spacing.xxs,
     marginLeft: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -293,17 +311,14 @@ const styles = StyleSheet.create({
   continueText: { fontSize: 12, lineHeight: 16 },
   favoriteList: { gap: layout.cardGap, paddingRight: spacing.lg },
   favoriteCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.smallCard,
     borderWidth: 1,
     overflow: 'hidden',
   },
-  favoriteImageArea: { height: 96 },
+  favoriteImageArea: { height: 112 },
   favoriteImage: { height: '100%', width: '100%' },
   heartBadge: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     height: 28,
     justifyContent: 'center',
@@ -319,8 +334,6 @@ const styles = StyleSheet.create({
   searchTitle: { fontSize: 22, lineHeight: 28, marginTop: spacing.xl },
   searchBox: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
@@ -332,7 +345,6 @@ const styles = StyleSheet.create({
   trustNote: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.xxxl },
   trustIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 44,
     justifyContent: 'center',

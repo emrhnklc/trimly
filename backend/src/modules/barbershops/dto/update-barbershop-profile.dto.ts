@@ -50,6 +50,10 @@ export class UpdateBarbershopProfileDto {
   isDiscoverable?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  acceptsBookings?: boolean;
+
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)

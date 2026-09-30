@@ -5,8 +5,8 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import type { ManagementService } from '@/features/business-management/types';
 import type { BusinessMember } from '@/features/members/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { MemberRoleSelector, type AssignableBusinessRole } from './MemberRoleSelector';
 
 export type BusinessMemberFormValues = {
@@ -31,6 +31,7 @@ export function BusinessMemberForm({
   onSubmit: (values: BusinessMemberFormValues) => Promise<void>;
   services: ManagementService[];
 }) {
+  const themeColors = useThemeColors();
   const initialRole = member.role === 'OWNER' ? 'BARBER' : member.role;
   const [role, setRole] = useState<AssignableBusinessRole>(initialRole);
   const [isActive, setActive] = useState(member.isActive);
@@ -60,39 +61,47 @@ export function BusinessMemberForm({
 
   return (
     <View>
-      <View style={styles.identityCard}>
+      <View style={[styles.identityCard, { backgroundColor: themeColors.darkSurface }]}>
         <AppText color="onPrimary" variant="label">{member.user.firstName} {member.user.lastName}</AppText>
         <AppText color="textMuted" style={styles.email} variant="bodySmall">{member.user.email}</AppText>
       </View>
 
-      <View style={styles.card}>
-        <AppText style={styles.sectionTitle} variant="label">Rol</AppText>
-        <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
-          {canEditRoleAndStatus
-            ? 'Çalışanın işletme içinde hangi işlemleri yapabileceğini belirler.'
-            : 'Çalışan rolünü ve aktiflik durumunu yalnız işletme sahibi değiştirebilir.'}
-        </AppText>
-        <View style={styles.roleSelector}>
-          <MemberRoleSelector
-            disabled={isSubmitting || !canEditRoleAndStatus}
-            onChange={handleRoleChange}
-            value={role}
-          />
+      {member.role !== 'OWNER' ? (
+        <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+          <AppText style={styles.sectionTitle} variant="label">Rol</AppText>
+          <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
+            {canEditRoleAndStatus
+              ? 'Çalışanın işletme içinde hangi işlemleri yapabileceğini belirler.'
+              : 'Çalışan rolünü ve aktiflik durumunu yalnız işletme sahibi değiştirebilir.'}
+          </AppText>
+          <View style={styles.roleSelector}>
+            <MemberRoleSelector
+              disabled={isSubmitting || !canEditRoleAndStatus}
+              onChange={handleRoleChange}
+              value={role}
+            />
+          </View>
         </View>
-      </View>
+      ) : null}
 
-      <View style={styles.card}>
-        <SettingRow
-          description="Pasif çalışan sisteme bağlı kalır ancak işletme işlemlerine katılamaz."
-          disabled={isSubmitting || !canEditRoleAndStatus}
-          label="Aktif çalışan"
-          onChange={handleActiveChange}
-          value={isActive}
-        />
-        <View style={styles.divider} />
+      <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+        {member.role !== 'OWNER' ? (
+          <>
+            <SettingRow
+              description="Pasif çalışan sisteme bağlı kalır ancak işletme işlemlerine katılamaz."
+              disabled={isSubmitting || !canEditRoleAndStatus}
+              label="Aktif çalışan"
+              onChange={handleActiveChange}
+              value={isActive}
+            />
+            <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
+          </>
+        ) : null}
         <SettingRow
           description={
-            role === 'APPRENTICE'
+            member.role === 'OWNER'
+              ? 'Kendini randevu sırasında seçilebilir bir berber olarak göster.'
+              : role === 'APPRENTICE'
               ? 'Çırak rolü randevuya açılamaz.'
               : 'Müşteriler bu çalışanı randevu sırasında seçebilir.'
           }
@@ -103,7 +112,7 @@ export function BusinessMemberForm({
         />
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
         <AppText style={styles.sectionTitle} variant="label">Yapabildiği hizmetler</AppText>
         <AppText color="textMuted" style={styles.sectionDescription} variant="bodySmall">
           Randevu alınırken yalnızca seçili hizmetlerle eşleşir.
@@ -118,8 +127,16 @@ export function BusinessMemberForm({
                 disabled={isSubmitting || (!service.isActive && !selected)}
                 key={service.id}
                 onPress={() => toggleService(service.id)}
-                style={({ pressed }) => [styles.serviceRow, pressed && styles.pressed]}>
-                <View style={[styles.checkbox, selected && styles.selectedCheckbox]}>
+                style={({ pressed }) => [
+                  styles.serviceRow,
+                  { borderBottomColor: themeColors.border },
+                  pressed && styles.pressed,
+                ]}>
+                <View style={[
+                  styles.checkbox,
+                  { borderColor: selected ? themeColors.primary : themeColors.border },
+                  selected && { backgroundColor: themeColors.primary },
+                ]}>
                   {selected ? <AppText color="onPrimary" style={styles.checkmark} variant="label">✓</AppText> : null}
                 </View>
                 <View style={styles.serviceContent}>
@@ -169,6 +186,8 @@ function SettingRow({
   onChange: (value: boolean) => void;
   value: boolean;
 }) {
+  const themeColors = useThemeColors();
+
   return (
     <View style={styles.settingRow}>
       <View style={styles.settingContent}>
@@ -180,8 +199,8 @@ function SettingRow({
       <Switch
         disabled={disabled}
         onValueChange={onChange}
-        thumbColor={value ? colors.primary : colors.surface}
-        trackColor={{ false: colors.border, true: '#D7B96F' }}
+        thumbColor={value ? themeColors.primary : themeColors.surface}
+        trackColor={{ false: themeColors.border, true: themeColors.primaryPressed }}
         value={value}
       />
     </View>
@@ -190,15 +209,12 @@ function SettingRow({
 
 const styles = StyleSheet.create({
   identityCard: {
-    backgroundColor: colors.darkSurface,
     borderRadius: radius.card,
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
   email: { color: '#D8CDC3', fontSize: 10, lineHeight: 14, marginTop: 2 },
   card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     marginBottom: spacing.sm,
@@ -210,25 +226,22 @@ const styles = StyleSheet.create({
   settingRow: { alignItems: 'center', flexDirection: 'row', minHeight: 72 },
   settingContent: { flex: 1, marginRight: spacing.md },
   settingDescription: { fontSize: 9, lineHeight: 13, marginTop: 2 },
-  divider: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth },
+  divider: { height: StyleSheet.hairlineWidth },
   serviceList: { marginTop: spacing.sm },
   serviceRow: {
     alignItems: 'center',
-    borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     minHeight: 56,
   },
   checkbox: {
     alignItems: 'center',
-    borderColor: colors.border,
     borderRadius: 6,
     borderWidth: 1.5,
     height: 22,
     justifyContent: 'center',
     width: 22,
   },
-  selectedCheckbox: { backgroundColor: colors.primary, borderColor: colors.primary },
   checkmark: { fontSize: 12, lineHeight: 15 },
   serviceContent: { flex: 1, marginLeft: spacing.sm },
   serviceName: { fontSize: 11, lineHeight: 15 },

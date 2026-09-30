@@ -1,5 +1,27 @@
 export type AppointmentStatus = 'CONFIRMED' | 'ARRIVED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
+export type AppointmentChangeProposal = {
+  id: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CANCELLED';
+  proposedStartsAt: string;
+  proposedEndsAt: string;
+  proposedDurationMinutes: number;
+  proposedPrice: string;
+  reason: string;
+  proposedService: { id: string };
+  proposedServiceName: string;
+  proposedBusinessMember: {
+    id: string;
+    user: {
+      firstName: string;
+      lastName: string;
+      profileImageUrl: string | null;
+    };
+  };
+  expiresAt: string;
+  createdAt: string;
+};
+
 export type PortfolioPublication = {
   id: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED';
@@ -31,6 +53,7 @@ export type CreateAppointmentInput = {
   serviceId: string;
   startsAt: string;
   campaignId?: string;
+  dependentProfileId?: string;
 };
 
 export type CreatedAppointment = {
@@ -38,6 +61,9 @@ export type CreatedAppointment = {
   barbershopId: string;
   businessMemberId: string;
   customerId: string;
+  dependentProfileId?: string | null;
+  attendeeNameSnapshot?: string;
+  appointmentLocalDate?: string;
   serviceId: string;
   campaignId?: string | null;
   campaignTitleSnapshot?: string | null;
@@ -52,6 +78,7 @@ export type CreatedAppointment = {
   status: AppointmentStatus;
   arrivedAt?: string | null;
   autoCompleteAt?: string | null;
+  completedAt?: string | null;
 };
 
 export type BusinessAppointment = {
@@ -62,6 +89,13 @@ export type BusinessAppointment = {
   arrivedAt: string | null;
   autoCompleteAt: string | null;
   completedAt: string | null;
+  dependentProfileId: string | null;
+  attendeeNameSnapshot: string;
+  appointmentLocalDate: string;
+  haircutRecord: {
+    id: string;
+    finalizedAt: string | null;
+  } | null;
   serviceNameSnapshot: string;
   campaignTitleSnapshot?: string | null;
   campaignBenefitSnapshot?: string | null;
@@ -88,6 +122,7 @@ export type BusinessAppointmentDetail = BusinessAppointment & {
   cancelledAt: string | null;
   cancellationReason: string | null;
   completedVisitCount: number;
+  changeProposal: AppointmentChangeProposal | null;
   barbershop: {
     id: string;
     name: string;
@@ -130,10 +165,14 @@ export type CustomerAppointment = {
   durationMinutes: number;
   cancelledAt: string | null;
   completedAt: string | null;
+  dependentProfileId: string | null;
+  attendeeNameSnapshot: string;
+  appointmentLocalDate: string;
   canCancel: boolean;
   cancellationDeadline: string;
   cancellationNoticeMinutes: number;
   cancellationReason: string | null;
+  changeProposal?: AppointmentChangeProposal | null;
   review?: AppointmentReview | null;
   haircutRecord?: {
     id: string;

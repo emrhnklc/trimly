@@ -57,7 +57,7 @@ function MenuRow({ isLast, item }: { isLast: boolean; item: ProfileMenuItem }) {
         <SymbolView
           name={item.icon}
           size={18}
-          tintColor={item.danger ? colors.danger : colors.textMuted}
+          tintColor={item.danger ? colors.danger : colors.primary}
         />
       </View>
       <AppText color={item.danger ? 'danger' : 'text'} style={styles.label}>

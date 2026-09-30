@@ -6,7 +6,6 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,6 +18,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
 import { Screen } from "@/components/ui/Screen";
+import { UnsavedChangesSheet } from "@/components/ui/UnsavedChangesSheet";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
   getPublicBarbershop,
@@ -38,6 +38,7 @@ import {
   BusinessLocationMapPicker,
   type BusinessCoordinate,
 } from "@/features/locations/components/BusinessLocationMapPicker";
+import { goBackOrReplace } from "@/lib/navigation/goBackOrReplace";
 import { colors } from "@/theme/colors";
 import { layout, radius, spacing } from "@/theme/spacing";
 import { useThemeColors } from "@/theme/useThemeColors";
@@ -82,6 +83,7 @@ export default function BusinessSettingsScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false);
   const [galleryPhotos, setGalleryPhotos] = useState<
     { id: string; url: string }[]
   >([]);
@@ -144,31 +146,20 @@ export default function BusinessSettingsScreen() {
       return;
     }
 
-    Alert.alert(
-      "Kaydedilmemiş değişiklikler",
-      "İşletme bilgilerinde yaptığın değişiklikler kaybolacak.",
-      [
-        { text: "Düzenlemeye Devam Et", style: "cancel" },
-        {
-          text: "Değişiklikleri Sil",
-          style: "destructive",
-          onPress: leaveBusinessSettings,
-        },
-      ],
-    );
+    setUnsavedSheetVisible(true);
   }
 
   function leaveBusinessSettings() {
     if (source === "profile") {
-      router.replace("/(business)/profile");
+      goBackOrReplace(router, "/(business)/profile");
       return;
     }
 
-    router.dismissTo("/management");
+    goBackOrReplace(router, "/(business)/management");
   }
 
   async function handleSave() {
-    if (!profile || !token || !activeMembership) return;
+    if (!profile || !token || !activeMembership) return false;
 
     const normalizedProfile = {
       ...profile,
@@ -182,25 +173,25 @@ export default function BusinessSettingsScreen() {
 
     if (normalizedProfile.name.length < 2) {
       setSubmitError("İşletme adı en az 2 karakter olmalı.");
-      return;
+      return false;
     }
     if (!normalizedProfile.address) {
       setSubmitError(
         "Müşterilerin işletmeyi bulabilmesi için adres zorunludur.",
       );
-      return;
+      return false;
     }
     if (!isValidOptionalUrl(normalizedProfile.profileImageUrl)) {
       setSubmitError(
         "Profil fotoğrafı için geçerli bir HTTPS bağlantısı kullanmalısın.",
       );
-      return;
+      return false;
     }
     if (!isValidOptionalUrl(normalizedProfile.coverImageUrl)) {
       setSubmitError(
         "Kapak fotoğrafı için geçerli bir HTTPS bağlantısı kullanmalısın.",
       );
-      return;
+      return false;
     }
 
     setSubmitting(true);
@@ -216,7 +207,7 @@ export default function BusinessSettingsScreen() {
         address: saved.address ?? "",
         coverImageUrl: saved.coverImageUrl ?? "",
         description: saved.description ?? "",
-      isDiscoverable: saved.isDiscoverable,
+        isDiscoverable: saved.isDiscoverable,
         latitude: saved.latitude,
         longitude: saved.longitude,
         name: saved.name,
@@ -229,19 +220,33 @@ export default function BusinessSettingsScreen() {
       setSuccessMessage(
         "İşletme bilgileri kaydedildi. Müşteri profili de güncellendi.",
       );
+      return true;
     } catch (reason) {
       setSubmitError(
         reason instanceof Error
           ? reason.message
           : "İşletme bilgileri kaydedilemedi.",
       );
+      return false;
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function saveAndLeave() {
+    if (await handleSave()) {
+      setUnsavedSheetVisible(false);
+      leaveBusinessSettings();
+    }
+  }
+
   async function chooseBusinessPhotos(kind: "profile" | "cover" | "gallery") {
     if (!token || !activeMembership) return;
+    const remainingGallerySlots = Math.max(0, 8 - galleryPhotos.length);
+    if (kind === "gallery" && remainingGallerySlots === 0) {
+      setSubmitError("İşletme galerisine en fazla 8 fotoğraf ekleyebilirsin.");
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync(
       kind !== "gallery"
         ? {
@@ -251,10 +256,11 @@ export default function BusinessSettingsScreen() {
             quality: 0.85,
           }
         : {
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsMultipleSelection: true,
             mediaTypes: ["images"],
+            orderedSelection: true,
             quality: 0.85,
+            selectionLimit: remainingGallerySlots,
           },
     );
     if (result.canceled) return;
@@ -327,29 +333,6 @@ export default function BusinessSettingsScreen() {
         setMapInitialCoordinate({
           latitude: profile.latitude,
           longitude: profile.longitude,
-        });
-      } else {
-        if (!profile.address.trim()) {
-          setSubmitError("Haritayı açmadan önce işletme adresini girmelisin.");
-          return;
-        }
-        if (Platform.OS === "android") {
-          const permission = await Location.requestForegroundPermissionsAsync();
-          if (!permission.granted) {
-            setSubmitError("Haritayı adrese götürmek için konum izni vermelisin.");
-            return;
-          }
-        }
-        const result = (await Location.geocodeAsync(profile.address.trim()))[0];
-        if (!result) {
-          setSubmitError(
-            "Adres haritada bulunamadı. Adresi kontrol edip tekrar dene.",
-          );
-          return;
-        }
-        setMapInitialCoordinate({
-          latitude: result.latitude,
-          longitude: result.longitude,
         });
       }
       setMapVisible(true);
@@ -488,14 +471,7 @@ export default function BusinessSettingsScreen() {
                   label="Adres"
                   maxLength={500}
                   multiline
-                  onChangeText={(value) => {
-                    updateProfile({
-                      address: value,
-                      latitude: null,
-                      longitude: null,
-                    });
-                    setLocationMethod(null);
-                  }}
+                  onChangeText={(value) => updateProfile({ address: value })}
                   placeholder="Mahalle, sokak, ilçe ve şehir"
                   value={profile.address}
                 />
@@ -508,7 +484,7 @@ export default function BusinessSettingsScreen() {
                     icon={{ ios: "map.fill", android: "map", web: "map" }}
                     onPress={() => void openMapPicker()}
                     selected={locationMethod === "map"}
-                    subtitle="Haritayı açıp işletmenin bulunduğu noktayı seç."
+                    subtitle="Haritadaki aramayla işletmeni bul ve doğru noktayı seç."
                     title={
                       locatingMethod === "map"
                         ? "Harita hazırlanıyor…"
@@ -584,7 +560,7 @@ export default function BusinessSettingsScreen() {
               <AppCard style={styles.formCard}>
                 <View style={styles.galleryHeading}>
                   <AppText color="textMuted" variant="bodySmall">
-                    {galleryPhotos.length} fotoğraf
+                    {galleryPhotos.length} fotoğraf · yayın için en az 2
                   </AppText>
                   {galleryPhotos.length ? (
                     <Pressable
@@ -781,6 +757,17 @@ export default function BusinessSettingsScreen() {
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
+      <UnsavedChangesSheet
+        description="İşletme bilgilerinde yaptığın değişiklikleri kaydedebilir veya silebilirsin."
+        isSaving={isSubmitting}
+        onContinue={() => setUnsavedSheetVisible(false)}
+        onDiscard={() => {
+          setUnsavedSheetVisible(false);
+          leaveBusinessSettings();
+        }}
+        onSave={() => void saveAndLeave()}
+        visible={unsavedSheetVisible}
+      />
     </Screen>
   );
 }

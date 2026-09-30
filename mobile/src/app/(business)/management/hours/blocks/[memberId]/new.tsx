@@ -31,8 +31,9 @@ import { getBusinessMember } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
 import { createMemberScheduleBlock } from '@/features/schedules/api';
 import type { ScheduleBlockType } from '@/features/schedules/types';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type PickerTarget = 'startDate' | 'startTime' | 'endDate' | 'endTime';
 
@@ -47,12 +48,18 @@ function DateTimeField({
   onPress: () => void;
   value: string;
 }) {
+  const colors = useThemeColors();
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.field, pressed && styles.pressed]}>
-      <View style={styles.fieldIcon}>
+      style={({ pressed }) => [
+        styles.field,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        pressed && styles.pressed,
+      ]}>
+      <View style={[styles.fieldIcon, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView name={icon} size={19} tintColor={colors.primary} />
       </View>
       <View style={styles.fieldCopy}>
@@ -69,6 +76,7 @@ function DateTimeField({
 }
 
 export default function NewEmployeeScheduleBlockScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { memberId, source } = useLocalSearchParams<{ memberId: string; source?: string }>();
   const { token } = useAuth();
@@ -105,8 +113,8 @@ export default function NewEmployeeScheduleBlockScreen() {
   if (!activeMembership) return null;
 
   function goBack() {
-    router.dismissTo({
-      pathname: '/management/hours/blocks/[memberId]',
+    goBackOrReplace(router, {
+      pathname: '/(business)/management/hours/blocks/[memberId]',
       params: { memberId, ...(source === 'team' ? { source } : {}) },
     });
   }
@@ -220,7 +228,7 @@ export default function NewEmployeeScheduleBlockScreen() {
                   value={formatDateKey(endDate, { short: true })}
                 />
               ) : (
-                <View style={styles.sameDayField}>
+                <View style={[styles.sameDayField, { backgroundColor: themeColors.surfaceMuted }]}>
                   <AppText color="textMuted" variant="bodySmall">Aynı gün</AppText>
                   <AppText style={styles.fieldValue} variant="label">
                     {formatDateKey(startDate, { short: true })}
@@ -246,14 +254,21 @@ export default function NewEmployeeScheduleBlockScreen() {
                 setError(null);
               }}
               placeholder={type === 'BREAK' ? 'Örn. Öğle molası' : 'Örn. Yıllık izin'}
-              placeholderTextColor={colors.textMuted}
-              style={styles.noteInput}
+              placeholderTextColor={themeColors.textMuted}
+              style={[
+                styles.noteInput,
+                {
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border,
+                  color: themeColors.text,
+                },
+              ]}
               value={note}
             />
           </View>
 
           {error ? (
-            <View style={styles.errorCard}>
+            <View style={[styles.errorCard, { backgroundColor: themeColors.dangerSurface }]}>
               <AppText color="danger" variant="bodySmall">{error}</AppText>
             </View>
           ) : null}
@@ -294,8 +309,6 @@ const styles = StyleSheet.create({
   fieldRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   field: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flex: 1,
@@ -305,7 +318,6 @@ const styles = StyleSheet.create({
   },
   fieldIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.sm,
     height: 38,
     justifyContent: 'center',
@@ -314,7 +326,6 @@ const styles = StyleSheet.create({
   fieldCopy: { flex: 1, marginHorizontal: spacing.xs, minWidth: 0 },
   fieldValue: { marginTop: 1 },
   sameDayField: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     flex: 1,
     justifyContent: 'center',
@@ -322,18 +333,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   noteInput: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
-    color: colors.text,
     fontSize: 15,
     minHeight: 96,
     padding: spacing.md,
     textAlignVertical: 'top',
   },
   errorCard: {
-    backgroundColor: '#F8E7E3',
     borderRadius: radius.md,
     marginBottom: spacing.sm,
     marginTop: spacing.lg,

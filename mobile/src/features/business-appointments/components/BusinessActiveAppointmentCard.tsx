@@ -1,63 +1,58 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from "expo-image";
+import { SymbolView } from "expo-symbols";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppButton } from '@/components/ui/AppButton';
-import { AppText } from '@/components/ui/AppText';
-import type { BusinessAppointment } from '@/features/appointments/types';
-import type { ThemeColors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
-import { useThemeColors } from '@/theme/useThemeColors';
-import { formatBusinessTime } from '../date';
+import { AppText } from "@/components/ui/AppText";
+import type { BusinessAppointment } from "@/features/appointments/types";
+import type { ThemeColors } from "@/theme/colors";
+import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
+import { formatBusinessTime } from "../date";
 
-function getMinutesUntilArrivalOpens(appointment: BusinessAppointment, now: number) {
-  const opensAt = new Date(appointment.startsAt).getTime();
+const ARRIVAL_EARLY_WINDOW_MINUTES = 15;
+
+function getMinutesUntilArrivalOpens(
+  appointment: BusinessAppointment,
+  now: number,
+) {
+  const opensAt =
+    new Date(appointment.startsAt).getTime() -
+    ARRIVAL_EARLY_WINDOW_MINUTES * 60 * 1000;
   return Math.max(0, Math.ceil((opensAt - now) / 60000));
 }
 
-function getCardState(appointment: BusinessAppointment, now: number, themeColors: ThemeColors) {
+function getCardState(
+  appointment: BusinessAppointment,
+  now: number,
+  themeColors: ThemeColors,
+) {
   const startsAt = new Date(appointment.startsAt).getTime();
   const endsAt = new Date(appointment.endsAt).getTime();
 
-  if (appointment.status === 'ARRIVED') {
+  if (appointment.status === "ARRIVED") {
     return {
       accent: themeColors.info,
-      label: 'MÜŞTERİ GELDİ',
-      note: appointment.autoCompleteAt
-        ? `${formatBusinessTime(appointment.autoCompleteAt, 'Europe/Istanbul')} civarı otomatik tamamlanır`
-        : 'Geliş kaydı oluşturuldu',
+      label: "MÜŞTERİ GELDİ",
     };
   }
 
   if (now > endsAt) {
-    const minutesUntilAutomaticCompletion = Math.max(
-      0,
-      Math.ceil((endsAt + 60 * 60 * 1000 - now) / 60000),
-    );
-
     return {
-      accent: '#9B6B3D',
-      label: 'GECİKEN RANDEVU',
-      note:
-        minutesUntilAutomaticCompletion > 0
-          ? `Müşteri geldiyse işaretle; aksi halde ${minutesUntilAutomaticCompletion} dk sonra otomatik tamamlanır.`
-          : 'Randevu otomatik tamamlanıyor.',
+      accent: "#9B6B3D",
+      label: "GECİKEN RANDEVU",
     };
   }
 
   if (now >= startsAt) {
     return {
-      accent: '#5E8B61',
-      label: 'SIRADAKİ MÜŞTERİ',
-      note: now >= startsAt ? 'Randevu saati geldi.' : 'Geliş kaydı açıldı.',
+      accent: "#5E8B61",
+      label: "SIRADAKİ RANDEVU",
     };
   }
 
-  const minutes = getMinutesUntilArrivalOpens(appointment, now);
   return {
     accent: themeColors.primary,
-    label: 'SIRADAKİ RANDEVU',
-    note: `“Müşteri Geldi” ${minutes} dk sonra açılacak.`,
+    label: "SIRADAKİ RANDEVU",
   };
 }
 
@@ -81,30 +76,62 @@ export function BusinessActiveAppointmentCard({
   timeZone: string;
 }) {
   const themeColors = useThemeColors();
-  const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
+  const customerName = appointment.attendeeNameSnapshot;
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
-  const initials = `${appointment.customer.firstName[0] ?? ''}${appointment.customer.lastName[0] ?? ''}`;
+  const nameParts = customerName.trim().split(/\s+/);
+  const initials = `${nameParts[0]?.[0] ?? ""}${nameParts.at(-1)?.[0] ?? ""}`;
   const state = getCardState(appointment, now, themeColors);
-  const canMarkArrived = getMinutesUntilArrivalOpens(appointment, now) === 0;
-  const hasArrived = appointment.status === 'ARRIVED';
+  const minutesUntilArrivalOpens = getMinutesUntilArrivalOpens(
+    appointment,
+    now,
+  );
+  const canMarkArrived = minutesUntilArrivalOpens === 0;
+  const hasArrived = appointment.status === "ARRIVED";
+  const startsAt = new Date(appointment.startsAt).getTime();
+  const minutesUntilStart = Math.max(0, Math.ceil((startsAt - now) / 60000));
+  const hasEnded = new Date(appointment.endsAt).getTime() < now;
+  const infoMessage = hasArrived
+    ? appointment.autoCompleteAt
+      ? `${formatBusinessTime(appointment.autoCompleteAt, timeZone)} civarı otomatik tamamlanacak.`
+      : "Müşterinin geliş kaydı oluşturuldu."
+    : !canMarkArrived
+      ? `“Müşteri Geldi” ${minutesUntilArrivalOpens} dk sonra açılacak.`
+      : hasEnded
+        ? "Randevu saati geçti. Müşteri geldiyse geliş kaydını oluştur."
+        : minutesUntilStart > 0
+          ? `Randevuya ${minutesUntilStart} dk kaldı. Müşteri geldiyse geliş kaydını oluşturabilirsin.`
+          : "Randevu saati geldi. Müşterinin geliş kaydını oluşturabilirsin.";
 
   return (
-    <View style={[styles.card, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: themeColors.surface, borderColor: state.accent },
+      ]}
+    >
       <View style={styles.topRow}>
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, { backgroundColor: state.accent }]} />
-          <AppText style={[styles.overline, { color: state.accent }]} variant="overline">
+          <AppText
+            style={[styles.overline, { color: state.accent }]}
+            variant="overline"
+          >
             {state.label}
           </AppText>
         </View>
-        <View style={[styles.timeBadge, { backgroundColor: themeColors.surfaceMuted }]}>
+        <View
+          style={[
+            styles.timeBadge,
+            { backgroundColor: themeColors.surfaceMuted },
+          ]}
+        >
           <SymbolView
-            name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
+            name={{ ios: "clock", android: "schedule", web: "schedule" }}
             size={15}
             tintColor={themeColors.primary}
           />
           <AppText color="primary" style={styles.time} variant="label">
-            {formatBusinessTime(appointment.startsAt, timeZone)}–
+            {formatBusinessTime(appointment.startsAt, timeZone)} –{" "}
             {formatBusinessTime(appointment.endsAt, timeZone)}
           </AppText>
         </View>
@@ -114,8 +141,9 @@ export function BusinessActiveAppointmentCard({
         accessibilityLabel={`${customerName} randevu detayını aç`}
         accessibilityRole="button"
         onPress={onDetail}
-        style={({ pressed }) => [styles.customerRow, pressed && styles.pressed]}>
-        {appointment.customer.profileImageUrl ? (
+        style={({ pressed }) => [styles.customerRow, pressed && styles.pressed]}
+      >
+        {!appointment.dependentProfileId && appointment.customer.profileImageUrl ? (
           <Image
             accessibilityLabel={`${customerName} profil fotoğrafı`}
             contentFit="cover"
@@ -123,58 +151,110 @@ export function BusinessActiveAppointmentCard({
             style={styles.avatar}
           />
         ) : (
-          <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: themeColors.surfaceMuted }]}>
-            <AppText color="primary" style={styles.initials} variant="heading">{initials}</AppText>
+          <View
+            style={[
+              styles.avatar,
+              styles.avatarPlaceholder,
+              { backgroundColor: themeColors.surfaceMuted },
+            ]}
+          >
+            <AppText color="primary" style={styles.initials} variant="heading">
+              {initials}
+            </AppText>
           </View>
         )}
         <View style={styles.customerCopy}>
-          <AppText numberOfLines={1} style={styles.customerName} variant="heading">
+          <AppText
+            numberOfLines={1}
+            style={styles.customerName}
+            variant="heading"
+          >
             {customerName}
           </AppText>
           <AppText color="textMuted" numberOfLines={1} variant="bodySmall">
             {appointment.serviceNameSnapshot} · {appointment.durationMinutes} dk
           </AppText>
-          <AppText color="textMuted" numberOfLines={1} style={styles.barber} variant="bodySmall">
+          <AppText
+            color="textMuted"
+            numberOfLines={1}
+            style={styles.barber}
+            variant="bodySmall"
+          >
             {barberName} ile
           </AppText>
         </View>
         <SymbolView
-          name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          name={{
+            ios: "chevron.right",
+            android: "chevron_right",
+            web: "chevron_right",
+          }}
           size={17}
           tintColor={themeColors.textMuted}
         />
       </Pressable>
 
-      <View style={[styles.infoRow, { backgroundColor: themeColors.background }]}>
+      <View
+        style={[styles.infoRow, { backgroundColor: themeColors.background }]}
+      >
         <SymbolView
-          name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-          size={16}
+          name={{ ios: "info.circle", android: "info", web: "info" }}
+          size={19}
           tintColor={state.accent}
         />
-        <AppText color="textMuted" style={styles.note} variant="bodySmall">
-          {hasArrived && appointment.autoCompleteAt
-            ? `${formatBusinessTime(appointment.autoCompleteAt, timeZone)} civarı otomatik tamamlanır.`
-            : state.note}
+        <AppText color="textMuted" style={styles.infoText} variant="bodySmall">
+          {infoMessage}
         </AppText>
       </View>
 
       <View style={styles.actions}>
         <View style={styles.primaryAction}>
-          <AppButton
+          <Pressable
+            accessibilityRole="button"
             disabled={isSubmitting || (!hasArrived && !canMarkArrived)}
             onPress={hasArrived ? onUndoArrival : onArrive}
-            variant={hasArrived ? 'secondary' : 'primary'}>
-            {isSubmitting
-              ? 'Güncelleniyor...'
-              : hasArrived
-                ? 'Gelişi Geri Al'
-                : 'Müşteri Geldi'}
-          </AppButton>
+            style={({ pressed }) => [
+              styles.arrivalButton,
+              {
+                backgroundColor: hasArrived
+                  ? themeColors.surfaceMuted
+                  : themeColors.primary,
+              },
+              pressed && styles.pressed,
+              (isSubmitting || (!hasArrived && !canMarkArrived)) &&
+                styles.disabled,
+            ]}
+          >
+            <AppText
+              style={[
+                styles.arrivalButtonLabel,
+                { color: themeColors.darkSurface },
+              ]}
+              variant="label"
+            >
+              {isSubmitting
+                ? "Güncelleniyor..."
+                : hasArrived
+                  ? "Gelişi Geri Al"
+                  : "Müşteri Geldi"}
+            </AppText>
+          </Pressable>
         </View>
         <View style={styles.cancelAction}>
-          <AppButton disabled={isSubmitting} onPress={onCancel} variant="ghost">
-            İptal Et
-          </AppButton>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSubmitting}
+            onPress={onCancel}
+            style={({ pressed }) => [
+              styles.cancelButton,
+              pressed && styles.pressed,
+              isSubmitting && styles.disabled,
+            ]}
+          >
+            <AppText style={styles.cancelLabel} variant="label">
+              İptal Et
+            </AppText>
+          </Pressable>
         </View>
       </View>
     </View>
@@ -186,41 +266,71 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: spacing.md,
-    overflow: 'hidden',
-    padding: spacing.md,
+    overflow: "hidden",
+    padding: spacing.sm,
   },
-  topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  statusRow: { alignItems: 'center', flexDirection: 'row' },
+  topRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statusRow: { alignItems: "center", flexDirection: "row" },
   statusDot: { borderRadius: radius.pill, height: 7, marginRight: 6, width: 7 },
   overline: { fontSize: 9, lineHeight: 13 },
   timeBadge: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: radius.pill,
-    flexDirection: 'row',
+    flexDirection: "row",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
   time: { fontSize: 11, lineHeight: 15, marginLeft: 5 },
-  customerRow: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.md },
-  avatar: { borderRadius: radius.pill, height: 62, width: 62 },
+  customerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginTop: spacing.sm,
+  },
+  avatar: { borderRadius: radius.pill, height: 54, width: 54 },
   avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   initials: { fontSize: 20, lineHeight: 26 },
   customerCopy: { flex: 1, marginLeft: spacing.md },
   customerName: { fontSize: 18, lineHeight: 24 },
   barber: { marginTop: 2 },
   infoRow: {
-    alignItems: 'center',
-    borderRadius: radius.sm,
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    padding: spacing.sm,
+    alignItems: "center",
+    borderRadius: radius.md,
+    flexDirection: "row",
+    marginTop: spacing.sm,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
   },
-  note: { flex: 1, marginLeft: spacing.xs },
-  actions: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.sm },
+  infoText: { flex: 1, marginLeft: spacing.sm },
+  actions: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginTop: spacing.xs,
+  },
   primaryAction: { flex: 1 },
+  arrivalButton: {
+    alignItems: "center",
+    borderRadius: radius.card,
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
+  },
+  arrivalButtonLabel: { fontSize: 15, lineHeight: 20, textAlign: "center" },
   cancelAction: { marginLeft: spacing.xs, minWidth: 82 },
+  cancelButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: spacing.xs,
+  },
+  cancelLabel: { textAlign: "center" },
   pressed: { opacity: 0.68 },
+  disabled: { opacity: 0.45 },
 });

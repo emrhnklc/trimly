@@ -24,6 +24,7 @@ import type { RevenuePeriod, RevenueSummary } from '@/features/business-revenue/
 import { BusinessManagementState } from '@/features/business-management/components/BusinessManagementState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
@@ -99,7 +100,7 @@ export default function BusinessRevenueScreen() {
         }
         showsVerticalScrollIndicator={false}>
         <BusinessDetailHeader
-          onBack={() => router.dismissTo('/management')}
+          onBack={() => goBackOrReplace(router, '/(business)/management')}
           title="Gelirler"
         />
         <RevenuePeriodSelector onChange={selectPeriod} value={period} />

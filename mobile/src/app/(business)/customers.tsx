@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
@@ -37,18 +37,22 @@ export default function BusinessCustomersScreen() {
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadedBusinessId = useRef<string | null>(null);
 
   const loadCustomers = useCallback(
     async (refreshing = false) => {
       if (!activeMembership || !token) return;
 
       if (refreshing) setRefreshing(true);
-      else setLoading(true);
+      else if (loadedBusinessId.current !== activeMembership.barbershop.id) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
         const result = await getBusinessCustomers(activeMembership.barbershop.id, token);
         setCustomers(result.filter(isBusinessCustomer));
+        loadedBusinessId.current = activeMembership.barbershop.id;
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'Müşteriler yüklenemedi.');
       } finally {
@@ -101,10 +105,6 @@ export default function BusinessCustomersScreen() {
             />
             <BusinessCustomerSearch onChangeText={setSearch} value={search} />
             <BusinessCustomerFilters onChange={setFilter} value={filter} />
-
-            {isLoading ? (
-              <ActivityIndicator color={colors.primary} style={styles.loader} />
-            ) : null}
 
             {!isLoading && error ? (
               <BusinessCustomerState

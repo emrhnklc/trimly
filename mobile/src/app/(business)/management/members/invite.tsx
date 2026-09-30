@@ -23,10 +23,12 @@ import type {
   BusinessInvitationStatus,
   BusinessInvitationSummary,
 } from '@/features/members/types';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function InviteBusinessMemberScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { source } = useLocalSearchParams<{ source?: string }>();
   const { token } = useAuth();
@@ -125,31 +127,38 @@ export default function InviteBusinessMemberScreen() {
         <BusinessDetailHeader
           onBack={() => {
             if (source === 'profile') {
-              router.replace('/(business)/profile');
+              goBackOrReplace(router, '/(business)/profile');
               return;
             }
 
-            router.dismissTo('/management/members');
+            goBackOrReplace(router, '/(business)/management/members');
           }}
           title="Çalışan Daveti"
         />
         {invitation ? (
-          <View style={styles.successCard}>
-            <View style={styles.successIcon}>
+          <View style={[styles.successCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+            <View style={[styles.successIcon, { backgroundColor: themeColors.surfaceMuted }]}>
               <AppText color="primary" style={styles.checkmark} variant="heading">✓</AppText>
             </View>
             <AppText style={styles.successTitle} variant="heading">Davet hazır</AppText>
             <AppText color="textMuted" style={styles.successDescription} variant="bodySmall">
               {businessRoleLabels[invitation.role]} rolüyle oluşturuldu. Bağlantı bir kez kullanılabilir.
             </AppText>
-            <View style={styles.linkBox}>
+            <View style={[styles.linkBox, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
               <AppText selectable style={styles.link} variant="bodySmall">{inviteUrl}</AppText>
             </View>
             {inviteUrl ? (
-              <View style={styles.qrShell}>
+              <View
+                style={[
+                  styles.qrShell,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                  },
+                ]}>
                 <QRCode
-                  backgroundColor={colors.onPrimary}
-                  color={colors.text}
+                  backgroundColor={themeColors.surface}
+                  color={themeColors.text}
                   quietZone={8}
                   size={176}
                   value={inviteUrl}
@@ -177,7 +186,7 @@ export default function InviteBusinessMemberScreen() {
           {invitations.length ? (
             <View style={styles.invitationList}>
               {invitations.map((item) => (
-                <View key={item.id} style={styles.invitationRow}>
+              <View key={item.id} style={[styles.invitationRow, { borderBottomColor: themeColors.border }]}>
                   <View style={styles.invitationCopy}>
                     <AppText variant="label">{businessRoleLabels[item.role]}</AppText>
                     <AppText color="textMuted" variant="bodySmall">
@@ -209,15 +218,12 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   successCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     padding: spacing.xl,
   },
   successIcon: {
     alignItems: 'center',
-    backgroundColor: '#F4E7C8',
     borderRadius: radius.pill,
     height: 58,
     justifyContent: 'center',
@@ -227,8 +233,6 @@ const styles = StyleSheet.create({
   successTitle: { marginTop: spacing.md },
   successDescription: { marginTop: spacing.xs, textAlign: 'center' },
   linkBox: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     marginTop: spacing.lg,
@@ -237,8 +241,6 @@ const styles = StyleSheet.create({
   },
   link: { fontSize: 10, lineHeight: 15, textAlign: 'center' },
   qrShell: {
-    backgroundColor: colors.onPrimary,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     marginTop: spacing.md,
@@ -249,15 +251,12 @@ const styles = StyleSheet.create({
   historySection: { marginTop: spacing.xxl },
   historyTitle: { marginBottom: spacing.sm },
   invitationList: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     overflow: 'hidden',
   },
   invitationRow: {
     alignItems: 'center',
-    borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     minHeight: 68,

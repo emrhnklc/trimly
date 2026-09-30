@@ -1,5 +1,7 @@
 # Trimly — Ürün Kaydı
 
+İş kurallarının önceliklendirilmiş, uygulanabilir özeti için [Ürün Kuralları ve Yol Haritası](product-rules-roadmap.md) belgesine bakılır. Bu iki belge çelişirse, uygulama öncesinde karar güncellenir.
+
 ## Ürün tanımı
 
 Trimly, berberler için mobil odaklı randevu, müşteri geçmişi ve çalışan yönetimi uygulamasıdır. Aynı kullanıcı hem müşteri olabilir hem de bir veya birden fazla işletmede çalışan olabilir.

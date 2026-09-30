@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import type { ScheduleBlockType } from '@/features/schedules/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 const options: {
   icon: SymbolViewProps['name'];
@@ -30,6 +30,8 @@ export function ScheduleBlockTypeSelector({
   onChange: (value: ScheduleBlockType) => void;
   value: ScheduleBlockType;
 }) {
+  const colors = useThemeColors();
+
   return (
     <View style={styles.row}>
       {options.map((option) => {
@@ -42,10 +44,16 @@ export function ScheduleBlockTypeSelector({
             onPress={() => onChange(option.value)}
             style={({ pressed }) => [
               styles.option,
-              selected && styles.selectedOption,
+              {
+                backgroundColor: colors.surface,
+                borderColor: selected ? colors.primary : colors.border,
+              },
               pressed && styles.pressed,
             ]}>
-            <View style={[styles.iconShell, selected && styles.selectedIcon]}>
+            <View style={[
+              styles.iconShell,
+              { backgroundColor: selected ? colors.surfaceMuted : colors.background },
+            ]}>
               <SymbolView name={option.icon} size={21} tintColor={colors.primary} />
             </View>
             <AppText style={styles.label} variant="label">{option.label}</AppText>
@@ -59,24 +67,19 @@ export function ScheduleBlockTypeSelector({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
   option: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flex: 1,
     minHeight: 106,
     padding: spacing.md,
   },
-  selectedOption: { borderColor: colors.primary },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.background,
     borderRadius: radius.md,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
-  selectedIcon: { backgroundColor: colors.surfaceMuted },
   label: { marginTop: spacing.sm },
   pressed: { opacity: 0.68 },
 });

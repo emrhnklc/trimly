@@ -4,14 +4,15 @@ import { StyleSheet, View } from 'react-native';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import type { PublicBarbershopDetail } from '@/features/barbershops/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type BookingShopSummaryProps = {
   shop: PublicBarbershopDetail;
 };
 
 export function BookingShopSummary({ shop }: BookingShopSummaryProps) {
+  const colors = useThemeColors();
   return (
     <AppCard style={styles.card}>
       {shop.profileImageUrl ? (
@@ -23,7 +24,7 @@ export function BookingShopSummary({ shop }: BookingShopSummaryProps) {
           transition={150}
         />
       ) : (
-        <View style={styles.placeholder}>
+        <View style={[styles.placeholder, { backgroundColor: colors.surfaceMuted }]}>
           <AppText color="primary" style={styles.initial} variant="displayMedium">
             {shop.name.slice(0, 1).toUpperCase()}
           </AppText>
@@ -45,7 +46,6 @@ const styles = StyleSheet.create({
   image: { borderRadius: radius.pill, height: 58, width: 58 },
   placeholder: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 58,
     justifyContent: 'center',

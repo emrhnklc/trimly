@@ -32,6 +32,7 @@ import {
   updateBusinessMemberBookable,
 } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 
@@ -61,7 +62,6 @@ export default function EditBusinessMemberScreen() {
         getBusinessMember(activeMembership.barbershop.id, memberId, token),
         getManagementServices(activeMembership.barbershop.id, token),
       ]);
-      if (nextMember.role === 'OWNER') throw new Error('Owner hesabı bu ekrandan düzenlenemez.');
       setMember(nextMember);
       setServices(nextServices);
     } catch (reason) {
@@ -86,7 +86,7 @@ export default function EditBusinessMemberScreen() {
     setSubmitError(null);
     try {
       const barbershopId = activeMembership.barbershop.id;
-      if (can('EDIT_MEMBER_ROLE_AND_STATUS')) {
+      if (can('EDIT_MEMBER_ROLE_AND_STATUS') && member.role !== 'OWNER') {
         await updateBusinessMember(
           barbershopId,
           memberId,
@@ -186,7 +186,7 @@ export default function EditBusinessMemberScreen() {
     <Screen>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <BusinessDetailHeader
-          onBack={() => router.dismissTo('/management/members')}
+          onBack={() => goBackOrReplace(router, '/(business)/management/members')}
           title="Çalışanı Düzenle"
         />
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
@@ -211,7 +211,7 @@ export default function EditBusinessMemberScreen() {
               onSubmit={handleSubmit}
               services={services}
             />
-            {activeMembership.role === 'OWNER' && member.isActive ? (
+            {activeMembership.role === 'OWNER' && member.role !== 'OWNER' && member.isActive ? (
             <View style={styles.transferCard}>
               <AppText color="danger" variant="heading">İşletme sahipliğini devret</AppText>
               <AppText color="textMuted" style={styles.transferCopy} variant="bodySmall">

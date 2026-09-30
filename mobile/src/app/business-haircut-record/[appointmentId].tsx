@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
@@ -33,6 +33,20 @@ export default function BusinessHaircutRecordScreen() {
   const [isSubmitting, setSubmitting] = useState(false);
   const [isSaved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [referenceTime, setReferenceTime] = useState(() => Date.now());
+
+  const photoUploadDeadline = appointment?.completedAt
+    ? new Date(appointment.completedAt).getTime() + 60 * 1000
+    : 0;
+  const canAddPhoto = photoUploadDeadline > referenceTime;
+
+  useEffect(() => {
+    if (!photoUploadDeadline) return;
+    const remainingMs = photoUploadDeadline - Date.now();
+    if (remainingMs <= 0) return;
+    const timeout = setTimeout(() => setReferenceTime(Date.now()), remainingMs + 50);
+    return () => clearTimeout(timeout);
+  }, [photoUploadDeadline]);
 
   const loadAppointment = useCallback(async () => {
     if (!appointmentId || !activeMembership || !token) {
@@ -50,6 +64,7 @@ export default function BusinessHaircutRecordScreen() {
         token,
       );
       setAppointment(result);
+      setReferenceTime(Date.now());
       setStyleName(result.haircutRecord?.styleName ?? '');
       setNotes(result.haircutRecord?.notes ?? '');
       setSaved(Boolean(result.haircutRecord && !result.haircutRecord.finalizedAt));
@@ -73,12 +88,22 @@ export default function BusinessHaircutRecordScreen() {
     setError(null);
     try {
       if (appointment.status !== 'COMPLETED') {
-        await completeBusinessAppointment(
+        const completedAppointment = await completeBusinessAppointment(
           appointment.barbershop.id,
           appointmentId,
           token,
         );
-        setAppointment((current) => (current ? { ...current, status: 'COMPLETED' } : current));
+        setAppointment((current) =>
+          current
+            ? {
+                ...current,
+                completedAt:
+                  completedAppointment.completedAt ?? new Date().toISOString(),
+                status: 'COMPLETED',
+              }
+            : current,
+        );
+        setReferenceTime(Date.now());
       }
 
       await saveBusinessHaircutRecord(
@@ -141,6 +166,7 @@ export default function BusinessHaircutRecordScreen() {
       {!isLoading && appointment && !appointment.haircutRecord?.finalizedAt ? (
         <BusinessHaircutRecordForm
           appointment={appointment}
+          canAddPhoto={canAddPhoto}
           error={error}
           isSubmitting={isSubmitting}
           notes={notes}
@@ -150,7 +176,10 @@ export default function BusinessHaircutRecordScreen() {
           onAddPhoto={() =>
             router.push({
               pathname: '/business-haircut-camera/[appointmentId]',
-              params: { appointmentId: appointment.id },
+              params: {
+                appointmentId: appointment.id,
+                photoCount: String(appointment.haircutRecord?.photos.length ?? 0),
+              },
             })
           }
           onSubmit={() => void submit()}
@@ -172,7 +201,11 @@ export default function BusinessHaircutRecordScreen() {
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.md },
   loader: { marginTop: spacing.xxxl },
-  doneButton: { marginHorizontal: spacing.md, marginTop: spacing.sm },
+  doneButton: {
+    marginBottom: spacing.xl,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+  },
   lockedState: { paddingHorizontal: spacing.lg, paddingTop: spacing.xxxl },
   lockedTitle: { textAlign: 'center' },
   lockedDescription: { lineHeight: 21, marginBottom: spacing.xl, marginTop: spacing.xs, textAlign: 'center' },

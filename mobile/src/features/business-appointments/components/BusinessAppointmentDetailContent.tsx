@@ -29,6 +29,7 @@ type BusinessAppointmentDetailContentProps = {
   canOpenCustomer: boolean;
   isUpdating: boolean;
   onCancel: () => void;
+  onCancelChangeProposal: () => void;
   onNoShow: () => void;
   onOpenCustomer: () => void;
   onOpenHaircutRecord: () => void;
@@ -42,22 +43,24 @@ export function BusinessAppointmentDetailContent({
   canOpenCustomer,
   isUpdating,
   onCancel,
+  onCancelChangeProposal,
   onNoShow,
   onOpenCustomer,
   onOpenHaircutRecord,
   onRequestPortfolio,
   onReschedule,
 }: BusinessAppointmentDetailContentProps) {
-  const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
+  const customerName = appointment.attendeeNameSnapshot;
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
-  const initials = `${appointment.customer.firstName[0] ?? ''}${appointment.customer.lastName[0] ?? ''}`;
+  const nameParts = customerName.trim().split(/\s+/);
+  const initials = `${nameParts[0]?.[0] ?? ''}${nameParts.at(-1)?.[0] ?? ''}`;
   const status = statusConfig[appointment.status];
   const date = new Intl.DateTimeFormat('tr-TR', {
     dateStyle: 'full',
     timeZone: appointment.barbershop.timezone,
   }).format(new Date(appointment.startsAt));
   const canManage = appointment.status === 'CONFIRMED' || appointment.status === 'ARRIVED';
-  const canReschedule = appointment.status === 'CONFIRMED';
+  const canReschedule = appointment.status === 'CONFIRMED' && !appointment.changeProposal;
   const canMarkNoShow =
     appointment.status === 'CONFIRMED' && new Date() >= new Date(appointment.startsAt);
   const canComplete =
@@ -78,7 +81,7 @@ export function BusinessAppointmentDetailContent({
       >
         <AppCard style={styles.customerCard}>
           <View style={styles.customerTopRow}>
-            {appointment.customer.profileImageUrl ? (
+            {!appointment.dependentProfileId && appointment.customer.profileImageUrl ? (
               <Image
                 accessibilityLabel={`${customerName} profil fotoğrafı`}
                 contentFit="cover"
@@ -161,6 +164,36 @@ export function BusinessAppointmentDetailContent({
           value={formatTurkishPrice(appointment.priceSnapshot)}
         />
       </AppCard>
+
+      {appointment.changeProposal ? (
+        <AppCard style={styles.changeProposalCard}>
+          <View style={styles.changeProposalHeading}>
+            <SymbolView
+              name={{ ios: 'clock.badge.questionmark', android: 'pending_actions', web: 'pending_actions' }}
+              size={21}
+              tintColor={colors.primary}
+            />
+            <View style={styles.changeProposalCopy}>
+              <AppText variant="label">Müşteri yanıtı bekleniyor</AppText>
+              <AppText color="textMuted" style={styles.changeProposalText} variant="bodySmall">
+                {formatProposalDate(appointment.changeProposal.proposedStartsAt)} · {appointment.changeProposal.proposedServiceName}
+              </AppText>
+              <AppText color="textMuted" variant="bodySmall">
+                {appointment.changeProposal.proposedBusinessMember.user.firstName} {appointment.changeProposal.proposedBusinessMember.user.lastName}
+              </AppText>
+              <AppText color="textMuted" style={styles.changeProposalReason} variant="bodySmall">
+                Açıklama: {appointment.changeProposal.reason}
+              </AppText>
+            </View>
+          </View>
+          <AppButton
+            disabled={isUpdating}
+            onPress={onCancelChangeProposal}
+            variant="secondary">
+            Teklifi Geri Çek
+          </AppButton>
+        </AppCard>
+      ) : null}
 
       {appointment.cancellationReason ? (
         <AppCard style={styles.noteCard}>
@@ -340,6 +373,16 @@ function DetailRow({
   );
 }
 
+function formatProposalDate(value: string) {
+  return new Intl.DateTimeFormat('tr-TR', {
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'long',
+    weekday: 'long',
+  }).format(new Date(value));
+}
+
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.md },
   customerCard: { marginTop: spacing.md, padding: spacing.md },
@@ -398,5 +441,10 @@ const styles = StyleSheet.create({
   lockedRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   actions: { gap: spacing.xs, marginTop: spacing.lg },
   cancelButton: { alignItems: 'center', justifyContent: 'center', minHeight: 48 },
+  changeProposalCard: { gap: spacing.md, marginTop: spacing.md },
+  changeProposalHeading: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.sm },
+  changeProposalCopy: { flex: 1 },
+  changeProposalText: { lineHeight: 19, marginTop: spacing.xxs },
+  changeProposalReason: { lineHeight: 18, marginTop: spacing.xs },
   disabled: { opacity: 0.45 },
 });

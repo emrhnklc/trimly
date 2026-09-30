@@ -1,8 +1,9 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CancelAppointmentDto {
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
+  @MinLength(3)
   @MaxLength(500)
-  reason?: string;
+  reason: string;
 }

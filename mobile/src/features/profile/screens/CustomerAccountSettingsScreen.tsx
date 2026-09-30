@@ -7,8 +7,8 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
 import { Screen } from "@/components/ui/Screen";
 import { SettingsPageHeader } from "@/components/ui/SettingsPageHeader";
-import { colors } from "@/theme/colors";
 import { layout, radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 export function CustomerAccountSettingsScreen() {
   const router = useRouter();
@@ -18,7 +18,17 @@ export function CustomerAccountSettingsScreen() {
         <SettingsPageHeader title="Hesap Ayarları" />
 
         <SettingsSection title="Hesabım">
-          <SettingsRow icon={{ ios: "person", android: "person", web: "person" }} isLast label="Hesap Bilgileri" onPress={() => router.push("/profile/edit")} />
+          <SettingsRow
+            icon={{ ios: "person", android: "person", web: "person" }}
+            isLast
+            label="Hesap Bilgileri"
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/profile/edit",
+                params: { returnTo: "customer-settings" },
+              })
+            }
+          />
         </SettingsSection>
 
         <SettingsSection title="Güvenlik">
@@ -55,16 +65,17 @@ type SettingsRowProps = {
 };
 
 function SettingsRow({ badge, danger = false, icon, isLast = false, label, onPress }: SettingsRowProps) {
+  const colors = useThemeColors();
   const content = (
     <>
-      <View style={[styles.rowIcon, danger && styles.dangerIcon]}><SymbolView name={icon} size={19} tintColor={danger ? colors.danger : colors.primary} /></View>
+      <View style={[styles.rowIcon, { backgroundColor: danger ? colors.dangerSurface : colors.surfaceMuted }]}><SymbolView name={icon} size={19} tintColor={danger ? colors.danger : colors.primary} /></View>
       <AppText color={danger ? "danger" : "text"} style={styles.rowLabel}>{label}</AppText>
       {badge ? <AppText color="textMuted" style={styles.badge} variant="overline">{badge}</AppText> : null}
       <SymbolView name={{ ios: "chevron.right", android: "chevron_right", web: "chevron_right" }} size={17} tintColor={onPress ? colors.textMuted : colors.border} />
     </>
   );
-  if (!onPress) return <View style={[styles.row, !isLast && styles.divider, styles.disabled]}>{content}</View>;
-  return <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, !isLast && styles.divider, pressed && styles.pressed]}>{content}</Pressable>;
+  if (!onPress) return <View style={[styles.row, !isLast && [styles.divider, { borderBottomColor: colors.border }], styles.disabled]}>{content}</View>;
+  return <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, !isLast && [styles.divider, { borderBottomColor: colors.border }], pressed && styles.pressed]}>{content}</Pressable>;
 }
 
 const styles = StyleSheet.create({
@@ -73,9 +84,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: spacing.sm },
   sectionCard: { paddingHorizontal: spacing.sm, paddingVertical: 0 },
   row: { alignItems: "center", flexDirection: "row", minHeight: 54, paddingHorizontal: spacing.xs },
-  divider: { borderBottomColor: colors.border, borderBottomWidth: 1 },
-  rowIcon: { alignItems: "center", backgroundColor: colors.background, borderRadius: radius.pill, height: 32, justifyContent: "center", width: 32 },
-  dangerIcon: { backgroundColor: "#F8E8E5" },
+  divider: { borderBottomWidth: 1 },
+  rowIcon: { alignItems: "center", borderRadius: radius.pill, height: 32, justifyContent: "center", width: 32 },
   rowLabel: { flex: 1, fontSize: 13, lineHeight: 18, marginLeft: spacing.sm },
   badge: { fontSize: 9, letterSpacing: 0.7, marginRight: spacing.xs },
   disabled: { opacity: 0.66 },

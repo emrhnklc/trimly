@@ -4,8 +4,8 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { parseDateKey, toDateKey } from '../date';
 
 const weekdayLabels = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -42,6 +42,7 @@ export function DatePickerModal({
   onSelect: (value: string) => void;
   value: string;
 }) {
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [displayedMonth, setDisplayedMonth] = useState(() => {
     const selectedDate = parseDateKey(value);
@@ -71,8 +72,11 @@ export function DatePickerModal({
           onPress={onClose}
           style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-          <View style={styles.handle} />
+        <View style={[
+          styles.sheet,
+          { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, spacing.md) },
+        ]}>
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
           <AppText style={styles.title} variant="heading">{label}</AppText>
 
           <View style={styles.monthNavigation}>
@@ -83,6 +87,7 @@ export function DatePickerModal({
               onPress={() => changeMonth(-1)}
               style={({ pressed }) => [
                 styles.navigationButton,
+                { backgroundColor: colors.surfaceMuted },
                 previousDisabled && styles.disabled,
                 pressed && styles.pressed,
               ]}>
@@ -97,7 +102,11 @@ export function DatePickerModal({
               accessibilityLabel="Sonraki ay"
               accessibilityRole="button"
               onPress={() => changeMonth(1)}
-              style={({ pressed }) => [styles.navigationButton, pressed && styles.pressed]}>
+              style={({ pressed }) => [
+                styles.navigationButton,
+                { backgroundColor: colors.surfaceMuted },
+                pressed && styles.pressed,
+              ]}>
               <SymbolView
                 name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
                 size={19}
@@ -131,7 +140,7 @@ export function DatePickerModal({
                     onPress={() => onSelect(dateKey)}
                     style={({ pressed }) => [
                       styles.dayButton,
-                      selected && styles.daySelected,
+                      selected && { backgroundColor: colors.primary },
                       disabled && styles.disabled,
                       pressed && styles.pressed,
                     ]}>
@@ -147,7 +156,11 @@ export function DatePickerModal({
           <Pressable
             accessibilityRole="button"
             onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
+            style={({ pressed }) => [
+              styles.closeButton,
+              { backgroundColor: colors.surfaceMuted },
+              pressed && styles.pressed,
+            ]}>
             <AppText variant="label">Vazgeç</AppText>
           </Pressable>
         </View>
@@ -159,7 +172,6 @@ export function DatePickerModal({
 const styles = StyleSheet.create({
   backdrop: { backgroundColor: 'rgba(30, 24, 20, 0.42)', flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingHorizontal: spacing.lg,
@@ -167,7 +179,6 @@ const styles = StyleSheet.create({
   },
   handle: {
     alignSelf: 'center',
-    backgroundColor: colors.border,
     borderRadius: radius.pill,
     height: 4,
     marginBottom: spacing.md,
@@ -182,7 +193,6 @@ const styles = StyleSheet.create({
   },
   navigationButton: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 40,
     justifyContent: 'center',
@@ -200,10 +210,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 38,
   },
-  daySelected: { backgroundColor: colors.primary },
   closeButton: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     justifyContent: 'center',
     marginTop: spacing.md,

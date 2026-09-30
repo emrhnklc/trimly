@@ -136,6 +136,20 @@ export class AppointmentsController {
     );
   }
 
+  @Patch(':appointmentId/change-proposal/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancelChangeProposal(
+    @Param('barbershopId') barbershopId: string,
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.cancelChangeProposal(
+      barbershopId,
+      appointmentId,
+      user.id,
+    );
+  }
+
   @Patch(':appointmentId/complete')
   @UseGuards(JwtAuthGuard)
   complete(

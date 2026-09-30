@@ -11,10 +11,12 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function EmployeeSchedulesScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
@@ -65,17 +67,17 @@ export default function EmployeeSchedulesScreen() {
         ListHeaderComponent={
           <>
             <BusinessDetailHeader
-              onBack={() => router.dismissTo('/management/hours')}
+              onBack={() => goBackOrReplace(router, '/(business)/management/hours')}
               title="Çalışan Vardiyaları"
             />
-            <View style={styles.infoCard}>
+            <View style={[styles.infoCard, { backgroundColor: themeColors.surfaceMuted }]}>
               <AppText variant="label">İşletme saatleri üst sınırdır</AppText>
               <AppText color="textMuted" style={styles.infoDescription} variant="bodySmall">
                 Çalışan vardiyası yalnızca işletmenin açık olduğu gün ve saatlerde randevu üretir.
               </AppText>
             </View>
 
-            {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+            {isLoading ? <ActivityIndicator color={themeColors.primary} style={styles.loader} /> : null}
 
             {!isLoading && error ? (
               <BusinessMemberState
@@ -105,10 +107,10 @@ export default function EmployeeSchedulesScreen() {
         }
         refreshControl={
           <RefreshControl
-            colors={[colors.primary]}
+            colors={[themeColors.primary]}
             onRefresh={() => void loadMembers(true)}
             refreshing={isRefreshing}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         }
         renderItem={({ item }) => (
@@ -131,7 +133,6 @@ export default function EmployeeSchedulesScreen() {
 const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   infoCard: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     marginTop: spacing.md,
     padding: spacing.md,

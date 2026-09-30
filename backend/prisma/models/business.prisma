@@ -11,21 +11,24 @@ enum BarbershopAccessMode {
 }
 
 model Barbershop {
-  id              String               @id @default(cuid())
-  name            String
-  slug            String               @unique
-  description     String?
-  profileImageUrl String?
-  coverImageUrl   String?
-  phone           String?
-  address         String?
-  latitude        Float?
-  longitude       Float?
-  timezone        String               @default("Europe/Istanbul")
-  isDiscoverable  Boolean              @default(false)
-  accessMode      BarbershopAccessMode @default(PUBLIC)
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  id                        String               @id @default(cuid())
+  name                      String
+  slug                      String               @unique
+  description               String?
+  profileImageUrl           String?
+  coverImageUrl             String?
+  phone                     String?
+  address                   String?
+  latitude                  Float?
+  longitude                 Float?
+  timezone                  String               @default("Europe/Istanbul")
+  isDiscoverable            Boolean              @default(false)
+  acceptsBookings           Boolean              @default(false)
+  accessMode                BarbershopAccessMode @default(PUBLIC)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  previousWorkingHours      Json?
+  workingHoursEffectiveFrom DateTime?
 
   members                BusinessMember[]
   services               Service[]
@@ -122,26 +125,30 @@ model FavoriteBarbershop {
 }
 
 model BusinessMember {
-  id           String       @id @default(cuid())
-  userId       String
-  barbershopId String
-  role         BusinessRole
-  isActive     Boolean      @default(true)
-  isBookable   Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                        String       @id @default(cuid())
+  userId                    String
+  barbershopId              String
+  role                      BusinessRole
+  isActive                  Boolean      @default(true)
+  isBookable                Boolean      @default(false)
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+  previousWorkingHours      Json?
+  workingHoursEffectiveFrom DateTime?
 
-  user               User                    @relation(fields: [userId], references: [id])
-  barbershop         Barbershop              @relation(fields: [barbershopId], references: [id])
-  serviceAssignments BusinessMemberService[]
-  workingHours       MemberWorkingHours[]
-  scheduleBlocks     MemberScheduleBlock[]
-  appointments       Appointment[]
-  createdInvitations BusinessInvitation[]
-  haircutRecords     HaircutRecord[]
-  portfolioItems     BarberPortfolioItem[]
-  reviews            AppointmentReview[]
-  createdCampaigns   Campaign[]
+  user                               User                        @relation(fields: [userId], references: [id])
+  barbershop                         Barbershop                  @relation(fields: [barbershopId], references: [id])
+  serviceAssignments                 BusinessMemberService[]
+  workingHours                       MemberWorkingHours[]
+  scheduleBlocks                     MemberScheduleBlock[]
+  appointments                       Appointment[]
+  createdInvitations                 BusinessInvitation[]
+  haircutRecords                     HaircutRecord[]
+  portfolioItems                     BarberPortfolioItem[]
+  reviews                            AppointmentReview[]
+  createdCampaigns                   Campaign[]
+  createdAppointmentChangeProposals  AppointmentChangeProposal[] @relation("AppointmentChangeProposalCreator")
+  proposedAppointmentChangeProposals AppointmentChangeProposal[] @relation("AppointmentChangeProposalProposedMember")
 
   @@unique([userId, barbershopId])
   @@index([barbershopId, role])
@@ -167,15 +174,17 @@ model BusinessInvitation {
 }
 
 model BookingSettings {
-  id                          String   @id @default(cuid())
-  barbershopId                String   @unique
-  minBookingNoticeMinutes     Int      @default(60)
-  maxBookingAdvanceDays       Int      @default(30)
-  slotIntervalMinutes         Int      @default(5)
-  customerCancellationEnabled Boolean  @default(true)
-  cancellationNoticeMinutes   Int      @default(120)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  id                          String    @id @default(cuid())
+  barbershopId                String    @unique
+  minBookingNoticeMinutes     Int       @default(60)
+  maxBookingAdvanceDays       Int       @default(30)
+  slotIntervalMinutes         Int       @default(5)
+  pendingSlotIntervalMinutes  Int?
+  slotIntervalEffectiveFrom   DateTime?
+  customerCancellationEnabled Boolean   @default(true)
+  cancellationNoticeMinutes   Int       @default(120)
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
   barbershop Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
 }

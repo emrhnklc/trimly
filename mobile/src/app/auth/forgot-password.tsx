@@ -55,6 +55,11 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
     router.replace({
       pathname: "/auth/login",
       params: {

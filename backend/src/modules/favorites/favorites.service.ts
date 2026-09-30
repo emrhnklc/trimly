@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { BusinessRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { summarizeCustomerRatingsByKey } from '../reviews/customer-weighted-rating';
 
 @Injectable()
 export class FavoritesService {
@@ -60,7 +61,7 @@ export class FavoritesService {
     });
 
     const ratings = await this.prisma.appointmentReview.groupBy({
-      by: ['barbershopId'],
+      by: ['barbershopId', 'customerId'],
       where: {
         barbershopId: {
           in: favorites.map(({ barbershop }) => barbershop.id),
@@ -69,8 +70,9 @@ export class FavoritesService {
       _avg: { rating: true },
       _count: { _all: true },
     });
-    const ratingsByBarbershop = new Map(
-      ratings.map((rating) => [rating.barbershopId, rating]),
+    const ratingsByBarbershop = summarizeCustomerRatingsByKey(
+      ratings,
+      'barbershopId',
     );
 
     return favorites.map((favorite) => ({
@@ -79,9 +81,13 @@ export class FavoritesService {
         ...favorite.barbershop,
         distanceKm: null,
         ratingAverage:
-          ratingsByBarbershop.get(favorite.barbershop.id)?._avg.rating ?? null,
+          ratingsByBarbershop.get(favorite.barbershop.id)?.ratingAverage ??
+          null,
         ratingCount:
-          ratingsByBarbershop.get(favorite.barbershop.id)?._count._all ?? 0,
+          ratingsByBarbershop.get(favorite.barbershop.id)?.ratingCount ?? 0,
+        ratingCustomerCount:
+          ratingsByBarbershop.get(favorite.barbershop.id)
+            ?.ratingCustomerCount ?? 0,
       },
     }));
   }

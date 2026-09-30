@@ -3,6 +3,7 @@ import type {
   BarbershopAccessMode,
   BarbershopAccessResult,
   BarbershopAccessSettings,
+  BarbershopReadiness,
   BookableBarber,
   BookingSettings,
   EditableBarbershopProfile,
@@ -163,6 +164,17 @@ export function getBookingSettings(
   );
 }
 
+export function getBarbershopReadiness(
+  barbershopId: string,
+  accessToken: string,
+): Promise<BarbershopReadiness> {
+  return apiGet<BarbershopReadiness>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/readiness`,
+    undefined,
+    accessToken,
+  );
+}
+
 export function updateBookingSettings(
   barbershopId: string,
   input: UpdateBookingSettingsInput,
@@ -177,7 +189,7 @@ export function updateBookingSettings(
 
 export function updateBarbershopProfile(
   barbershopId: string,
-  input: UpdateBarbershopProfileInput,
+  input: Partial<UpdateBarbershopProfileInput>,
   accessToken: string,
 ) {
   return apiPatch<EditableBarbershopProfile>(
@@ -198,6 +210,7 @@ export function getAvailability(
     `/barbershops/${encodeURIComponent(barbershopId)}/availability`,
     { memberId, serviceId, date },
     accessToken,
+    { fresh: true },
   );
 }
 

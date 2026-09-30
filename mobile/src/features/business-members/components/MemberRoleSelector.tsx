@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import type { BusinessMemberRole } from '@/features/members/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export type AssignableBusinessRole = Exclude<BusinessMemberRole, 'OWNER'>;
 
@@ -43,6 +43,7 @@ export function MemberRoleSelector({
   onChange: (role: AssignableBusinessRole) => void;
   value: AssignableBusinessRole;
 }) {
+  const themeColors = useThemeColors();
   return (
     <View style={styles.list}>
       {roles.map((role) => {
@@ -56,11 +57,12 @@ export function MemberRoleSelector({
             onPress={() => onChange(role.value)}
             style={({ pressed }) => [
               styles.card,
-              selected && styles.selectedCard,
+              { backgroundColor: themeColors.background, borderColor: themeColors.border },
+              selected && [styles.selectedCard, { backgroundColor: themeColors.surfaceMuted, borderColor: themeColors.primary }],
               pressed && styles.pressed,
             ]}>
-            <View style={[styles.iconShell, selected && styles.selectedIcon]}>
-              <SymbolView name={role.icon} size={19} tintColor={selected ? colors.primary : colors.textMuted} />
+            <View style={[styles.iconShell, { backgroundColor: themeColors.surface }, selected && [styles.selectedIcon, { backgroundColor: themeColors.surfaceMuted }]]}>
+              <SymbolView name={role.icon} size={19} tintColor={selected ? themeColors.primary : themeColors.textMuted} />
             </View>
             <View style={styles.content}>
               <AppText style={styles.label} variant="label">{role.label}</AppText>
@@ -68,8 +70,8 @@ export function MemberRoleSelector({
                 {role.description}
               </AppText>
             </View>
-            <View style={[styles.radio, selected && styles.selectedRadio]}>
-              {selected ? <View style={styles.radioDot} /> : null}
+            <View style={[styles.radio, { borderColor: themeColors.border }, selected && [styles.selectedRadio, { borderColor: themeColors.primary }]]}>
+              {selected ? <View style={[styles.radioDot, { backgroundColor: themeColors.primary }]} /> : null}
             </View>
           </Pressable>
         );
@@ -82,37 +84,33 @@ const styles = StyleSheet.create({
   list: { gap: spacing.xs },
   card: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 76,
     padding: spacing.sm,
   },
-  selectedCard: { backgroundColor: '#FCF5E6', borderColor: colors.primary },
+  selectedCard: {},
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.sm,
     height: 40,
     justifyContent: 'center',
     width: 40,
   },
-  selectedIcon: { backgroundColor: '#F4E7C8' },
+  selectedIcon: {},
   content: { flex: 1, marginHorizontal: spacing.sm },
   label: { fontSize: 12, lineHeight: 16 },
   description: { fontSize: 9, lineHeight: 13, marginTop: 2 },
   radio: {
     alignItems: 'center',
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1.5,
     height: 20,
     justifyContent: 'center',
     width: 20,
   },
-  selectedRadio: { borderColor: colors.primary },
-  radioDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 10, width: 10 },
+  selectedRadio: {},
+  radioDot: { borderRadius: radius.pill, height: 10, width: 10 },
   pressed: { opacity: 0.68 },
 });

@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/ui/Screen';
 import {
+  cancelBusinessAppointmentChangeProposal,
   cancelBusinessAppointment,
   getBusinessAppointment,
   markBusinessAppointmentNoShow,
@@ -11,6 +12,7 @@ import {
 import type { BusinessAppointmentDetail } from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { BusinessAppointmentDetailContent } from '@/features/business-appointments/components/BusinessAppointmentDetailContent';
+import { BusinessAppointmentCancellationSheet } from '@/features/business-appointments/components/BusinessAppointmentCancellationSheet';
 import { BusinessAppointmentState } from '@/features/business-appointments/components/BusinessAppointmentState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
@@ -26,6 +28,7 @@ export default function BusinessAppointmentDetailScreen() {
   const [appointment, setAppointment] = useState<BusinessAppointmentDetail | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [isUpdating, setUpdating] = useState(false);
+  const [isCancellationVisible, setCancellationVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAppointment = useCallback(async () => {
@@ -58,7 +61,7 @@ export default function BusinessAppointmentDetailScreen() {
     }, [loadAppointment]),
   );
 
-  async function runAction(action: 'cancel' | 'no-show') {
+  async function runAction(action: 'cancel' | 'no-show', cancellationReason?: string) {
     if (!appointmentId || !activeMembership || !token) return;
 
     setUpdating(true);
@@ -69,6 +72,7 @@ export default function BusinessAppointmentDetailScreen() {
           activeMembership.barbershop.id,
           appointmentId,
           token,
+          cancellationReason ?? '',
         );
       } else {
         await markBusinessAppointmentNoShow(
@@ -77,6 +81,7 @@ export default function BusinessAppointmentDetailScreen() {
           token,
         );
       }
+      if (action === 'cancel') setCancellationVisible(false);
       await loadAppointment();
     } catch (reason) {
       Alert.alert(
@@ -107,15 +112,28 @@ export default function BusinessAppointmentDetailScreen() {
     }
   }
 
+  async function cancelChangeProposal() {
+    if (!appointmentId || !activeMembership || !token || isUpdating) return;
+    setUpdating(true);
+    try {
+      await cancelBusinessAppointmentChangeProposal(
+        activeMembership.barbershop.id,
+        appointmentId,
+        token,
+      );
+      await loadAppointment();
+    } catch (reason) {
+      Alert.alert(
+        'Teklif geri çekilemedi',
+        reason instanceof Error ? reason.message : 'Lütfen tekrar dene.',
+      );
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   function confirmCancellation() {
-    Alert.alert(
-      'Randevu iptal edilsin mi?',
-      'Bu işlem müşterinin randevusunu iptal edecek.',
-      [
-        { style: 'cancel', text: 'Vazgeç' },
-        { style: 'destructive', text: 'İptal Et', onPress: () => void runAction('cancel') },
-      ],
-    );
+    setCancellationVisible(true);
   }
 
   function confirmNoShow() {
@@ -160,6 +178,7 @@ export default function BusinessAppointmentDetailScreen() {
           canOpenCustomer={can('VIEW_CUSTOMERS')}
           isUpdating={isUpdating}
           onCancel={confirmCancellation}
+          onCancelChangeProposal={() => void cancelChangeProposal()}
           onNoShow={confirmNoShow}
           onOpenCustomer={() =>
             router.push({
@@ -180,6 +199,20 @@ export default function BusinessAppointmentDetailScreen() {
               params: { appointmentId: appointment.id },
             })
           }
+        />
+      ) : null}
+
+      {isCancellationVisible ? (
+        <BusinessAppointmentCancellationSheet
+          customerName={
+            appointment
+              ? appointment.attendeeNameSnapshot
+              : 'Müşteri'
+          }
+          isSubmitting={isUpdating}
+          onClose={() => setCancellationVisible(false)}
+          onSubmit={(reason) => void runAction('cancel', reason)}
+          visible
         />
       ) : null}
     </Screen>

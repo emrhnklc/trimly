@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 
@@ -10,11 +10,12 @@ import { login } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { LoginScreenLayout } from "@/features/auth/components/LoginScreenLayout";
 import { LoginTextField } from "@/features/auth/components/LoginTextField";
+import { AuthThemeToggle } from "@/features/auth/components/AuthThemeToggle";
 import { RememberMeToggle } from "@/features/auth/components/RememberMeToggle";
 import { SocialLoginButton } from "@/features/auth/components/SocialLoginButton";
 import { colors } from "@/theme/colors";
 import { radius, spacing } from "@/theme/spacing";
-import { isApiErrorCode } from "@/lib/api/client";
+import { ApiError, isApiErrorCode } from "@/lib/api/client";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -48,20 +49,19 @@ export default function LoginScreen() {
     try {
       setIsSubmitting(true);
       setError(null);
-      await signIn(await login(email.trim(), password), rememberMe);
+      let postAuthRoute: Href = "/";
       if (accessSlug && accessCode) {
-        router.replace({
+        postAuthRoute = {
           pathname: "/access/[slug]",
           params: { code: accessCode, slug: accessSlug },
-        });
+        };
       } else if (invitationToken) {
-        router.replace({
+        postAuthRoute = {
           pathname: "/join/[token]",
           params: { token: invitationToken },
-        });
-      } else {
-        router.replace("/");
+        };
       }
+      await signIn(await login(email.trim(), password), rememberMe, postAuthRoute);
     } catch (reason) {
       if (isApiErrorCode(reason, "EMAIL_NOT_VERIFIED")) {
         router.push({
@@ -74,7 +74,13 @@ export default function LoginScreen() {
         });
         return;
       }
-      setError(reason instanceof Error ? reason.message : "Giriş yapılamadı.");
+      setError(
+        reason instanceof ApiError && (reason.status === 400 || reason.status === 401)
+          ? "E-posta veya şifre hatalı."
+          : reason instanceof Error
+            ? reason.message
+            : "Giriş yapılamadı.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -85,7 +91,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <LoginScreenLayout>
+    <LoginScreenLayout topRightAccessory={<AuthThemeToggle />}>
       <TrimlyLogo style={styles.logo} />
 
       <View style={styles.intro}>
@@ -179,7 +185,7 @@ export default function LoginScreen() {
           accessibilityRole="button"
           disabled={isSubmitting}
           onPress={() =>
-            router.replace({
+            router.push({
               pathname: "/auth/register",
               params:
                 accessSlug && accessCode

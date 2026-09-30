@@ -31,4 +31,28 @@ export class CustomerAppointmentsController {
   ) {
     return this.appointmentsService.cancelForCustomer(appointmentId, user.id);
   }
+
+  @Patch(':appointmentId/change-proposal/accept')
+  acceptChangeProposal(
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.respondToChangeProposal(
+      appointmentId,
+      user.id,
+      'ACCEPTED',
+    );
+  }
+
+  @Patch(':appointmentId/change-proposal/reject')
+  rejectChangeProposal(
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.appointmentsService.respondToChangeProposal(
+      appointmentId,
+      user.id,
+      'REJECTED',
+    );
+  }
 }

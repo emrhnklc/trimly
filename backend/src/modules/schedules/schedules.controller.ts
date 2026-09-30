@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { BusinessRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -16,8 +24,14 @@ export class SchedulesController {
   constructor(private readonly schedulesService: SchedulesService) {}
 
   @Get()
-  findWorkingHours(@Param('barbershopId') barbershopId: string) {
-    return this.schedulesService.findWorkingHours(barbershopId);
+  findWorkingHours(
+    @Param('barbershopId') barbershopId: string,
+    @Query('planned') planned?: string,
+  ) {
+    return this.schedulesService.findWorkingHours(
+      barbershopId,
+      planned === 'true',
+    );
   }
 
   @Get('me')
@@ -48,8 +62,13 @@ export class SchedulesController {
   findMemberWorkingHours(
     @Param('barbershopId') barbershopId: string,
     @Param('memberId') memberId: string,
+    @Query('planned') planned?: string,
   ) {
-    return this.schedulesService.findMemberWorkingHours(barbershopId, memberId);
+    return this.schedulesService.findMemberWorkingHours(
+      barbershopId,
+      memberId,
+      planned === 'true',
+    );
   }
 
   @Put('members/:memberId')

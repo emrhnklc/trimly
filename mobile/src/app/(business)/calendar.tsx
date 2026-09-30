@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -54,6 +53,7 @@ export default function BusinessCalendarScreen() {
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadedBusinessId = useRef<string | null>(null);
   const loadVersion = useRef(0);
 
   const loadCalendar = useCallback(
@@ -64,7 +64,9 @@ export default function BusinessCalendarScreen() {
       const isCurrentRequest = () => requestVersion === loadVersion.current;
 
       if (refreshing) setRefreshing(true);
-      else setLoading(true);
+      else if (loadedBusinessId.current !== activeMembership.barbershop.id) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
@@ -99,6 +101,7 @@ export default function BusinessCalendarScreen() {
               : null,
           );
           setWorkingHours(nextWorkingHours);
+          loadedBusinessId.current = activeMembership.barbershop.id;
         }
       } catch (reason) {
         if (isCurrentRequest()) {
@@ -181,8 +184,6 @@ export default function BusinessCalendarScreen() {
           selectedDateKey={selectedDateKey}
           todayKey={todayKey}
         />
-
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && error ? (
           <BusinessAppointmentState

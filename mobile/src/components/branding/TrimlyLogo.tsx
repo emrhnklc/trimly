@@ -2,7 +2,6 @@ import { Image } from 'expo-image';
 import { StyleSheet, View, type ViewProps } from 'react-native';
 
 import { useAppPreferences } from '@/features/preferences/AppPreferencesProvider';
-import { radius, spacing } from '@/theme/spacing';
 
 type TrimlyLogoProps = ViewProps & {
   size?: 'small' | 'large';
@@ -11,16 +10,25 @@ type TrimlyLogoProps = ViewProps & {
 export function TrimlyLogo({ size = 'large', style, ...props }: TrimlyLogoProps) {
   const isLarge = size === 'large';
   const { resolvedTheme } = useAppPreferences();
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <View
       accessibilityLabel="Trimly"
       accessibilityRole="image"
-      style={[styles.container, resolvedTheme === 'dark' && styles.darkContainer, style]}
+      style={[
+        styles.container,
+        isLarge ? styles.containerLarge : styles.containerSmall,
+        style,
+      ]}
       {...props}>
       <Image
         contentFit="contain"
-        source={require('../../../assets/branding/trimly-wordmark.png')}
+        source={
+          isDark
+            ? require('../../../assets/branding/trimly-wordmark-dark.png')
+            : require('../../../assets/branding/trimly-wordmark.png')
+        }
         style={isLarge ? styles.imageLarge : styles.imageSmall}
       />
     </View>
@@ -29,11 +37,8 @@ export function TrimlyLogo({ size = 'large', style, ...props }: TrimlyLogoProps)
 
 const styles = StyleSheet.create({
   container: { alignSelf: 'center' },
-  darkContainer: {
-    backgroundColor: '#F7F3EA',
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.xs,
-  },
+  containerLarge: { height: 62, width: 186 },
+  containerSmall: { height: 38, width: 114 },
   imageLarge: { height: 62, width: 186 },
   imageSmall: { height: 38, width: 114 },
 });

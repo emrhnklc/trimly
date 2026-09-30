@@ -29,4 +29,24 @@ export class UpdateMyProfileDto {
     message: 'Doğum tarihi YYYY-MM-DD biçiminde olmalıdır.',
   })
   birthDate?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  provinceCode?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  province?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  district?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  neighborhood?: string | null;
 }

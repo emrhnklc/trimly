@@ -30,6 +30,7 @@ import { BusinessRolesGuard } from '../../common/guards/business-roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
+import { BarbershopReadinessService } from './barbershop-readiness.service';
 import { BarbershopsService } from './barbershops.service';
 import { BarbershopSearchQueryDto } from './dto/barbershop-search-query.dto';
 import { CreateBarbershopDto } from './dto/create-barbershop.dto';
@@ -40,7 +41,10 @@ import { UpdateBarbershopProfileDto } from './dto/update-barbershop-profile.dto'
 @Controller('barbershops')
 @ApiTags('İşletmeler')
 export class BarbershopsController {
-  constructor(private readonly barbershopsService: BarbershopsService) {}
+  constructor(
+    private readonly barbershopsService: BarbershopsService,
+    private readonly barbershopReadinessService: BarbershopReadinessService,
+  ) {}
 
   @Get()
   findPublic(@Query() query: BarbershopSearchQueryDto) {
@@ -69,6 +73,13 @@ export class BarbershopsController {
   @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
   getCustomerAccesses(@Param('barbershopId') barbershopId: string) {
     return this.barbershopsService.getCustomerAccesses(barbershopId);
+  }
+
+  @Get(':barbershopId/readiness')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  getReadiness(@Param('barbershopId') barbershopId: string) {
+    return this.barbershopReadinessService.getReadiness(barbershopId);
   }
 
   @Post()

@@ -13,8 +13,8 @@ import {
   type NotificationPreferences,
   updateNotificationPreferences,
 } from '@/features/notifications/api';
-import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function CustomerNotificationPreferencesScreen() {
   const { token } = useAuth();
@@ -76,15 +76,18 @@ function PreferenceSection({ children, title }: { children: React.ReactNode; tit
 }
 
 function PreferenceRow({ icon, isLast = false, label, onValueChange, value }: { icon: SymbolViewProps['name']; isLast?: boolean; label: string; onValueChange: (value: boolean) => void; value: boolean }) {
-  return <View style={[styles.row, !isLast && styles.divider]}><Icon icon={icon} /><AppText style={styles.label}>{label}</AppText><Switch ios_backgroundColor={colors.border} onValueChange={onValueChange} trackColor={{ false: colors.border, true: colors.primary }} value={value} /></View>;
+  const themeColors = useThemeColors();
+  return <View style={[styles.row, !isLast && { borderBottomColor: themeColors.border, borderBottomWidth: 1 }]}><Icon icon={icon} /><AppText style={styles.label}>{label}</AppText><View style={styles.trailing}><Switch ios_backgroundColor={themeColors.border} onValueChange={onValueChange} style={styles.switch} thumbColor={themeColors.onPrimary} trackColor={{ false: themeColors.border, true: themeColors.primary }} value={value} /></View></View>;
 }
 
 function ComingSoonRow({ icon, isLast = false, label }: { icon: SymbolViewProps['name']; isLast?: boolean; label: string }) {
-  return <Pressable accessibilityLabel={`${label}, yakında`} disabled style={[styles.row, !isLast && styles.divider]}><Icon icon={icon} /><AppText style={styles.label}>{label}</AppText><View style={styles.soonBadge}><AppText color="textMuted" style={styles.soonLabel} variant="label">Yakında</AppText></View></Pressable>;
+  const themeColors = useThemeColors();
+  return <Pressable accessibilityLabel={`${label}, yakında`} disabled style={[styles.row, !isLast && { borderBottomColor: themeColors.border, borderBottomWidth: 1 }]}><Icon icon={icon} /><AppText style={styles.label}>{label}</AppText><View style={styles.trailing}><View style={[styles.soonBadge, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}><AppText color="textMuted" style={styles.soonLabel} variant="label">Yakında</AppText></View></View></Pressable>;
 }
 
 function Icon({ icon }: { icon: SymbolViewProps['name'] }) {
-  return <View style={styles.icon}><SymbolView name={icon} size={18} tintColor={colors.primary} /></View>;
+  const themeColors = useThemeColors();
+  return <View style={[styles.icon, { backgroundColor: themeColors.background }]}><SymbolView name={icon} size={18} tintColor={themeColors.primary} /></View>;
 }
 
 const styles = StyleSheet.create({
@@ -93,9 +96,10 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: spacing.sm },
   card: { paddingHorizontal: spacing.sm, paddingVertical: 0 },
   row: { alignItems: 'center', flexDirection: 'row', minHeight: 56, paddingHorizontal: spacing.xs },
-  divider: { borderBottomColor: colors.border, borderBottomWidth: 1 },
-  icon: { alignItems: 'center', backgroundColor: colors.background, borderRadius: radius.pill, height: 32, justifyContent: 'center', width: 32 },
+  icon: { alignItems: 'center', borderRadius: radius.pill, height: 32, justifyContent: 'center', width: 32 },
   label: { flex: 1, fontSize: 14, lineHeight: 19, marginLeft: spacing.sm },
-  soonBadge: { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: spacing.xs, paddingVertical: 3 },
+  trailing: { alignItems: 'flex-end', justifyContent: 'center', minHeight: 44, width: 76 },
+  switch: { transform: [{ scale: 0.82 }] },
+  soonBadge: { borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: spacing.xs, paddingVertical: 3 },
   soonLabel: { fontSize: 9, lineHeight: 12 },
 });

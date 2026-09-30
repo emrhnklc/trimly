@@ -2,14 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SymbolView } from "expo-symbols";
 
 import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
 import { AppIconButton } from "@/components/ui/AppIconButton";
 import { AppText } from "@/components/ui/AppText";
 import { Screen } from "@/components/ui/Screen";
@@ -224,7 +227,10 @@ export default function BarbershopProfileScreen() {
   }
 
   const canBook = Boolean(
-    hasBookingAccess && barbershop.services.length && barbershop.members.length,
+    hasBookingAccess &&
+      barbershop.isBookingOpen &&
+      barbershop.services.length &&
+      barbershop.members.length,
   );
 
   function goBack() {
@@ -279,6 +285,17 @@ export default function BarbershopProfileScreen() {
           ) : null}
           <BarbershopInfoCard barbershop={barbershop} />
 
+          {!barbershop.isBookingOpen ? (
+            <AppCard style={styles.bookingClosedCard}>
+              <AppText color="primary" variant="cardTitle">
+                Şu anda randevuya kapalı
+              </AppText>
+              <AppText color="textMuted" style={styles.bookingClosedText} variant="bodySmall">
+                Bu işletme şu anda yeni randevu kabul etmiyor. Mevcut randevular geçerliliğini korur.
+              </AppText>
+            </AppCard>
+          ) : null}
+
           {!hasBookingAccess ? (
             <View style={styles.accessSection}>
               <BarbershopAccessCard
@@ -324,7 +341,7 @@ export default function BarbershopProfileScreen() {
                       onPress={() =>
                         router.push({
                           pathname: "/book",
-                          params: { slug: barbershop.slug },
+                          params: { memberId: barber.id, slug: barbershop.slug },
                         })
                       }
                     />
@@ -378,7 +395,9 @@ export default function BarbershopProfileScreen() {
                 },
               ]}
             >
-              <AppButton
+              <Pressable
+                accessibilityLabel="Randevu al"
+                accessibilityRole="button"
                 disabled={!canBook}
                 onPress={() =>
                   router.push({
@@ -386,9 +405,21 @@ export default function BarbershopProfileScreen() {
                     params: { slug: barbershop.slug },
                   })
                 }
-              >
-                Randevu Al
-              </AppButton>
+                style={({ pressed }) => [
+                  styles.bookButton,
+                  { backgroundColor: themeColors.primary },
+                  !canBook && styles.bookButtonDisabled,
+                  pressed && canBook && styles.bookButtonPressed,
+                ]}>
+                <SymbolView
+                  name={{ ios: "calendar", android: "calendar_month", web: "calendar_month" }}
+                  size={20}
+                  tintColor={themeColors.onPrimary}
+                />
+                <AppText color="onPrimary" variant="cardTitle">
+                  {barbershop.isBookingOpen ? 'Randevu Al' : 'Randevuya Kapalı'}
+                </AppText>
+              </Pressable>
             </View>
           </SafeAreaView>
         ) : null}
@@ -468,6 +499,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   accessSection: { marginTop: spacing.lg },
+  bookingClosedCard: { marginTop: spacing.lg, padding: spacing.md },
+  bookingClosedText: { lineHeight: 19, marginTop: spacing.xs },
   section: { marginTop: layout.sectionGap },
   sectionTitle: { marginBottom: spacing.sm },
   campaigns: { gap: spacing.sm },
@@ -480,4 +513,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
+  bookButton: {
+    alignItems: "center",
+    borderRadius: 18,
+    flexDirection: "row",
+    gap: spacing.sm,
+    justifyContent: "center",
+    minHeight: 54,
+  },
+  bookButtonDisabled: { opacity: 0.45 },
+  bookButtonPressed: { opacity: 0.82 },
 });

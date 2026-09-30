@@ -7,6 +7,7 @@ export type BusinessMembership = {
   isBookable: boolean;
   barbershop: {
     id: string;
+    isDiscoverable: boolean;
     name: string;
     slug: string;
     profileImageUrl: string | null;

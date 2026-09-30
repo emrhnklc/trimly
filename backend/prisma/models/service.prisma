@@ -9,10 +9,11 @@ model Service {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  barbershop        Barbershop              @relation(fields: [barbershopId], references: [id])
-  memberAssignments BusinessMemberService[]
-  appointments      Appointment[]
-  campaigns         CampaignService[]
+  barbershop                 Barbershop                  @relation(fields: [barbershopId], references: [id])
+  memberAssignments          BusinessMemberService[]
+  appointments               Appointment[]
+  campaigns                  CampaignService[]
+  appointmentChangeProposals AppointmentChangeProposal[]
 
   @@index([barbershopId, isActive])
 }

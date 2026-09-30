@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AppointmentStatus } from '@prisma/client';
+import { DateTime } from 'luxon';
 import { PrismaService } from '../../database/prisma.service';
 import {
   UpdateWorkingHoursDto,
@@ -13,27 +14,78 @@ import {
 } from './dto/update-working-hours.dto';
 import { UpdateMemberWorkingHoursDto } from './dto/update-member-working-hours.dto';
 import { CreateMemberScheduleBlockDto } from './dto/create-member-schedule-block.dto';
+import {
+  orderedWeekdays,
+  serializeWorkingHours,
+  workingHoursForDate,
+  type EffectiveWorkingHours,
+} from './effective-working-hours';
 
 @Injectable()
 export class SchedulesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findWorkingHours(barbershopId: string) {
-    return this.prisma.workingHours.findMany({
-      where: { barbershopId },
-      orderBy: { weekday: 'asc' },
+  async findWorkingHours(barbershopId: string, planned = false) {
+    const barbershop = await this.prisma.barbershop.findUnique({
+      where: { id: barbershopId },
       select: {
-        weekday: true,
-        startTime: true,
-        endTime: true,
+        timezone: true,
+        previousWorkingHours: true,
+        workingHoursEffectiveFrom: true,
+        workingHours: {
+          orderBy: { weekday: 'asc' },
+          select: { weekday: true, startTime: true, endTime: true },
+        },
       },
     });
+    if (!barbershop) throw new NotFoundException('İşletme bulunamadı.');
+    if (planned) return barbershop.workingHours;
+    return workingHoursForDate(
+      barbershop.workingHours,
+      barbershop.previousWorkingHours,
+      barbershop.workingHoursEffectiveFrom,
+      DateTime.now().setZone(barbershop.timezone),
+    );
   }
 
   async replaceWorkingHours(barbershopId: string, dto: UpdateWorkingHoursDto) {
     this.validateWorkingHours(dto.hours);
 
+    const barbershop = await this.prisma.barbershop.findUnique({
+      where: { id: barbershopId },
+      select: {
+        timezone: true,
+        previousWorkingHours: true,
+        workingHoursEffectiveFrom: true,
+        workingHours: {
+          select: { weekday: true, startTime: true, endTime: true },
+        },
+      },
+    });
+    if (!barbershop) throw new NotFoundException('İşletme bulunamadı.');
+    const now = DateTime.now().setZone(barbershop.timezone);
+    const activeHours = workingHoursForDate(
+      barbershop.workingHours,
+      barbershop.previousWorkingHours,
+      barbershop.workingHoursEffectiveFrom,
+      now,
+    );
+    const effectiveFrom = barbershop.workingHours.length
+      ? await this.safeBusinessHoursEffectiveFrom(
+          barbershopId,
+          barbershop.timezone,
+          dto.hours,
+        )
+      : now;
+
     await this.prisma.$transaction([
+      this.prisma.barbershop.update({
+        where: { id: barbershopId },
+        data: {
+          previousWorkingHours: serializeWorkingHours(activeHours),
+          workingHoursEffectiveFrom: effectiveFrom.toUTC().toJSDate(),
+        },
+      }),
       this.prisma.workingHours.deleteMany({ where: { barbershopId } }),
       this.prisma.workingHours.createMany({
         data: dto.hours.map((hour) => ({
@@ -45,21 +97,34 @@ export class SchedulesService {
       }),
     ]);
 
-    return this.findWorkingHours(barbershopId);
+    return this.findWorkingHours(barbershopId, true);
   }
 
-  async findMemberWorkingHours(barbershopId: string, memberId: string) {
-    await this.ensureMemberBelongsToBarbershop(barbershopId, memberId);
-
-    return this.prisma.memberWorkingHours.findMany({
-      where: { businessMemberId: memberId },
-      orderBy: { weekday: 'asc' },
+  async findMemberWorkingHours(
+    barbershopId: string,
+    memberId: string,
+    planned = false,
+  ) {
+    const member = await this.prisma.businessMember.findFirst({
+      where: { id: memberId, barbershopId },
       select: {
-        weekday: true,
-        startTime: true,
-        endTime: true,
+        previousWorkingHours: true,
+        workingHoursEffectiveFrom: true,
+        barbershop: { select: { timezone: true } },
+        workingHours: {
+          orderBy: { weekday: 'asc' },
+          select: { weekday: true, startTime: true, endTime: true },
+        },
       },
     });
+    if (!member) throw new NotFoundException('Çalışan bu işletmeye ait değil.');
+    if (planned) return member.workingHours;
+    return workingHoursForDate(
+      member.workingHours,
+      member.previousWorkingHours,
+      member.workingHoursEffectiveFrom,
+      DateTime.now().setZone(member.barbershop.timezone),
+    );
   }
 
   async findCurrentMemberWorkingHours(barbershopId: string, userId: string) {
@@ -84,7 +149,41 @@ export class SchedulesService {
     this.validateWorkingHours(dto.hours);
     await this.validateMemberHoursAgainstBusinessHours(barbershopId, dto.hours);
 
+    const member = await this.prisma.businessMember.findUnique({
+      where: { id: memberId },
+      select: {
+        previousWorkingHours: true,
+        workingHoursEffectiveFrom: true,
+        barbershop: { select: { timezone: true } },
+        workingHours: {
+          select: { weekday: true, startTime: true, endTime: true },
+        },
+      },
+    });
+    if (!member) throw new NotFoundException('Çalışan bulunamadı.');
+    const now = DateTime.now().setZone(member.barbershop.timezone);
+    const activeHours = workingHoursForDate(
+      member.workingHours,
+      member.previousWorkingHours,
+      member.workingHoursEffectiveFrom,
+      now,
+    );
+    const effectiveFrom = member.workingHours.length
+      ? await this.safeMemberHoursEffectiveFrom(
+          memberId,
+          member.barbershop.timezone,
+          dto.hours,
+        )
+      : now;
+
     await this.prisma.$transaction([
+      this.prisma.businessMember.update({
+        where: { id: memberId },
+        data: {
+          previousWorkingHours: serializeWorkingHours(activeHours),
+          workingHoursEffectiveFrom: effectiveFrom.toUTC().toJSDate(),
+        },
+      }),
       this.prisma.memberWorkingHours.deleteMany({
         where: { businessMemberId: memberId },
       }),
@@ -98,7 +197,98 @@ export class SchedulesService {
       }),
     ]);
 
-    return this.findMemberWorkingHours(barbershopId, memberId);
+    return this.findMemberWorkingHours(barbershopId, memberId, true);
+  }
+
+  private async safeBusinessHoursEffectiveFrom(
+    barbershopId: string,
+    timezone: string,
+    hours: EffectiveWorkingHours[],
+  ) {
+    return this.safeHoursEffectiveFrom(
+      timezone,
+      hours,
+      await this.prisma.appointment.findMany({
+        where: {
+          barbershopId,
+          status: {
+            in: [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
+          },
+          startsAt: {
+            gte: DateTime.now()
+              .setZone(timezone)
+              .startOf('day')
+              .plus({ days: 1 })
+              .toUTC()
+              .toJSDate(),
+          },
+        },
+        select: { startsAt: true, endsAt: true },
+      }),
+    );
+  }
+
+  private async safeMemberHoursEffectiveFrom(
+    memberId: string,
+    timezone: string,
+    hours: EffectiveWorkingHours[],
+  ) {
+    return this.safeHoursEffectiveFrom(
+      timezone,
+      hours,
+      await this.prisma.appointment.findMany({
+        where: {
+          businessMemberId: memberId,
+          status: {
+            in: [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
+          },
+          startsAt: {
+            gte: DateTime.now()
+              .setZone(timezone)
+              .startOf('day')
+              .plus({ days: 1 })
+              .toUTC()
+              .toJSDate(),
+          },
+        },
+        select: { startsAt: true, endsAt: true },
+      }),
+    );
+  }
+
+  private safeHoursEffectiveFrom(
+    timezone: string,
+    hours: EffectiveWorkingHours[],
+    appointments: Array<{ startsAt: Date; endsAt: Date }>,
+  ) {
+    let effectiveFrom = DateTime.now()
+      .setZone(timezone)
+      .startOf('day')
+      .plus({ days: 1 });
+    const hoursByWeekday = new Map(hours.map((hour) => [hour.weekday, hour]));
+
+    for (const appointment of appointments) {
+      const startsAt = DateTime.fromJSDate(appointment.startsAt).setZone(
+        timezone,
+      );
+      const endsAt = DateTime.fromJSDate(appointment.endsAt).setZone(timezone);
+      const hoursForDay = hoursByWeekday.get(
+        orderedWeekdays[startsAt.weekday - 1],
+      );
+      const fitsNewHours =
+        hoursForDay &&
+        startsAt.toFormat('yyyy-MM-dd') === endsAt.toFormat('yyyy-MM-dd') &&
+        this.toMinutes(startsAt.toFormat('HH:mm')) >=
+          this.toMinutes(hoursForDay.startTime) &&
+        this.toMinutes(endsAt.toFormat('HH:mm')) <=
+          this.toMinutes(hoursForDay.endTime);
+
+      if (!fitsNewHours) {
+        const afterAppointment = endsAt.startOf('day').plus({ days: 1 });
+        if (afterAppointment > effectiveFrom) effectiveFrom = afterAppointment;
+      }
+    }
+    return effectiveFrom;
   }
 
   async findUpcomingScheduleBlocks(barbershopId: string, memberId: string) {

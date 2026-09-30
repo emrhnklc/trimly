@@ -11,10 +11,12 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function EmployeeTimeOffSelectionScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { token } = useAuth();
   const { activeMembership } = useBusiness();
@@ -65,17 +67,17 @@ export default function EmployeeTimeOffSelectionScreen() {
         ListHeaderComponent={
           <>
             <BusinessDetailHeader
-              onBack={() => router.dismissTo('/management/hours')}
+              onBack={() => goBackOrReplace(router, '/(business)/management/hours')}
               title="Çalışan İzinleri"
             />
-            <View style={styles.infoCard}>
+            <View style={[styles.infoCard, { backgroundColor: themeColors.surfaceMuted }]}>
               <AppText variant="label">İzinler uygun saatleri otomatik kapatır</AppText>
               <AppText color="textMuted" style={styles.infoDescription} variant="bodySmall">
                 Tam gün izinde hiç saat gösterilmez; molada yalnızca çakışan saatler kapanır.
               </AppText>
             </View>
 
-            {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+            {isLoading ? <ActivityIndicator color={themeColors.primary} style={styles.loader} /> : null}
 
             {!isLoading && error ? (
               <BusinessMemberState
@@ -107,10 +109,10 @@ export default function EmployeeTimeOffSelectionScreen() {
         }
         refreshControl={
           <RefreshControl
-            colors={[colors.primary]}
+            colors={[themeColors.primary]}
             onRefresh={() => void loadMembers(true)}
             refreshing={isRefreshing}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         }
         renderItem={({ item }) => (
@@ -133,7 +135,6 @@ export default function EmployeeTimeOffSelectionScreen() {
 const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   infoCard: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     marginTop: spacing.md,
     padding: spacing.md,

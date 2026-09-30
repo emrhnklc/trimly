@@ -12,6 +12,7 @@ import {
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { UnsavedChangesSheet } from '@/components/ui/UnsavedChangesSheet';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   defaultClosingTime,
@@ -36,8 +37,10 @@ import {
   updateMemberWorkingHours,
 } from '@/features/schedules/api';
 import type { BusinessWorkingHours, Weekday } from '@/features/schedules/types';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type PickerTarget = {
   field: 'startTime' | 'endTime';
@@ -66,6 +69,7 @@ function serializeDays(days: WorkingDayDraft[]) {
 }
 
 export default function EmployeeScheduleDetailScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { memberId } = useLocalSearchParams<{ memberId: string }>();
   const { token } = useAuth();
@@ -80,6 +84,7 @@ export default function EmployeeScheduleDetailScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false);
 
   const loadSchedule = useCallback(async () => {
     if (!activeMembership || !memberId || !token) return;
@@ -90,8 +95,8 @@ export default function EmployeeScheduleDetailScreen() {
       const barbershopId = activeMembership.barbershop.id;
       const [nextMember, nextBusinessHours, nextMemberHours] = await Promise.all([
         getBusinessMember(barbershopId, memberId, token),
-        getBusinessWorkingHours(barbershopId),
-        getMemberWorkingHours(barbershopId, memberId, token),
+        getBusinessWorkingHours(barbershopId, true),
+        getMemberWorkingHours(barbershopId, memberId, token, true),
       ]);
       const nextDays = createMemberDrafts(nextBusinessHours, nextMemberHours);
       setMember(nextMember);
@@ -141,22 +146,11 @@ export default function EmployeeScheduleDetailScreen() {
 
   function handleBack() {
     if (!hasChanges) {
-      router.dismissTo('/management/hours/members');
+      goBackOrReplace(router, '/(business)/management/hours/members');
       return;
     }
 
-    Alert.alert(
-      'Kaydedilmemiş değişiklikler',
-      'Çalışan vardiyasında yaptığın değişiklikler kaybolacak.',
-      [
-        { text: 'Düzenlemeye Devam Et', style: 'cancel' },
-        {
-          text: 'Değişiklikleri Sil',
-          style: 'destructive',
-          onPress: () => router.dismissTo('/management/hours/members'),
-        },
-      ],
-    );
+    setUnsavedSheetVisible(true);
   }
 
   function copyBusinessHours() {
@@ -166,7 +160,7 @@ export default function EmployeeScheduleDetailScreen() {
   }
 
   async function persistSchedule() {
-    if (!activeMembership || !memberId || !token) return;
+    if (!activeMembership || !memberId || !token) return false;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -185,26 +179,30 @@ export default function EmployeeScheduleDetailScreen() {
       const nextDays = createMemberDrafts(businessHours, savedHours);
       setDays(nextDays);
       setSavedDays(nextDays);
-      setSuccessMessage('Çalışan vardiyası kaydedildi. Randevu saatleri bu plana göre üretilecek.');
+      setSuccessMessage(
+        'Yeni vardiya en erken yarın, çakışan randevu varsa son çakışmanın ertesi günü uygulanacak. Mevcut randevular korunuyor.',
+      );
+      return true;
     } catch (reason) {
       setSubmitError(reason instanceof Error ? reason.message : 'Çalışan vardiyası kaydedilemedi.');
+      return false;
     } finally {
       setSubmitting(false);
     }
   }
 
-  function handleSave() {
+  function validateSchedule() {
     for (const day of days.filter((item) => item.isOpen)) {
       const businessDay = businessHoursByDay.get(day.weekday);
       const label = weekdayOptions.find((item) => item.value === day.weekday)?.label ?? 'Seçilen gün';
 
       if (!businessDay) {
         setSubmitError(`${label} günü işletme kapalı olduğu için vardiya eklenemez.`);
-        return;
+        return false;
       }
       if (timeToMinutes(day.startTime) >= timeToMinutes(day.endTime)) {
         setSubmitError(`${label} için vardiya bitişi başlangıç saatinden sonra olmalı.`);
-        return;
+        return false;
       }
       if (
         timeToMinutes(day.startTime) < timeToMinutes(businessDay.startTime) ||
@@ -213,9 +211,15 @@ export default function EmployeeScheduleDetailScreen() {
         setSubmitError(
           `${label} vardiyası işletmenin ${businessDay.startTime}–${businessDay.endTime} saatleri içinde olmalı.`,
         );
-        return;
+        return false;
       }
     }
+
+    return true;
+  }
+
+  function handleSave() {
+    if (!validateSchedule()) return;
 
     if (!days.some((day) => day.isOpen) && member?.isBookable) {
       Alert.alert(
@@ -230,6 +234,14 @@ export default function EmployeeScheduleDetailScreen() {
     }
 
     void persistSchedule();
+  }
+
+  async function saveAndLeave() {
+    if (!validateSchedule()) return;
+    if (await persistSchedule()) {
+      setUnsavedSheetVisible(false);
+      goBackOrReplace(router, '/(business)/management/hours/members');
+    }
   }
 
   return (
@@ -263,7 +275,7 @@ export default function EmployeeScheduleDetailScreen() {
             />
 
             {!member.isActive || !member.isBookable ? (
-              <View style={styles.warningCard}>
+              <View style={[styles.warningCard, { backgroundColor: themeColors.surfaceMuted }]}>
                 <AppText variant="label">
                   {!member.isActive ? 'Çalışan şu an pasif' : 'Çalışan randevuya kapalı'}
                 </AppText>
@@ -283,7 +295,11 @@ export default function EmployeeScheduleDetailScreen() {
               <Pressable
                 accessibilityRole="button"
                 onPress={copyBusinessHours}
-                style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}>
+                style={({ pressed }) => [
+                  styles.copyButton,
+                  { backgroundColor: themeColors.surfaceMuted },
+                  pressed && styles.pressed,
+                ]}>
                 <AppText color="primary" style={styles.copyButtonLabel} variant="label">
                   İşletmeden Kopyala
                 </AppText>
@@ -307,14 +323,14 @@ export default function EmployeeScheduleDetailScreen() {
             })}
 
             {submitError ? (
-              <View style={[styles.message, styles.errorMessage]}>
+              <View style={[styles.message, { backgroundColor: themeColors.dangerSurface }]}>
                 <AppText color="danger" variant="bodySmall">{submitError}</AppText>
               </View>
             ) : null}
 
             {successMessage ? (
-              <View style={[styles.message, styles.successMessage]}>
-                <AppText style={styles.successText} variant="bodySmall">{successMessage}</AppText>
+              <View style={[styles.message, { backgroundColor: themeColors.successSurface }]}>
+                <AppText color="success" variant="bodySmall">{successMessage}</AppText>
               </View>
             ) : null}
 
@@ -336,6 +352,17 @@ export default function EmployeeScheduleDetailScreen() {
           value={pickerValue}
         />
       ) : null}
+      <UnsavedChangesSheet
+        description="Çalışan vardiyasında yaptığın değişiklikleri kaydedebilir veya silebilirsin."
+        isSaving={isSubmitting}
+        onContinue={() => setUnsavedSheetVisible(false)}
+        onDiscard={() => {
+          setUnsavedSheetVisible(false);
+          goBackOrReplace(router, '/(business)/management/hours/members');
+        }}
+        onSave={() => void saveAndLeave()}
+        visible={unsavedSheetVisible}
+      />
     </Screen>
   );
 }
@@ -344,7 +371,6 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   warningCard: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     marginTop: spacing.sm,
     padding: spacing.md,
@@ -355,7 +381,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, lineHeight: 28, marginBottom: 2 },
   copyButton: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     marginTop: spacing.sm,
     paddingHorizontal: spacing.sm,
@@ -363,8 +388,5 @@ const styles = StyleSheet.create({
   },
   copyButtonLabel: { fontSize: 12, lineHeight: 16 },
   message: { borderRadius: radius.card, marginBottom: spacing.sm, padding: spacing.sm },
-  errorMessage: { backgroundColor: '#F8E7E3' },
-  successMessage: { backgroundColor: '#E8F1E5' },
-  successText: { color: '#4F7653' },
   pressed: { opacity: 0.68 },
 });

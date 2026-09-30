@@ -88,7 +88,7 @@ export function DailyScheduleTimeline({
           };
           const top = ((appointmentStart - startMinute) / 60) * HOUR_HEIGHT;
           const naturalHeight = ((appointmentEnd - appointmentStart) / 60) * HOUR_HEIGHT;
-          const customerName = `${appointment.customer.firstName} ${appointment.customer.lastName}`;
+          const customerName = appointment.attendeeNameSnapshot;
           const barberName = appointment.businessMember.user.firstName;
 
           return (

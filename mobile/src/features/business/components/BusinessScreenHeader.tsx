@@ -8,6 +8,7 @@ type BusinessScreenHeaderProps = {
   rightAccessory?: ReactNode;
   showNotification?: boolean;
   subtitle?: string;
+  titleAccessory?: ReactNode;
   title: string;
 };
 
@@ -16,6 +17,7 @@ export function BusinessScreenHeader({
   rightAccessory,
   showNotification = false,
   subtitle,
+  titleAccessory,
   title,
 }: BusinessScreenHeaderProps) {
   return (
@@ -33,6 +35,7 @@ export function BusinessScreenHeader({
           ) : undefined)
       }
       subtitle={subtitle}
+      titleAccessory={titleAccessory}
       title={title}
     />
   );

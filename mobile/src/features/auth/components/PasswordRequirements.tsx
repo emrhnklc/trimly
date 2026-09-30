@@ -2,8 +2,8 @@ import { SymbolView } from "expo-symbols";
 import { StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/ui/AppText";
-import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 import { passwordRequirements } from "../validation";
 
 type PasswordRequirementsProps = {
@@ -15,6 +15,7 @@ export function PasswordRequirements({
   confirmation,
   password,
 }: PasswordRequirementsProps) {
+  const colors = useThemeColors();
   if (!password) return null;
 
   const items = [

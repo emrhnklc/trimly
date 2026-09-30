@@ -1,7 +1,48 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+const DEFAULT_GET_CACHE_MS = 30_000;
+
+type CachedResponse = {
+  expiresAt: number;
+  value: unknown;
+};
+
+type ApiGetOptions = {
+  cacheTimeMs?: number;
+  fresh?: boolean;
+};
+
+const responseCache = new Map<string, CachedResponse>();
+const pendingRequests = new Map<string, Promise<unknown>>();
+let cacheGeneration = 0;
 
 export function resolveApiUrl(path: string) {
-  return new URL(path, API_URL).toString();
+  const resolved = new URL(path, API_URL);
+  if (isPersistedLocalAssetUrl(resolved)) {
+    return new URL(
+      `${resolved.pathname}${resolved.search}${resolved.hash}`,
+      API_URL,
+    ).toString();
+  }
+  return resolved.toString();
+}
+
+function isPersistedLocalAssetUrl(url: URL) {
+  const isTrimlyAsset =
+    url.pathname.startsWith('/barbershops/images/') ||
+    url.pathname.startsWith('/users/profile-images/');
+  if (!isTrimlyAsset) return false;
+
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return true;
+  const octets = url.hostname.split('.').map(Number);
+  if (octets.length !== 4 || octets.some((octet) => Number.isNaN(octet))) {
+    return false;
+  }
+
+  return (
+    octets[0] === 10 ||
+    (octets[0] === 192 && octets[1] === 168) ||
+    (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+  );
 }
 
 type ApiErrorResponse = {
@@ -32,10 +73,12 @@ async function parseResponse<T>(response: Response) {
       ? payload.message[0]
       : payload?.message;
     const isServerFailure = response.status >= 500;
-    const isGenericServerMessage = !message || /^internal server error$/i.test(message);
-    const userMessage = isServerFailure && isGenericServerMessage
-      ? "Sunucuya şu an ulaşılamıyor. Lütfen biraz sonra tekrar dene."
-      : message ?? "İşlem şu an yapılamadı. Lütfen tekrar dene.";
+    const isGenericServerMessage =
+      !message || /^internal server error$/i.test(message);
+    const userMessage =
+      isServerFailure && isGenericServerMessage
+        ? "Sunucuya şu an ulaşılamıyor. Lütfen biraz sonra tekrar dene."
+        : (message ?? "İşlem şu an yapılamadı. Lütfen tekrar dene.");
 
     throw new ApiError(
       userMessage,
@@ -56,10 +99,17 @@ export function isApiErrorCode(
   return reason instanceof ApiError && reason.code === code;
 }
 
+export function clearApiCache() {
+  cacheGeneration += 1;
+  responseCache.clear();
+  pendingRequests.clear();
+}
+
 export async function apiGet<T>(
   path: string,
   searchParams?: Record<string, string>,
   accessToken?: string,
+  options?: ApiGetOptions,
 ) {
   const url = new URL(path, API_URL);
 
@@ -67,13 +117,53 @@ export async function apiGet<T>(
     if (value) url.searchParams.set(key, value);
   });
 
-  const response = await fetch(url, {
+  if (options?.fresh) {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
+    });
+    return parseResponse<T>(response);
+  }
+
+  const cacheKey = `${accessToken ?? "public"}:${url.toString()}`;
+  const cached = responseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+
+  const pending = pendingRequests.get(cacheKey);
+  if (pending) return pending as Promise<T>;
+
+  const requestGeneration = cacheGeneration;
+  const request = fetch(url, {
     headers: accessToken
       ? { Authorization: `Bearer ${accessToken}` }
       : undefined,
-  });
+  })
+    .then((response) => parseResponse<T>(response))
+    .then((value) => {
+      if (requestGeneration === cacheGeneration) {
+        responseCache.set(cacheKey, {
+          expiresAt:
+            Date.now() + (options?.cacheTimeMs ?? DEFAULT_GET_CACHE_MS),
+          value,
+        });
+      }
+      return value;
+    })
+    .finally(() => {
+      if (pendingRequests.get(cacheKey) === request)
+        pendingRequests.delete(cacheKey);
+    });
 
-  return parseResponse<T>(response);
+  pendingRequests.set(cacheKey, request);
+  return request;
+}
+
+async function parseMutationResponse<T>(response: Response) {
+  const value = await parseResponse<T>(response);
+  clearApiCache();
+  return value;
 }
 
 export async function apiPost<T>(
@@ -90,7 +180,7 @@ export async function apiPost<T>(
     body: JSON.stringify(body),
   });
 
-  return parseResponse<T>(response);
+  return parseMutationResponse<T>(response);
 }
 
 export async function apiUpload<T>(
@@ -106,7 +196,7 @@ export async function apiUpload<T>(
     body,
   });
 
-  return parseResponse<T>(response);
+  return parseMutationResponse<T>(response);
 }
 
 export async function apiPatch<T>(
@@ -124,7 +214,7 @@ export async function apiPatch<T>(
     body: hasBody ? JSON.stringify(body) : undefined,
   });
 
-  return parseResponse<T>(response);
+  return parseMutationResponse<T>(response);
 }
 
 export async function apiPut<T>(
@@ -142,7 +232,7 @@ export async function apiPut<T>(
     body: hasBody ? JSON.stringify(body) : undefined,
   });
 
-  return parseResponse<T>(response);
+  return parseMutationResponse<T>(response);
 }
 
 export async function apiDelete<T>(
@@ -160,5 +250,5 @@ export async function apiDelete<T>(
     body: hasBody ? JSON.stringify(body) : undefined,
   });
 
-  return parseResponse<T>(response);
+  return parseMutationResponse<T>(response);
 }

@@ -1,8 +1,8 @@
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export type BookingDateOption = {
   date: string;
@@ -18,6 +18,7 @@ type BookingDatePickerProps = {
 };
 
 export function BookingDatePicker({ dates, onSelect, selectedDate }: BookingDatePickerProps) {
+  const colors = useThemeColors();
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -31,7 +32,13 @@ export function BookingDatePicker({ dates, onSelect, selectedDate }: BookingDate
             accessibilityState={{ selected: isSelected }}
             key={item.date}
             onPress={() => onSelect(item.date)}
-            style={[styles.date, isSelected && styles.selectedDate]}>
+            style={[
+              styles.date,
+              {
+                backgroundColor: isSelected ? colors.darkSurface : colors.surface,
+                borderColor: isSelected ? colors.darkSurface : colors.border,
+              },
+            ]}>
             <AppText color={isSelected ? 'onPrimary' : 'textMuted'} variant="bodySmall">
               {item.dayLabel}
             </AppText>
@@ -52,14 +59,11 @@ const styles = StyleSheet.create({
   content: { gap: spacing.xs, paddingRight: spacing.lg },
   date: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     minWidth: 58,
     paddingHorizontal: spacing.xs,
     paddingVertical: spacing.xs,
   },
-  selectedDate: { backgroundColor: colors.darkSurface, borderColor: colors.darkSurface },
   dayNumber: { fontSize: 17, lineHeight: 22, marginVertical: 1 },
 });

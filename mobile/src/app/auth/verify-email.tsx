@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
@@ -57,31 +57,30 @@ export default function VerifyEmailScreen() {
   function finishAuthentication(
     result: Awaited<ReturnType<typeof verifyEmail>>,
   ) {
-    void signIn(result).then(() => {
-      if (accessSlug && accessCode) {
-        router.replace({
-          pathname: "/access/[slug]",
-          params: { code: accessCode, slug: accessSlug },
-        });
-      } else if (invitationToken) {
-        router.replace({
-          pathname: "/join/[token]",
-          params: { token: invitationToken },
-        });
-      } else if (intent === "owner") {
-        router.replace({
-          pathname: "/onboarding/business",
-          params: { source: "registration" },
-        });
-      } else if (intent === "employee") {
-        router.replace({
-          pathname: "/onboarding/invitation",
-          params: { source: "registration" },
-        });
-      } else {
-        router.replace("/");
-      }
-    });
+    let postAuthRoute: Href = "/";
+    if (accessSlug && accessCode) {
+      postAuthRoute = {
+        pathname: "/access/[slug]",
+        params: { code: accessCode, slug: accessSlug },
+      };
+    } else if (invitationToken) {
+      postAuthRoute = {
+        pathname: "/join/[token]",
+        params: { token: invitationToken },
+      };
+    } else if (intent === "owner") {
+      postAuthRoute = {
+        pathname: "/onboarding/business",
+        params: { source: "registration" },
+      };
+    } else if (intent === "employee") {
+      postAuthRoute = {
+        pathname: "/onboarding/invitation",
+        params: { source: "registration" },
+      };
+    }
+
+    void signIn(result, true, postAuthRoute);
   }
 
   async function submit() {

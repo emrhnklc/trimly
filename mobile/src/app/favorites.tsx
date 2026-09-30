@@ -3,18 +3,19 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
-import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { SettingsPageHeader } from '@/components/ui/SettingsPageHeader';
 import { BarbershopPreviewCard } from '@/features/barbershops/components/BarbershopPreviewCard';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { getFavoriteBarbershops } from '@/features/favorites/api';
 import type { FavoriteBarbershop } from '@/features/favorites/types';
-import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function FavoritesScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { token } = useAuth();
   const [favorites, setFavorites] = useState<FavoriteBarbershop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,16 +72,7 @@ export default function FavoritesScreen() {
           )
         }
         ListHeaderComponent={
-          <View style={styles.header}>
-            <AppIconButton
-              accessibilityLabel="Geri dön"
-              icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-              onPress={() => router.back()}
-              variant="transparent"
-            />
-            <AppText style={styles.title} variant="displayMedium">Favori Berberlerim</AppText>
-            <View style={styles.headerSpacer} />
-          </View>
+          <SettingsPageHeader onBackPress={() => router.back()} title="Favori Berberlerim" />
         }
         refreshControl={
           <RefreshControl
@@ -103,14 +95,6 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg },
   emptyContent: { flexGrow: 1 },
-  header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xl,
-  },
-  title: { flex: 1, textAlign: 'center' },
-  headerSpacer: { width: 44 },
   separator: { height: spacing.xs },
   loader: { marginTop: spacing.xxl },
   emptyState: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: spacing.xl },

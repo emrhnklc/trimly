@@ -9,7 +9,11 @@ type SectionHeaderProps = {
   title: string;
 };
 
-export function SectionHeader({ actionLabel, onActionPress, title }: SectionHeaderProps) {
+export function SectionHeader({
+  actionLabel,
+  onActionPress,
+  title,
+}: SectionHeaderProps) {
   return (
     <View style={styles.container}>
       <AppText style={styles.title} variant="sectionTitle">

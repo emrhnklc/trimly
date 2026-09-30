@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  View,
 } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
@@ -31,7 +31,8 @@ import {
 import { NextAppointmentCard } from '@/features/home/components/NextAppointmentCard';
 import { RepeatLastTrimCard } from '@/features/home/components/RepeatLastTrimCard';
 import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
+import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -44,6 +45,7 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadVersion = useRef(0);
+  const loadedToken = useRef<string | null>(null);
 
   const loadHome = useCallback(async (refreshing = false) => {
     if (!token) return;
@@ -52,7 +54,7 @@ export default function HomeScreen() {
     const isCurrentRequest = () => requestVersion === loadVersion.current;
 
     if (refreshing) setIsRefreshing(true);
-    else setIsLoading(true);
+    else if (loadedToken.current !== token) setIsLoading(true);
     setError(null);
 
     try {
@@ -87,6 +89,7 @@ export default function HomeScreen() {
       }
     } finally {
       if (isCurrentRequest()) {
+        loadedToken.current = token;
         setIsLoading(false);
         setIsRefreshing(false);
       }
@@ -179,7 +182,7 @@ export default function HomeScreen() {
       icon: { ios: 'photo.stack', android: 'photo_library', web: 'photo_library' },
       id: 'saved-styles',
       label: 'Kaydettiğin Stiller',
-      onPress: () => router.push('/profile/history'),
+      onPress: () => router.push({ pathname: '/saved-styles', params: { returnTo: 'customer-home' } }),
     },
   ];
 
@@ -196,7 +199,11 @@ export default function HomeScreen() {
           />
         }
         showsVerticalScrollIndicator={false}>
-        <HomeHeader onNotificationsPress={() => router.push('/notifications')} />
+        <HomeHeader
+          onNotificationsPress={() =>
+            router.push({ pathname: '/notifications', params: { returnTo: 'customer-home' } })
+          }
+        />
         <HomeGreeting user={user} />
 
         <NextAppointmentCard
@@ -206,7 +213,6 @@ export default function HomeScreen() {
 
         <HomeHeroCard onExplorePress={() => router.push('/barbers')} />
 
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
         {!isLoading && error ? (
           <AppText color="danger" style={styles.errorText} variant="bodySmall">{error}</AppText>
         ) : null}
@@ -219,7 +225,9 @@ export default function HomeScreen() {
           onActionPress={() => router.push('/barbers')}
           title="Öne Çıkan Berberler"
         />
-        {barbershops.length ? (
+        {isLoading && !barbershops.length ? (
+          <FeaturedBarbershopSkeleton />
+        ) : barbershops.length ? (
           <ScrollView
             contentContainerStyle={styles.featuredList}
             horizontal
@@ -258,9 +266,54 @@ export default function HomeScreen() {
   );
 }
 
+function FeaturedBarbershopSkeleton() {
+  const themeColors = useThemeColors();
+
+  return (
+    <View
+      accessibilityLabel="Öne çıkan berberler yükleniyor"
+      style={styles.featuredSkeletonRow}>
+      {[0, 1].map((item) => (
+        <View
+          key={item}
+          style={[
+            styles.featuredSkeletonCard,
+            { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+          ]}>
+          <View style={[styles.featuredSkeletonImage, { backgroundColor: themeColors.surfaceMuted }]} />
+          <View style={[styles.featuredSkeletonTitle, { backgroundColor: themeColors.surfaceMuted }]} />
+          <View style={[styles.featuredSkeletonLine, { backgroundColor: themeColors.surfaceMuted }]} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxxl, paddingHorizontal: spacing.lg },
-  loader: { marginTop: spacing.lg },
   errorText: { marginTop: spacing.md, textAlign: 'center' },
   featuredList: { gap: spacing.sm, paddingRight: spacing.lg },
+  featuredSkeletonRow: { flexDirection: 'row', gap: spacing.sm, overflow: 'hidden' },
+  featuredSkeletonCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    paddingBottom: spacing.sm,
+    width: 220,
+  },
+  featuredSkeletonImage: { height: 112, width: '100%' },
+  featuredSkeletonTitle: {
+    borderRadius: radius.pill,
+    height: 16,
+    marginHorizontal: spacing.sm,
+    marginTop: spacing.sm,
+    width: 132,
+  },
+  featuredSkeletonLine: {
+    borderRadius: radius.pill,
+    height: 11,
+    marginHorizontal: spacing.sm,
+    marginTop: spacing.xs,
+    width: 92,
+  },
 });

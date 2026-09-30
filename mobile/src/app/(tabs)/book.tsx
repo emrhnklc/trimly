@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -8,6 +13,7 @@ import { AppText } from "@/components/ui/AppText";
 import { Screen } from "@/components/ui/Screen";
 import { getMyAppointments } from "@/features/appointments/api";
 import { BookingBarberCard } from "@/features/appointments/components/BookingBarberCard";
+import { BookingAttendeePicker } from "@/features/appointments/components/BookingAttendeePicker";
 import {
   BookingDatePicker,
   type BookingDateOption,
@@ -20,6 +26,8 @@ import { BookingStartScreen } from "@/features/appointments/components/BookingSt
 import { BookingTimePicker } from "@/features/appointments/components/BookingTimePicker";
 import type { CustomerAppointment } from "@/features/appointments/types";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { getMyDependents } from "@/features/dependents/api";
+import type { DependentProfile } from "@/features/dependents/types";
 import {
   getActiveServices,
   getAvailability,
@@ -59,19 +67,32 @@ type BookParams = {
   memberId?: string;
   serviceId?: string;
   slug?: string;
+  attendeeSelected?: string;
+  dependentProfileId?: string;
 };
 
 type BookingFormStep = 1 | 2 | 3;
 
 export default function BookAppointmentScreen() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const {
+    attendeeSelected,
     campaignId,
+    dependentProfileId: initialDependentProfileId,
     memberId: repeatedMemberId,
     serviceId: repeatedServiceId,
     slug,
   } = useLocalSearchParams<BookParams>();
+
+  const [dependents, setDependents] = useState<DependentProfile[]>([]);
+  const [isDependentsLoading, setDependentsLoading] = useState(true);
+  const [selectedDependentId, setSelectedDependentId] = useState<string | null>(
+    initialDependentProfileId ?? null,
+  );
+  const [isAttendeeSelected, setAttendeeSelected] = useState(
+    attendeeSelected === "1",
+  );
 
   const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
   const [favorites, setFavorites] = useState<FavoriteBarbershop[]>([]);
@@ -137,6 +158,34 @@ export default function BookAppointmentScreen() {
     }, [loadStartData, slug]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!token) return;
+      let isActive = true;
+      setDependentsLoading(true);
+      void getMyDependents(token)
+        .then((items) => {
+          if (!isActive) return;
+          setDependents(items);
+          setSelectedDependentId((currentDependentId) =>
+            currentDependentId &&
+            !items.some((item) => item.id === currentDependentId)
+              ? null
+              : currentDependentId,
+          );
+        })
+        .catch(() => {
+          if (isActive) setDependents([]);
+        })
+        .finally(() => {
+          if (isActive) setDependentsLoading(false);
+        });
+      return () => {
+        isActive = false;
+      };
+    }, [token]),
+  );
+
   const lastCompletedAppointment = useMemo(
     () =>
       appointments
@@ -198,6 +247,12 @@ export default function BookAppointmentScreen() {
           if (!token) throw new Error("Randevu almak için giriş yapmalısın.");
 
           const nextShop = await getPublicBarbershop(slug);
+
+          if (!nextShop.isBookingOpen) {
+            throw new Error(
+              'Bu işletme şu anda yeni randevu kabul etmiyor. Daha sonra tekrar deneyebilirsin.',
+            );
+          }
           setShop(nextShop);
 
           let nextServices: PublicService[];
@@ -261,49 +316,60 @@ export default function BookAppointmentScreen() {
     return () => clearTimeout(requestId);
   }, [accessReloadKey, campaignId, repeatedMemberId, repeatedServiceId, slug, token]);
 
-  useEffect(() => {
-    if (!shop || !selectedServiceId || !selectedMemberId || !selectedDate)
-      return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!shop || !selectedServiceId || !selectedMemberId || !selectedDate)
+        return;
 
-    const requestId = setTimeout(() => {
-      void (async () => {
-        setIsLoadingSlots(true);
-        setSlotError(null);
-        setSlots([]);
-        setSelectedHour(null);
-        setSelectedSlot(null);
+      let isActive = true;
+      const requestId = setTimeout(() => {
+        void (async () => {
+          setIsLoadingSlots(true);
+          setSlotError(null);
+          setSlots([]);
+          setSelectedHour(null);
+          setSelectedSlot(null);
 
-        try {
-          if (!token) throw new Error("Randevu almak için giriş yapmalısın.");
+          try {
+            if (!token) throw new Error("Randevu almak için giriş yapmalısın.");
 
-          const result = await getAvailability(
-            shop.id,
-            selectedMemberId,
-            selectedServiceId,
-            selectedDate,
-            token,
-          );
-          setSlots(result.slots);
-        } catch (loadError) {
-          setSlotError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Uygun saatler yüklenemedi.",
-          );
-        } finally {
-          setIsLoadingSlots(false);
-        }
-      })();
-    }, 0);
+            const result = await getAvailability(
+              shop.id,
+              selectedMemberId,
+              selectedServiceId,
+              selectedDate,
+              token,
+            );
+            if (isActive) setSlots(result.slots);
+          } catch (loadError) {
+            if (!isActive) return;
+            setSlotError(
+              loadError instanceof Error
+                ? loadError.message
+                : "Uygun saatler yüklenemedi.",
+            );
+          } finally {
+            if (isActive) setIsLoadingSlots(false);
+          }
+        })();
+      }, 0);
 
-    return () => clearTimeout(requestId);
-  }, [selectedDate, selectedMemberId, selectedServiceId, shop, token]);
+      return () => {
+        isActive = false;
+        clearTimeout(requestId);
+      };
+    }, [selectedDate, selectedMemberId, selectedServiceId, shop, token]),
+  );
 
   function openShop(nextSlug: string, repeatAppointment?: CustomerAppointment) {
     router.push({
       pathname: "/book",
       params: {
         slug: nextSlug,
+        attendeeSelected: "1",
+        ...(selectedDependentId
+          ? { dependentProfileId: selectedDependentId }
+          : {}),
         ...(repeatAppointment
           ? {
               memberId: repeatAppointment.businessMember.id,
@@ -316,7 +382,12 @@ export default function BookAppointmentScreen() {
 
   function selectService(serviceId: string) {
     setSelectedServiceId(serviceId);
-    setSelectedMemberId(null);
+    const preferredBarber = barbers.find(
+      (barber) =>
+        barber.id === repeatedMemberId &&
+        barber.serviceAssignments.some(({ service }) => service.id === serviceId),
+    );
+    setSelectedMemberId(preferredBarber?.id ?? null);
     resetTimeSelection();
   }
 
@@ -363,7 +434,15 @@ export default function BookAppointmentScreen() {
 
   function goBackStep() {
     if (activeStep === 1) {
-      router.replace("/book");
+      router.replace({
+        pathname: "/book",
+        params: {
+          attendeeSelected: "1",
+          ...(selectedDependentId
+            ? { dependentProfileId: selectedDependentId }
+            : {}),
+        },
+      });
       return;
     }
 
@@ -371,6 +450,8 @@ export default function BookAppointmentScreen() {
   }
 
   function continueFlow() {
+    if (!user) return;
+
     if (activeStep === 1 && selectedService) {
       setActiveStep(2);
       return;
@@ -389,6 +470,13 @@ export default function BookAppointmentScreen() {
       !selectedSlot
     )
       return;
+
+    const selectedDependent = selectedDependentId
+      ? dependents.find((item) => item.id === selectedDependentId)
+      : null;
+    const attendeeName = selectedDependent
+      ? `${selectedDependent.firstName} ${selectedDependent.lastName}`
+      : `${user.firstName} ${user.lastName}`;
 
     router.push({
       pathname: "/appointments/preview",
@@ -414,14 +502,39 @@ export default function BookAppointmentScreen() {
         shopName: shop.name,
         startsAt: selectedSlot.startsAt,
         time: selectedSlot.startTime,
+        attendeeName,
+        ...(selectedDependentId ? { dependentProfileId: selectedDependentId } : {}),
       },
     });
+  }
+
+  if (!user) return null;
+
+  if (!isAttendeeSelected) {
+    return (
+      <Screen>
+        <BookingFlowHeader activeStep={1} onClose={closeFlow} />
+        <BookingAttendeePicker
+          dependents={dependents}
+          isLoading={isDependentsLoading}
+          onAddDependent={() => router.push("/dependents/new")}
+          onContinue={() => setAttendeeSelected(true)}
+          onSelect={setSelectedDependentId}
+          selectedDependentId={selectedDependentId}
+          user={user}
+        />
+      </Screen>
+    );
   }
 
   if (!slug) {
     return (
       <Screen>
-        <BookingFlowHeader activeStep={1} onClose={closeFlow} />
+        <BookingFlowHeader
+          activeStep={2}
+          onBack={() => setAttendeeSelected(false)}
+          onClose={closeFlow}
+        />
         <BookingStartScreen
           error={startError}
           favorites={favorites}
@@ -448,7 +561,11 @@ export default function BookAppointmentScreen() {
   if (!isLoading && shop && requiresAccess) {
     return (
       <Screen>
-        <BookingFlowHeader activeStep={1} onClose={closeFlow} />
+        <BookingFlowHeader
+          activeStep={3}
+          onBack={() => router.replace('/book')}
+          onClose={closeFlow}
+        />
         <ScrollView
           contentContainerStyle={styles.accessContent}
           showsVerticalScrollIndicator={false}
@@ -468,7 +585,8 @@ export default function BookAppointmentScreen() {
   return (
     <Screen>
       <BookingFlowHeader
-        activeStep={(activeStep + 1) as BookingStep}
+        activeStep={(activeStep + 2) as BookingStep}
+        onBack={goBackStep}
         onClose={closeFlow}
       />
 

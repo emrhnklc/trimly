@@ -5,16 +5,20 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { useBusiness } from '@/features/business/BusinessProvider';
 
 export type AppMode = 'customer' | 'business';
+export type StartupProfile = 'last_used' | 'customer' | `business:${string}`;
 
 type AppModeContextValue = {
   enterBusinessMode: (membershipId?: string) => Promise<void>;
   enterCustomerMode: () => Promise<void>;
   isReady: boolean;
   mode: AppMode;
+  setStartupProfile: (profile: StartupProfile) => Promise<void>;
+  startupProfile: StartupProfile;
 };
 
 const AppModeContext = createContext<AppModeContextValue | null>(null);
 const storageKeyPrefix = 'trimly.app.mode.';
+const startupStorageKeyPrefix = 'trimly.app.startup-profile.';
 
 export function AppModeProvider({ children }: PropsWithChildren) {
   const { user } = useAuth();
@@ -26,6 +30,7 @@ export function AppModeProvider({ children }: PropsWithChildren) {
   } = useBusiness();
   const userId = user?.id ?? null;
   const [requestedMode, setRequestedMode] = useState<AppMode>('customer');
+  const [startupProfile, setStartupProfileState] = useState<StartupProfile>('last_used');
   const [resolvedUserId, setResolvedUserId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -43,11 +48,32 @@ export function AppModeProvider({ children }: PropsWithChildren) {
       const storageKey = getStorageKey(user.id);
 
       try {
-        const savedMode = await SecureStore.getItemAsync(storageKey);
-        const nextMode: AppMode =
-          savedMode === 'business' && activeMembership ? 'business' : 'customer';
+        const [savedMode, savedStartupProfile] = await Promise.all([
+          SecureStore.getItemAsync(storageKey),
+          SecureStore.getItemAsync(getStartupStorageKey(user.id)),
+        ]);
+        const validBusinessPreference = savedStartupProfile?.startsWith('business:')
+          ? memberships.find((membership) => membership.id === savedStartupProfile.slice('business:'.length))
+          : null;
+        const nextStartupProfile: StartupProfile = savedStartupProfile === 'customer'
+          ? 'customer'
+          : validBusinessPreference
+            ? `business:${validBusinessPreference.id}`
+            : 'last_used';
+        let nextMode: AppMode;
+        if (nextStartupProfile === 'customer') {
+          nextMode = 'customer';
+        } else if (validBusinessPreference) {
+          if (activeMembership?.id !== validBusinessPreference.id) {
+            await selectMembership(validBusinessPreference.id);
+          }
+          nextMode = 'business';
+        } else {
+          nextMode = savedMode === 'business' && activeMembership ? 'business' : 'customer';
+        }
 
         if (!isMounted) return;
+        setStartupProfileState(nextStartupProfile);
         setRequestedMode(nextMode);
 
         if (savedMode !== nextMode) {
@@ -65,7 +91,7 @@ export function AppModeProvider({ children }: PropsWithChildren) {
     return () => {
       isMounted = false;
     };
-  }, [activeMembership, isBusinessReady, resolvedUserId, user, userId]);
+  }, [activeMembership, isBusinessReady, memberships, resolvedUserId, selectMembership, user, userId]);
 
   useEffect(() => {
     if (!isBusinessReady || resolvedUserId !== userId) return;
@@ -95,16 +121,12 @@ export function AppModeProvider({ children }: PropsWithChildren) {
     if (!user) throw new Error('İşletme moduna geçmek için giriş yapmalısın.');
 
     const targetMembershipId = membershipId ?? activeMembership?.id;
-    const targetMembership = memberships.find(
-      (membership) => membership.id === targetMembershipId,
-    );
-
-    if (!targetMembership) {
+    if (!targetMembershipId) {
       throw new Error('İşletme moduna geçmek için aktif bir işletme seçmelisin.');
     }
 
-    if (activeMembership?.id !== targetMembership.id) {
-      await selectMembership(targetMembership.id);
+    if (activeMembership?.id !== targetMembershipId) {
+      await selectMembership(targetMembershipId);
     }
 
     await SecureStore.setItemAsync(getStorageKey(user.id), 'business');
@@ -116,8 +138,20 @@ export function AppModeProvider({ children }: PropsWithChildren) {
     setRequestedMode('customer');
   }
 
+  async function setStartupProfile(profile: StartupProfile) {
+    if (!user) throw new Error('Açılış profilini seçmek için giriş yapmalısın.');
+    if (profile.startsWith('business:')) {
+      const membershipId = profile.slice('business:'.length);
+      if (!memberships.some((membership) => membership.id === membershipId)) {
+        throw new Error('Seçilen işletme profili artık kullanılamıyor.');
+      }
+    }
+    await SecureStore.setItemAsync(getStartupStorageKey(user.id), profile);
+    setStartupProfileState(profile);
+  }
+
   return (
-    <AppModeContext.Provider value={{ enterBusinessMode, enterCustomerMode, isReady, mode }}>
+    <AppModeContext.Provider value={{ enterBusinessMode, enterCustomerMode, isReady, mode, setStartupProfile, startupProfile }}>
       {children}
     </AppModeContext.Provider>
   );
@@ -125,6 +159,10 @@ export function AppModeProvider({ children }: PropsWithChildren) {
 
 function getStorageKey(userId: string) {
   return `${storageKeyPrefix}${userId}`;
+}
+
+function getStartupStorageKey(userId: string) {
+  return `${startupStorageKeyPrefix}${userId}`;
 }
 
 export function useAppMode() {

@@ -32,7 +32,7 @@ export function BarbershopWorkShowcase({
 }) {
   const colors = useThemeColors();
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState<ShowcaseTab>("portfolio");
+  const [activeTab, setActiveTab] = useState<ShowcaseTab>("venue");
   const [portfolio, setPortfolio] = useState<PublicPortfolioItem[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [memberId, setMemberId] = useState<string | null>(null);

@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -32,13 +31,14 @@ export default function AppointmentsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string | null>(null);
+  const loadedToken = useRef<string | null>(null);
 
   const loadAppointments = useCallback(
     async (refreshing = false) => {
       if (!token) return;
 
       if (refreshing) setIsRefreshing(true);
-      else setIsLoading(true);
+      else if (loadedToken.current !== token) setIsLoading(true);
       setError(null);
 
       try {
@@ -48,6 +48,7 @@ export default function AppointmentsScreen() {
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'Randevular yüklenemedi.');
       } finally {
+        loadedToken.current = token;
         setIsLoading(false);
         setIsRefreshing(false);
       }
@@ -111,7 +112,21 @@ export default function AppointmentsScreen() {
           title="Randevularım"
         />
 
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+        {isLoading ? <AppointmentsSkeleton /> : null}
+
+        {!isLoading && !error ? (
+          <AppointmentSection
+            appointments={upcoming}
+            emptyMessage="Yaklaşan randevun bulunmuyor."
+            onAppointmentPress={(appointmentId) =>
+              router.push({
+                pathname: '/appointments/[appointmentId]',
+                params: { appointmentId },
+              })
+            }
+            title="Yaklaşan"
+          />
+        ) : null}
 
         {!isLoading && error ? (
           <View style={styles.stateBox}>
@@ -130,56 +145,43 @@ export default function AppointmentsScreen() {
           </View>
         ) : null}
 
-        {!isLoading && !error && !appointments.length ? (
-          <View style={styles.stateBox}>
-            <View style={styles.emptyIcon}>
-              <SymbolView
-                name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }}
-                size={30}
-                tintColor={colors.primary}
-              />
-            </View>
-            <AppText style={styles.stateTitle} variant="heading">Henüz randevun yok</AppText>
-            <AppText color="textMuted" style={styles.stateDescription}>
-              İlk randevunu kolayca oluşturabilirsin.
-            </AppText>
-            <View style={styles.stateButton}>
-              <AppButton onPress={() => router.push('/barbers')}>Berberleri Keşfet</AppButton>
-            </View>
-          </View>
-        ) : null}
-
-        {!isLoading && !error && appointments.length ? (
-          <View>
-            <AppointmentSection
-              appointments={upcoming}
-              emptyMessage="Yaklaşan randevun bulunmuyor."
-              onAppointmentPress={(appointmentId) =>
-                router.push({
-                  pathname: '/appointments/[appointmentId]',
-                  params: { appointmentId },
-                })
-              }
-              title="Yaklaşan"
-            />
-            <HistoryAppointmentSection
-              appointments={filteredHistory}
-              canGoToNewerMonth={activeHistoryMonthIndex > 0}
-              canGoToOlderMonth={activeHistoryMonthIndex >= 0 && activeHistoryMonthIndex < historyMonths.length - 1}
-              month={activeHistoryMonth}
-              onAppointmentPress={(appointmentId) =>
-                router.push({
-                  pathname: '/appointments/[appointmentId]',
-                  params: { appointmentId },
-                })
-              }
-              onNextMonth={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex - 1])}
-              onPreviousMonth={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex + 1])}
-            />
-          </View>
+        {!isLoading && !error ? (
+          <HistoryAppointmentSection
+            appointments={filteredHistory}
+            canGoToNewerMonth={activeHistoryMonthIndex > 0}
+            canGoToOlderMonth={activeHistoryMonthIndex >= 0 && activeHistoryMonthIndex < historyMonths.length - 1}
+            month={activeHistoryMonth}
+            onAppointmentPress={(appointmentId) =>
+              router.push({
+                pathname: '/appointments/[appointmentId]',
+                params: { appointmentId },
+              })
+            }
+            onNextMonth={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex - 1])}
+            onPreviousMonth={() => setSelectedHistoryMonth(historyMonths[activeHistoryMonthIndex + 1])}
+          />
         ) : null}
       </ScrollView>
     </Screen>
+  );
+}
+
+function AppointmentsSkeleton() {
+  const themeColors = useThemeColors();
+
+  return (
+    <View accessibilityLabel="Randevular yükleniyor" style={styles.skeleton}>
+      <View style={styles.skeletonSection}>
+        <View style={[styles.skeletonHeading, { backgroundColor: themeColors.surfaceMuted }]} />
+        <View style={[styles.skeletonCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
+          <View style={[styles.skeletonAvatar, { backgroundColor: themeColors.surfaceMuted }]} />
+          <View style={styles.skeletonCopy}>
+            <View style={[styles.skeletonLineWide, { backgroundColor: themeColors.surfaceMuted }]} />
+            <View style={[styles.skeletonLine, { backgroundColor: themeColors.surfaceMuted }]} />
+          </View>
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -205,6 +207,8 @@ function AppointmentSection({
   onAppointmentPress: (appointmentId: string) => void;
   title: string;
 }) {
+  const themeColors = useThemeColors();
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -222,7 +226,24 @@ function AppointmentSection({
           />
         ))
       ) : (
-        <AppText color="textMuted">{emptyMessage}</AppText>
+        <View style={[
+          styles.upcomingEmpty,
+          { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+        ]}>
+          <View style={styles.upcomingEmptyIcon}>
+            <SymbolView
+              name={{ ios: 'calendar', android: 'calendar_month', web: 'calendar_month' }}
+              size={28}
+              tintColor={colors.primary}
+            />
+          </View>
+          <View style={styles.upcomingEmptyCopy}>
+            <AppText variant="cardTitle">{emptyMessage}</AppText>
+            <AppText color="textMuted" variant="bodySmall">
+              Yeni bir stil için seni bekliyoruz.
+            </AppText>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -322,19 +343,44 @@ function MonthArrowButton({
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 112, paddingHorizontal: layout.screenHorizontalPadding },
-  loader: { marginTop: spacing.xxxl },
+  skeleton: { gap: layout.sectionGap, marginTop: layout.sectionGap },
+  skeletonSection: { gap: spacing.sm },
+  skeletonHeading: { borderRadius: radius.pill, height: 24, width: 116 },
+  skeletonCard: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 112,
+    padding: spacing.md,
+  },
+  skeletonAvatar: { borderRadius: radius.pill, height: 54, width: 54 },
+  skeletonCopy: { flex: 1, gap: spacing.sm, marginLeft: spacing.md },
+  skeletonLineWide: { borderRadius: radius.pill, height: 16, width: '72%' },
+  skeletonLine: { borderRadius: radius.pill, height: 12, width: '48%' },
   stateBox: { alignItems: 'center', marginTop: spacing.xxxl, paddingHorizontal: spacing.lg },
   stateTitle: { marginTop: spacing.sm, textAlign: 'center' },
   stateDescription: { marginTop: spacing.xs, maxWidth: 320, textAlign: 'center' },
   stateButton: { marginTop: spacing.xl, minWidth: 220 },
-  emptyIcon: {
+  upcomingEmpty: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radius.pill,
-    height: 64,
-    justifyContent: 'center',
-    width: 64,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 82,
+    padding: spacing.sm,
   },
+  upcomingEmptyIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(211, 166, 44, 0.14)',
+    borderColor: 'rgba(211, 166, 44, 0.34)',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  upcomingEmptyCopy: { flex: 1, gap: spacing.xxs, marginLeft: spacing.md },
   section: { marginTop: layout.sectionGap },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   historyHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },

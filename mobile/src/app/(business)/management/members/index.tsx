@@ -15,6 +15,7 @@ import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { getBusinessMembers } from '@/features/members/api';
 import type { BusinessMember } from '@/features/members/types';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 
@@ -79,7 +80,7 @@ export default function ManagementMembersScreen() {
               actionIcon={{ ios: 'person.badge.plus', android: 'person_add', web: 'person_add' }}
               actionLabel="Çalışan davet et"
               onAction={() => router.push('/management/members/invite')}
-              onBack={() => router.dismissTo('/management')}
+              onBack={() => goBackOrReplace(router, '/(business)/management')}
               title="Çalışanlar"
             />
             <MemberStatusFilters onChange={setFilter} value={filter} />
@@ -131,13 +132,11 @@ export default function ManagementMembersScreen() {
         renderItem={({ item }) => (
           <BusinessMemberCard
             member={item}
-            onPress={item.role === 'OWNER'
-              ? undefined
-              : () =>
-                  router.push({
-                    pathname: '/management/members/[memberId]',
-                    params: { memberId: item.id },
-                  })}
+            onPress={() =>
+              router.push({
+                pathname: '/management/members/[memberId]',
+                params: { memberId: item.id },
+              })}
           />
         )}
         showsVerticalScrollIndicator={false}

@@ -86,8 +86,8 @@ function SummaryStat({
       <AppText
         adjustsFontSizeToFit
         color="onPrimary"
-        minimumFontScale={0.75}
-        numberOfLines={2}
+        minimumFontScale={0.6}
+        numberOfLines={label.includes('\n') ? 2 : 1}
         style={styles.statLabel}
         variant="bodySmall">
         {label}
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   divider: { backgroundColor: '#66584E', height: 1, marginVertical: spacing.md },
   stats: { flexDirection: 'row' },
-  stat: { alignItems: 'center', flex: 1, minHeight: 86, paddingHorizontal: spacing.xxs },
+  stat: { alignItems: 'center', flex: 1, minHeight: 86, paddingHorizontal: 1 },
   statDivided: { borderLeftColor: '#66584E', borderLeftWidth: 1 },
   statValue: { fontSize: 17, lineHeight: 22, marginTop: spacing.xxs },
   statLabel: { color: '#DED6CE', fontSize: 12, lineHeight: 16, marginTop: 1, textAlign: 'center' },

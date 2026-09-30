@@ -68,7 +68,8 @@ export default function InvitationOnboardingScreen() {
     return (
       <AuthScreenLayout
         description="Rolün daveti gönderen işletme tarafından belirlendi; kendine yetki vermedin."
-        title="Ekibe katıldın.">
+        title="Ekibe Katıldın"
+        titleVariant="pageTitle">
         <AppCard style={styles.successCard}>
           <AppText color="primary" variant="overline">DAVET KABUL EDİLDİ</AppText>
           <AppText style={styles.successName} variant="heading">{joinedBusiness}</AppText>
@@ -89,7 +90,8 @@ export default function InvitationOnboardingScreen() {
     <AuthScreenLayout
       description="İşletme sahibinin gönderdiği davet bağlantısını veya içindeki kodu kullan."
       onBackPress={goBack}
-      title="Ekibe katıl.">
+      title="Ekibe Katıl"
+      titleVariant="pageTitle">
       <AppCard style={styles.formCard}>
         <AuthTextField
           autoCapitalize="none"
@@ -103,7 +105,7 @@ export default function InvitationOnboardingScreen() {
           value={invitation}
         />
         <AppText color="textMuted" style={styles.hint} variant="bodySmall">
-          BARBER, MANAGER veya APPRENTICE rolünü sen seçmezsin; güvenlik için rol davetin içinde gelir.
+          Berber, yönetici veya çırak rolünü sen seçmezsin; güvenlik için rol davetin içinde gelir.
         </AppText>
         {error ? <AppText color="danger" style={styles.error}>{error}</AppText> : null}
         <View style={styles.action}>

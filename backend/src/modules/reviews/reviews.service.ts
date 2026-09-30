@@ -8,6 +8,7 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { PrismaService } from '../../database/prisma.service';
 import { UpsertReviewDto } from './dto/upsert-review.dto';
+import { summarizeCustomerRatings } from './customer-weighted-rating';
 
 const MAX_REVIEW_PHOTOS = 3;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -144,8 +145,10 @@ export class ReviewsService {
         where: { id: barbershopId },
         select: { id: true },
       }),
-      this.prisma.appointmentReview.aggregate({
+      this.prisma.appointmentReview.groupBy({
+        by: ['customerId'],
         where: { barbershopId },
+        orderBy: { customerId: 'asc' },
         _avg: { rating: true },
         _count: { _all: true },
       }),
@@ -175,8 +178,7 @@ export class ReviewsService {
     if (!barbershop) throw new NotFoundException('İşletme bulunamadı.');
 
     return {
-      ratingAverage: summary._avg.rating,
-      ratingCount: summary._count._all,
+      ...summarizeCustomerRatings(summary),
       reviews: reviews.map((review) => ({
         ...this.presentReview(review),
         customer: {

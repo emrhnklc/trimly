@@ -15,6 +15,7 @@ import {
 } from '@/features/business-services/components/ServiceStatusFilters';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, spacing } from '@/theme/spacing';
 
@@ -79,7 +80,7 @@ export default function ManagementServicesScreen() {
               actionIcon={{ ios: 'plus', android: 'add', web: 'add' }}
               actionLabel="Yeni hizmet ekle"
               onAction={() => router.push('/management/services/new')}
-              onBack={() => router.dismissTo('/management')}
+              onBack={() => goBackOrReplace(router, '/(business)/management')}
               title="Hizmetler"
             />
             <ServiceStatusFilters onChange={setFilter} value={filter} />

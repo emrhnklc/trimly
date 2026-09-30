@@ -5,6 +5,7 @@ import type {
   CustomerAppointment,
   BusinessAppointment,
   BusinessAppointmentDetail,
+  AppointmentChangeProposal,
 } from './types';
 
 export function getBusinessAppointments(barbershopId: string, accessToken: string) {
@@ -63,7 +64,7 @@ export function cancelBusinessAppointment(
   barbershopId: string,
   appointmentId: string,
   accessToken: string,
-  reason = 'İşletme tarafından iptal edildi.',
+  reason: string,
 ) {
   return apiPatch<CreatedAppointment>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
@@ -101,10 +102,37 @@ export function rescheduleBusinessAppointment(
   appointmentId: string,
   startsAt: string,
   accessToken: string,
+  reason: string,
+  memberId?: string,
+  serviceId?: string,
 ) {
-  return apiPatch<CreatedAppointment>(
+  return apiPatch<AppointmentChangeProposal>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/reschedule`,
-    { startsAt },
+    { startsAt, memberId, serviceId, reason },
+    accessToken,
+  );
+}
+
+export function cancelBusinessAppointmentChangeProposal(
+  barbershopId: string,
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiPatch<{ success: true }>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/change-proposal/cancel`,
+    undefined,
+    accessToken,
+  );
+}
+
+export function respondToAppointmentChangeProposal(
+  appointmentId: string,
+  response: 'accept' | 'reject',
+  accessToken: string,
+) {
+  return apiPatch<{ success: true; status: 'ACCEPTED' | 'REJECTED' }>(
+    `/appointments/${encodeURIComponent(appointmentId)}/change-proposal/${response}`,
+    undefined,
     accessToken,
   );
 }

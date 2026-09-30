@@ -31,6 +31,8 @@ type PreviewParams = {
   shopName?: string;
   startsAt?: string;
   time?: string;
+  attendeeName?: string;
+  dependentProfileId?: string;
 };
 
 export default function AppointmentPreviewScreen() {
@@ -61,6 +63,9 @@ export default function AppointmentPreviewScreen() {
           serviceId: params.serviceId,
           startsAt: params.startsAt,
           ...(params.campaignId ? { campaignId: params.campaignId } : {}),
+          ...(params.dependentProfileId
+            ? { dependentProfileId: params.dependentProfileId }
+            : {}),
         },
         token,
       );
@@ -74,7 +79,11 @@ export default function AppointmentPreviewScreen() {
 
   return (
     <Screen>
-      <BookingFlowHeader activeStep={5} onClose={() => router.back()} />
+      <BookingFlowHeader
+        activeStep={6}
+        onBack={() => router.back()}
+        onClose={() => router.back()}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.intro}>
@@ -92,6 +101,11 @@ export default function AppointmentPreviewScreen() {
         </View>
 
         <AppCard style={styles.card}>
+          <DetailRow
+            icon={{ ios: 'person.2', android: 'group', web: 'group' }}
+            label="Randevu sahibi"
+            value={params.attendeeName || '—'}
+          />
           <DetailRow
             icon={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
             label="İşletme"

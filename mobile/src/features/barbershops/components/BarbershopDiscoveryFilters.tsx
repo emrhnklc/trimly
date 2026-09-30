@@ -1,16 +1,18 @@
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+
 import { AppText } from '@/components/ui/AppText';
 import { radius, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
 
 export type DiscoveryFilter = 'featured' | 'nearby' | 'popular' | 'new';
 
-const filters: { label: string; value: DiscoveryFilter }[] = [
-  { label: 'Öne Çıkan', value: 'featured' },
-  { label: 'Yakınımdaki', value: 'nearby' },
-  { label: 'Popüler', value: 'popular' },
-  { label: 'Yeni', value: 'new' },
+export const discoveryFilters: { icon: SymbolViewProps['name']; label: string; value: DiscoveryFilter }[] = [
+  { icon: { ios: 'star.fill', android: 'star', web: 'star' }, label: 'Öne Çıkan', value: 'featured' },
+  { icon: { ios: 'location.fill', android: 'location_on', web: 'location_on' }, label: 'Yakınımdaki', value: 'nearby' },
+  { icon: { ios: 'flame.fill', android: 'local_fire_department', web: 'local_fire_department' }, label: 'Popüler', value: 'popular' },
+  { icon: { ios: 'sparkles', android: 'auto_awesome', web: 'auto_awesome' }, label: 'Yeni', value: 'new' },
 ];
 
 export function BarbershopDiscoveryFilters({
@@ -26,7 +28,7 @@ export function BarbershopDiscoveryFilters({
       contentContainerStyle={styles.content}
       horizontal
       showsHorizontalScrollIndicator={false}>
-      {filters.map((filter) => {
+      {discoveryFilters.map((filter) => {
         const isActive = filter.value === activeFilter;
 
         return (
@@ -43,6 +45,11 @@ export function BarbershopDiscoveryFilters({
               },
               pressed && styles.pressed,
             ]}>
+            <SymbolView
+              name={filter.icon}
+              size={15}
+              tintColor={isActive ? themeColors.onPrimary : themeColors.textMuted}
+            />
             <AppText color={isActive ? 'onPrimary' : 'text'} style={styles.label} variant="bodySmall">
               {filter.label}
             </AppText>
@@ -59,6 +66,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.pill,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
     justifyContent: 'center',
     minHeight: 38,
     paddingHorizontal: spacing.md,

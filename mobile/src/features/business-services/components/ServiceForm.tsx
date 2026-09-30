@@ -3,9 +3,9 @@ import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 const durationOptions = [15, 20, 30, 45, 60];
 
@@ -32,6 +32,7 @@ export function ServiceForm({
   showActiveStatus?: boolean;
   submitLabel: string;
 }) {
+  const themeColors = useThemeColors();
   const [name, setName] = useState(initialValues?.name ?? '');
   const [description, setDescription] = useState(initialValues?.description ?? '');
   const [duration, setDuration] = useState(String(initialValues?.durationMinutes ?? 30));
@@ -78,7 +79,7 @@ export function ServiceForm({
 
   return (
     <View>
-      <View style={styles.formCard}>
+      <View style={[styles.formCard, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
         <FormField label="Hizmet adı" required>
           <TextInput
             autoCapitalize="words"
@@ -87,9 +88,9 @@ export function ServiceForm({
             maxLength={100}
             onChangeText={setName}
             placeholder="Örn. Saç Kesimi"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={themeColors.textMuted}
             returnKeyType="next"
-            style={styles.input}
+            style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }]}
             value={name}
           />
         </FormField>
@@ -101,8 +102,8 @@ export function ServiceForm({
             multiline
             onChangeText={setDescription}
             placeholder="Hizmetle ilgili kısa bir açıklama"
-            placeholderTextColor={colors.textMuted}
-            style={[styles.input, styles.multilineInput]}
+            placeholderTextColor={themeColors.textMuted}
+            style={[styles.input, styles.multilineInput, { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }]}
             textAlignVertical="top"
             value={description}
           />
@@ -124,7 +125,8 @@ export function ServiceForm({
                   onPress={() => setDuration(String(option))}
                   style={({ pressed }) => [
                     styles.durationOption,
-                    selected && styles.selectedDuration,
+                    { backgroundColor: themeColors.background, borderColor: themeColors.border },
+                    selected && [styles.selectedDuration, { backgroundColor: themeColors.darkSurface, borderColor: themeColors.darkSurface }],
                     pressed && styles.pressed,
                   ]}>
                   <AppText
@@ -144,7 +146,7 @@ export function ServiceForm({
               keyboardType="number-pad"
               maxLength={3}
               onChangeText={setDuration}
-              style={styles.durationInput}
+              style={[styles.durationInput, { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }]}
               value={duration}
             />
             <AppText color="textMuted" variant="bodySmall">dakika</AppText>
@@ -160,8 +162,8 @@ export function ServiceForm({
               maxLength={12}
               onChangeText={setPrice}
               placeholder="450"
-              placeholderTextColor={colors.textMuted}
-              style={[styles.input, styles.priceInput]}
+              placeholderTextColor={themeColors.textMuted}
+              style={[styles.input, styles.priceInput, { backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }]}
               value={price}
             />
           </View>
@@ -178,8 +180,8 @@ export function ServiceForm({
             <Switch
               disabled={isSubmitting}
               onValueChange={setActive}
-              trackColor={{ false: colors.border, true: '#D7B96F' }}
-              thumbColor={isActive ? colors.primary : colors.surface}
+              trackColor={{ false: themeColors.border, true: '#D7B96F' }}
+              thumbColor={isActive ? themeColors.primary : themeColors.surface}
               value={isActive}
             />
           </View>
@@ -187,7 +189,7 @@ export function ServiceForm({
       </View>
 
       {validationError || error ? (
-        <View style={styles.errorBox}>
+        <View style={[styles.errorBox, { backgroundColor: themeColors.dangerSurface }]}>
           <AppText color="danger" style={styles.errorText} variant="bodySmall">
             {validationError ?? error}
           </AppText>
@@ -224,8 +226,6 @@ function FormField({
 
 const styles = StyleSheet.create({
   formCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     padding: spacing.md,
@@ -233,11 +233,8 @@ const styles = StyleSheet.create({
   field: { marginBottom: spacing.lg },
   fieldLabel: { fontSize: 13, lineHeight: 18, marginBottom: spacing.xs },
   input: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.smallCard,
     borderWidth: 1,
-    color: colors.text,
     fontFamily: fontFamily.body,
     fontSize: 14,
     minHeight: 50,
@@ -249,8 +246,6 @@ const styles = StyleSheet.create({
   durationOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   durationOption: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1,
     minHeight: 38,
@@ -258,15 +253,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     justifyContent: 'center',
   },
-  selectedDuration: { backgroundColor: colors.darkSurface, borderColor: colors.darkSurface },
+  selectedDuration: {},
   durationLabel: { fontSize: 10, lineHeight: 14 },
   customDurationRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm },
   durationInput: {
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
-    color: colors.text,
     fontFamily: fontFamily.bodySemiBold,
     fontSize: 12,
     height: 38,
@@ -281,7 +273,6 @@ const styles = StyleSheet.create({
   statusContent: { flex: 1, marginRight: spacing.md },
   statusDescription: { fontSize: 10, lineHeight: 14, marginTop: 2 },
   errorBox: {
-    backgroundColor: '#F8E8E5',
     borderRadius: radius.sm,
     marginTop: spacing.sm,
     padding: spacing.sm,

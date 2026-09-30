@@ -2,16 +2,22 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export function ScheduleBlocksNavigationCard({ onPress }: { onPress: () => void }) {
+  const colors = useThemeColors();
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={styles.iconShell}>
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        pressed && styles.pressed,
+      ]}>
+      <View style={[styles.iconShell, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView
           name={{ ios: 'cup.and.saucer', android: 'free_breakfast', web: 'free_breakfast' }}
           size={22}
@@ -36,8 +42,6 @@ export function ScheduleBlocksNavigationCard({ onPress }: { onPress: () => void 
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
@@ -46,7 +50,6 @@ const styles = StyleSheet.create({
   },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     height: 48,
     justifyContent: 'center',

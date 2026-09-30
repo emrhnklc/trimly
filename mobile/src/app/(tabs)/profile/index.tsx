@@ -2,17 +2,12 @@ import { Image } from "expo-image";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import { useCallback, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import {
-  ImageBackground,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/ui/AppText";
 import { AppIconButton } from "@/components/ui/AppIconButton";
 import { BrandedPageHeader } from "@/components/ui/BrandedPageHeader";
+import { CachedImageBackground } from "@/components/ui/CachedImageBackground";
 import { Screen } from "@/components/ui/Screen";
 import { getMyAppointments } from "@/features/appointments/api";
 import { useAuth } from "@/features/auth/AuthProvider";
@@ -23,6 +18,7 @@ import {
   ProfileMenuGroup,
   type ProfileMenuItem,
 } from "@/features/profile/components/ProfileMenuGroup";
+import { CustomerPlusPreviewCard } from "@/features/profile/components/CustomerPlusPreviewCard";
 import { colors } from "@/theme/colors";
 import { layout, radius, spacing } from "@/theme/spacing";
 import { useThemeColors } from "@/theme/useThemeColors";
@@ -39,9 +35,6 @@ export default function ProfileOverviewScreen() {
     favorites: 0,
     styles: 0,
   });
-  const [lastCompletedAppointmentId, setLastCompletedAppointmentId] = useState<
-    string | null
-  >(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,17 +47,11 @@ export default function ProfileOverviewScreen() {
       ])
         .then(([favorites, appointments, styles]) => {
           if (isActive) {
-            const lastCompleted = appointments
-              .filter((appointment) => appointment.status === "COMPLETED")
-              .sort((first, second) =>
-                second.startsAt.localeCompare(first.startsAt),
-              )[0];
             setStats({
               appointments: appointments.length,
               favorites: favorites.length,
               styles: styles.length,
             });
-            setLastCompletedAppointmentId(lastCompleted?.id ?? null);
           }
         })
         .catch(() => undefined);
@@ -103,7 +90,11 @@ export default function ProfileOverviewScreen() {
       icon: { ios: "gearshape", android: "settings", web: "settings" },
       id: "application",
       label: translate("Uygulama Ayarları", "App Settings"),
-      onPress: () => router.push("/application-settings"),
+      onPress: () =>
+        router.push({
+          pathname: "/application-settings",
+          params: { returnTo: "customer-profile" },
+        }),
     },
     {
       badge: "YAKINDA",
@@ -139,22 +130,26 @@ export default function ProfileOverviewScreen() {
             <AppIconButton
               accessibilityLabel="Profillerimi aç"
               icon={{
-                ios: "person.2",
-                android: "switch_account",
-                web: "switch_account",
+                ios: "person.2.fill",
+                android: "group",
+                web: "group",
               }}
-              onPress={() => router.push("/profiles")}
+              onPress={() =>
+                router.push({
+                  pathname: "/profiles",
+                  params: { returnTo: "customer-profile" },
+                })
+              }
               size={20}
-              color="onPrimary"
-              variant="primary"
+              color="primary"
+              variant="surface"
             />
           }
         />
 
-        <ImageBackground
+        <CachedImageBackground
           imageStyle={styles.heroImage}
-          resizeMode="cover"
-          source={require("../../../../assets/images/profile-customer-hero.png")}
+          source={require("../../../../assets/images/profile-customer-hero.jpg")}
           style={styles.hero}
         >
           <View style={styles.heroOverlay} />
@@ -194,7 +189,12 @@ export default function ProfileOverviewScreen() {
             <Pressable
               accessibilityLabel="Profili düzenle"
               accessibilityRole="button"
-              onPress={() => router.push("/profile/edit")}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/profile/edit",
+                  params: { returnTo: "customer-profile" },
+                })
+              }
               style={({ pressed }) => [
                 styles.editButton,
                 pressed && styles.pressed,
@@ -210,7 +210,7 @@ export default function ProfileOverviewScreen() {
               </AppText>
             </Pressable>
           </View>
-        </ImageBackground>
+        </CachedImageBackground>
 
         <View style={styles.statsRow}>
           <StatCard
@@ -248,12 +248,12 @@ export default function ProfileOverviewScreen() {
         <View style={styles.quickGrid}>
           <QuickAction
             icon={{
-              ios: "bell",
-              android: "notifications",
-              web: "notifications",
+              ios: "person.2.fill",
+              android: "group",
+              web: "group",
             }}
-            label={translate("Bildirimler", "Notifications")}
-            onPress={() => router.push("/notifications")}
+            label={translate("Yakınlarım", "My Family")}
+            onPress={() => router.push("/dependents")}
           />
           <QuickAction
             icon={{ ios: "tag", android: "local_offer", web: "local_offer" }}
@@ -263,7 +263,12 @@ export default function ProfileOverviewScreen() {
           <QuickAction
             icon={{ ios: "photo", android: "image", web: "image" }}
             label={translate("Kaydettiğim Stiller", "Saved Styles")}
-            onPress={() => router.push("/profile/history")}
+            onPress={() =>
+              router.push({
+                pathname: "/profile/history",
+                params: { returnTo: "customer-profile" },
+              })
+            }
           />
           <QuickAction
             icon={{
@@ -271,73 +276,24 @@ export default function ProfileOverviewScreen() {
               android: "person_add",
               web: "person_add",
             }}
-            label={translate("Davet Kodunu Kullan", "Use Invite Code")}
+            label={translate("Ekibe Katıl", "Join a Team")}
             onPress={() =>
               router.push({
-                pathname: "/business-access",
-                params: { returnTo: "profile" },
+                pathname: "/onboarding/invitation",
+                params: { source: "profile" },
               })
             }
           />
         </View>
 
-        <Pressable
-          accessibilityLabel="Son tıraşımı görüntüle"
-          accessibilityRole="button"
+        <CustomerPlusPreviewCard
           onPress={() =>
-            lastCompletedAppointmentId
-              ? router.push({
-                  pathname: "/appointments/[appointmentId]",
-                  params: { appointmentId: lastCompletedAppointmentId },
-                })
-              : router.push("/(tabs)/appointments")
+            Alert.alert(
+              "Trimly Plus yakında",
+              "Plus ayrıcalıklarını sağlam bir altyapıyla hazırlıyoruz.",
+            )
           }
-          style={({ pressed }) => [
-            styles.lastHaircut,
-            pressed && styles.pressed,
-          ]}
-        >
-          <ImageBackground
-            imageStyle={styles.lastHaircutImage}
-            resizeMode="cover"
-            source={require("../../../../assets/images/profile-last-haircut.png")}
-            style={styles.lastHaircutBackground}
-          >
-            <View style={styles.lastHaircutOverlay} />
-            <View style={styles.lastHaircutCopy}>
-              <SymbolView
-                name={{
-                  ios: "scissors",
-                  android: "content_cut",
-                  web: "content_cut",
-                }}
-                size={25}
-                tintColor={colors.onPrimary}
-              />
-              <View>
-                <AppText color="onPrimary" variant="heading">
-                  {translate("Son Tıraşım", "My Last Haircut")}
-                </AppText>
-                <AppText color="onPrimary" variant="bodySmall">
-                  {translate(
-                    "Geçmiş stilini yeniden görüntüle",
-                    "View your previous style again",
-                  )}
-                </AppText>
-              </View>
-            </View>
-            <SymbolView
-              name={{
-                ios: "chevron.right",
-                android: "chevron_right",
-                web: "chevron_right",
-              }}
-              size={22}
-              style={styles.lastHaircutChevron}
-              tintColor={colors.onPrimary}
-            />
-          </ImageBackground>
-        </Pressable>
+        />
 
         <ProfileMenuGroup
           items={settings}
@@ -561,7 +517,7 @@ const styles = StyleSheet.create({
     width: 36,
   },
   quickCopy: { flex: 1, marginLeft: spacing.xs, minWidth: 0 },
-  quickLabel: { fontSize: 12, lineHeight: 16 },
+  quickLabel: { fontSize: 13, lineHeight: 17 },
   soonBadge: {
     alignSelf: "flex-start",
     borderRadius: radius.pill,

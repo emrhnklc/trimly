@@ -10,10 +10,12 @@ import { spacing } from '@/theme/spacing';
 
 export function BookingFlowHeader({
   activeStep = 0,
+  onBack,
   onClose,
   title = 'Randevu Al',
 }: {
   activeStep?: 0 | BookingStep;
+  onBack?: () => void;
   onClose: () => void;
   title?: string;
 }) {
@@ -21,9 +23,11 @@ export function BookingFlowHeader({
     <View style={styles.header}>
       <View style={styles.titleRow}>
         <AppIconButton
-          accessibilityLabel="Randevu akışını kapat"
-          icon={{ ios: 'xmark', android: 'close', web: 'close' }}
-          onPress={onClose}
+          accessibilityLabel={onBack ? 'Önceki adıma dön' : 'Randevu akışını kapat'}
+          icon={onBack
+            ? { ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }
+            : { ios: 'xmark', android: 'close', web: 'close' }}
+          onPress={onBack ?? onClose}
           variant="transparent"
         />
         <AppText style={styles.title} variant="heading">{title}</AppText>

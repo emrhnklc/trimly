@@ -2,7 +2,6 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
 import {
@@ -26,10 +25,25 @@ export function CalendarWeekPicker({
 }: CalendarWeekPickerProps) {
   const themeColors = useThemeColors();
   const dates = getWeekDateKeys(selectedDateKey);
+  const isPast = selectedDateKey < todayKey;
+  const isFuture = selectedDateKey > todayKey;
+
+  const todayButton = (
+    <Pressable
+      accessibilityLabel="Bugüne dön"
+      disabled={selectedDateKey === todayKey}
+      onPress={() => onChange(todayKey)}
+      style={({ pressed }) => [styles.todayButton, pressed && styles.pressed]}>
+      {selectedDateKey !== todayKey ? (
+        <AppText color="primary" style={styles.jumpTodayLabel} variant="label">Bugün</AppText>
+      ) : null}
+    </Pressable>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}>
       <View style={styles.monthRow}>
+        <View style={styles.todaySlot}>{isFuture ? todayButton : null}</View>
         <Pressable
           accessibilityLabel="Önceki hafta"
           hitSlop={10}
@@ -44,13 +58,6 @@ export function CalendarWeekPicker({
         <AppText style={styles.month} variant="label">
           {formatCalendarMonth(selectedDateKey)}
         </AppText>
-        {selectedDateKey !== todayKey ? (
-          <Pressable onPress={() => onChange(todayKey)} style={styles.todayButton}>
-            <AppText color="primary" style={styles.todayLabel} variant="label">Bugün</AppText>
-          </Pressable>
-        ) : (
-          <View style={styles.todayButton} />
-        )}
         <Pressable
           accessibilityLabel="Sonraki hafta"
           hitSlop={10}
@@ -62,6 +69,7 @@ export function CalendarWeekPicker({
             tintColor={themeColors.text}
           />
         </Pressable>
+        <View style={styles.todaySlot}>{isPast ? todayButton : null}</View>
       </View>
 
       <View style={styles.days}>
@@ -92,7 +100,12 @@ export function CalendarWeekPicker({
                 variant="label">
                 {getDayNumber(dateKey)}
               </AppText>
-              <View style={[styles.todayDot, today && !selected && styles.visibleTodayDot]} />
+              <AppText
+                color={selected ? 'onPrimary' : today ? 'primary' : 'textMuted'}
+                style={[styles.todayLabel, !today && styles.hiddenTodayLabel]}
+                variant="bodySmall">
+                Bugün
+              </AppText>
             </Pressable>
           );
         })}
@@ -109,22 +122,23 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   monthRow: { alignItems: 'center', flexDirection: 'row', minHeight: 32 },
+  todaySlot: { alignItems: 'center', minWidth: 44 },
+  todayButton: { alignItems: 'center', justifyContent: 'center', minHeight: 30, minWidth: 44 },
+  jumpTodayLabel: { fontSize: 10, lineHeight: 14 },
   arrow: { alignItems: 'center', height: 32, justifyContent: 'center', width: 32 },
   month: { flex: 1, textAlign: 'center', textTransform: 'capitalize' },
-  todayButton: { alignItems: 'flex-end', minWidth: 48 },
-  todayLabel: { fontSize: 11, lineHeight: 15 },
+  todayLabel: { fontSize: 9, lineHeight: 12, marginTop: 2 },
+  hiddenTodayLabel: { opacity: 0 },
   days: { flexDirection: 'row', gap: 3, marginTop: spacing.xs },
   day: {
     alignItems: 'center',
     borderRadius: radius.sm,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 62,
+    minHeight: 66,
     paddingVertical: 6,
   },
   weekday: { fontSize: 10, lineHeight: 14, textTransform: 'capitalize' },
   dayNumber: { fontSize: 14, lineHeight: 19, marginTop: 2 },
-  todayDot: { borderRadius: radius.pill, height: 3, marginTop: 3, width: 3 },
-  visibleTodayDot: { backgroundColor: colors.primary },
   pressed: { opacity: 0.7 },
 });

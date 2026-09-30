@@ -1,10 +1,14 @@
-import type { PropsWithChildren } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import type { PropsWithChildren, ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/ui/Screen';
 import { spacing } from '@/theme/spacing';
 
-export function LoginScreenLayout({ children }: PropsWithChildren) {
+type LoginScreenLayoutProps = PropsWithChildren<{
+  topRightAccessory?: ReactNode;
+}>;
+
+export function LoginScreenLayout({ children, topRightAccessory }: LoginScreenLayoutProps) {
   return (
     <Screen>
       <KeyboardAvoidingView
@@ -17,6 +21,9 @@ export function LoginScreenLayout({ children }: PropsWithChildren) {
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
+      {topRightAccessory ? (
+        <View style={styles.topRightAccessory}>{topRightAccessory}</View>
+      ) : null}
     </Screen>
   );
 }
@@ -27,5 +34,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: spacing.lg,
     paddingHorizontal: spacing.xl,
+  },
+  topRightAccessory: {
+    position: 'absolute',
+    right: spacing.lg,
+    top: spacing.sm,
+    zIndex: 10,
   },
 });

@@ -8,6 +8,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { EmailService } from '../../common/email/email.service';
 import { PrismaService } from '../../database/prisma.service';
+import { summarizeCustomerRatingsByKey } from '../reviews/customer-weighted-rating';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UpdateBusinessMemberDto } from './dto/update-business-member.dto';
 
@@ -455,8 +456,8 @@ export class MembersService {
     return member;
   }
 
-  findPublicBarbers(barbershopId: string) {
-    return this.prisma.businessMember.findMany({
+  async findPublicBarbers(barbershopId: string) {
+    const members = await this.prisma.businessMember.findMany({
       where: { barbershopId, isActive: true, isBookable: true },
       orderBy: { createdAt: 'asc' },
       select: {
@@ -478,6 +479,24 @@ export class MembersService {
         },
       },
     });
+    const ratingGroups = await this.prisma.appointmentReview.groupBy({
+      by: ['businessMemberId', 'customerId'],
+      where: { businessMemberId: { in: members.map(({ id }) => id) } },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+    const ratingsByMember = summarizeCustomerRatingsByKey(
+      ratingGroups,
+      'businessMemberId',
+    );
+
+    return members.map((member) => ({
+      ...member,
+      ratingAverage: ratingsByMember.get(member.id)?.ratingAverage ?? null,
+      ratingCount: ratingsByMember.get(member.id)?.ratingCount ?? 0,
+      ratingCustomerCount:
+        ratingsByMember.get(member.id)?.ratingCustomerCount ?? 0,
+    }));
   }
 
   async updateBookable(

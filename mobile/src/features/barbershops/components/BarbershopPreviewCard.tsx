@@ -12,6 +12,8 @@ import { useThemeColors } from '@/theme/useThemeColors';
 
 type BarbershopPreviewCardProps = {
   barbershop: PublicBarbershop;
+  isFavorite?: boolean;
+  onFavoritePress?: () => void;
   onPress: () => void;
 };
 
@@ -42,7 +44,12 @@ function MemberAvatar({ member }: { member: PublicBarber }) {
   );
 }
 
-export function BarbershopPreviewCard({ barbershop, onPress }: BarbershopPreviewCardProps) {
+export function BarbershopPreviewCard({
+  barbershop,
+  isFavorite = false,
+  onFavoritePress,
+  onPress,
+}: BarbershopPreviewCardProps) {
   const themeColors = useThemeColors();
   const initial = barbershop.name.slice(0, 1).toUpperCase();
   const imageUrl = barbershop.profileImageUrl ?? barbershop.coverImageUrl;
@@ -90,14 +97,29 @@ export function BarbershopPreviewCard({ barbershop, onPress }: BarbershopPreview
 
         <View style={styles.content}>
           <View style={styles.titleRow}>
-            <AppText numberOfLines={1} style={styles.name} variant="cardTitle">{barbershop.name}</AppText>
-            <View style={[styles.chevron, { backgroundColor: themeColors.background }]}>
+            <AppText numberOfLines={2} style={styles.name} variant="cardTitle">{barbershop.name}</AppText>
+            <Pressable
+              accessibilityLabel={isFavorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+              accessibilityRole="button"
+              disabled={!onFavoritePress}
+              hitSlop={8}
+              onPress={(event) => {
+                event.stopPropagation();
+                onFavoritePress?.();
+              }}
+              style={({ pressed }) => [
+                styles.favoriteButton,
+                { backgroundColor: themeColors.background },
+                pressed && styles.pressed,
+              ]}>
               <SymbolView
-                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-                size={14}
-                tintColor={themeColors.textMuted}
+                name={isFavorite
+                  ? { ios: 'heart.fill', android: 'favorite', web: 'favorite' }
+                  : { ios: 'heart', android: 'favorite_border', web: 'favorite_border' }}
+                size={18}
+                tintColor={isFavorite ? themeColors.primary : themeColors.text}
               />
-            </View>
+            </Pressable>
           </View>
 
           {barbershop.description?.trim() ? (
@@ -153,7 +175,7 @@ export function BarbershopPreviewCard({ barbershop, onPress }: BarbershopPreview
                     </View>
                   ) : null}
                 </View>
-                <AppText color="textMuted" style={styles.teamLabel} variant="bodySmall">Ekibi gör</AppText>
+                <AppText style={styles.teamLabel} variant="bodySmall">Ekibi gör</AppText>
               </>
             ) : (
               <>
@@ -169,9 +191,14 @@ export function BarbershopPreviewCard({ barbershop, onPress }: BarbershopPreview
                     tintColor={themeColors.primary}
                   />
                 </View>
-                <AppText color="textMuted" style={styles.teamLabel} variant="bodySmall">Ekibi gör</AppText>
+                <AppText style={styles.teamLabel} variant="bodySmall">Ekibi gör</AppText>
               </>
             )}
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={15}
+              tintColor={themeColors.primary}
+            />
           </View>
         </View>
       </AppCard>
@@ -198,35 +225,41 @@ const styles = StyleSheet.create({
   card: {
     alignItems: 'stretch',
     flexDirection: 'row',
-    minHeight: 150,
+    minHeight: 172,
     overflow: 'hidden',
     padding: spacing.sm,
   },
-  image: { aspectRatio: 0.8, borderRadius: radius.smallCard, width: 104 },
+  image: { borderRadius: radius.smallCard, width: 124 },
   placeholderImage: {
     alignItems: 'center',
-    aspectRatio: 0.8,
     borderRadius: radius.smallCard,
     justifyContent: 'center',
-    width: 104,
+    width: 124,
   },
   shopInitial: { fontSize: 34, lineHeight: 40 },
   content: { flex: 1, minWidth: 0, paddingLeft: spacing.sm },
-  titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
-  name: { flex: 1, fontSize: 17, lineHeight: 22 },
-  chevron: {
+  titleRow: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.xxs },
+  name: { flex: 1, fontSize: 18, lineHeight: 23 },
+  favoriteButton: {
     alignItems: 'center',
     borderRadius: radius.pill,
-    height: 24,
+    height: 34,
     justifyContent: 'center',
-    width: 24,
+    width: 34,
   },
   description: { fontSize: 13, lineHeight: 18, marginTop: spacing.xxs },
   addressRow: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.xs },
   address: { flex: 1, fontSize: 12, lineHeight: 17, marginLeft: spacing.xxs },
   rating: { marginTop: spacing.xxs },
   distance: { fontSize: 12, lineHeight: 17, marginTop: spacing.xxs },
-  teamRow: { alignItems: 'center', flexDirection: 'row', marginTop: 'auto', paddingTop: spacing.xs },
+  teamRow: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(128, 118, 106, 0.22)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    marginTop: 'auto',
+    paddingTop: spacing.xs,
+  },
   memberList: { flexDirection: 'row' },
   memberAvatar: {
     borderRadius: radius.pill,
@@ -240,5 +273,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   memberInitial: { fontSize: 10, lineHeight: 14 },
-  teamLabel: { fontSize: 12, lineHeight: 17, marginLeft: spacing.sm },
+  teamLabel: { flex: 1, fontSize: 12, lineHeight: 17, marginLeft: spacing.sm },
 });

@@ -1,17 +1,18 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppText } from '@/components/ui/AppText';
-import { useAppPreferences } from '@/features/preferences/AppPreferencesProvider';
-import { radius, spacing } from '@/theme/spacing';
-import { useThemeColors } from '@/theme/useThemeColors';
+import { AppText } from "@/components/ui/AppText";
+import { useAppPreferences } from "@/features/preferences/AppPreferencesProvider";
+import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 
-export type AppointmentPeriod = 'today' | 'upcoming' | 'history';
+export type AppointmentPeriod = "today" | "upcoming" | "history";
 
-const periods: { id: AppointmentPeriod; label: { en: string; tr: string } }[] = [
-  { id: 'today', label: { en: 'Today', tr: 'Bugün' } },
-  { id: 'upcoming', label: { en: 'Upcoming', tr: 'Yaklaşan' } },
-  { id: 'history', label: { en: 'History', tr: 'Geçmiş' } },
-];
+const periods: { id: AppointmentPeriod; label: { en: string; tr: string } }[] =
+  [
+    { id: "today", label: { en: "Today", tr: "Bugün" } },
+    { id: "upcoming", label: { en: "Future", tr: "Gelecek" } },
+    { id: "history", label: { en: "History", tr: "Geçmiş" } },
+  ];
 
 export function AppointmentPeriodTabs({
   onChange,
@@ -24,7 +25,12 @@ export function AppointmentPeriodTabs({
   const { language } = useAppPreferences();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       {periods.map((period) => {
         const isSelected = period.id === value;
 
@@ -38,11 +44,13 @@ export function AppointmentPeriodTabs({
               styles.item,
               isSelected && { backgroundColor: colors.primary },
               pressed && styles.pressed,
-            ]}>
+            ]}
+          >
             <AppText
-              color={isSelected ? 'onPrimary' : 'textMuted'}
+              color={isSelected ? "onPrimary" : "textMuted"}
               style={styles.label}
-              variant="label">
+              variant="label"
+            >
               {period.label[language]}
             </AppText>
           </Pressable>
@@ -56,15 +64,15 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: radius.md,
     borderWidth: 1,
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: spacing.md,
     padding: spacing.xxs,
   },
   item: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: radius.sm,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 36,
   },
   label: { fontSize: 11, lineHeight: 15 },

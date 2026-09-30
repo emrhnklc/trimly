@@ -1,7 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -25,18 +24,22 @@ export default function BusinessServiceCatalogScreen() {
   const [isLoading, setLoading] = useState(true);
   const [isRefreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadedBusinessId = useRef<string | null>(null);
 
   const loadServices = useCallback(
     async (refreshing = false) => {
       if (!activeMembership) return;
 
       if (refreshing) setRefreshing(true);
-      else setLoading(true);
+      else if (loadedBusinessId.current !== activeMembership.barbershop.id) {
+        setLoading(true);
+      }
       setError(null);
 
       try {
         const business = await getPublicBarbershop(activeMembership.barbershop.slug);
         setServices(business.services);
+        loadedBusinessId.current = activeMembership.barbershop.id;
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'Hizmetler yüklenemedi.');
       } finally {
@@ -75,8 +78,6 @@ export default function BusinessServiceCatalogScreen() {
         <AppText color="textMuted" style={styles.description} variant="bodySmall">
           İşletmede sunulan aktif hizmetleri, sürelerini ve fiyatlarını görüntüle.
         </AppText>
-
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
 
         {!isLoading && error ? (
           <BusinessServiceState

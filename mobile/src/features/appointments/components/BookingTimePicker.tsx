@@ -2,8 +2,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import type { AvailabilitySlot } from '@/features/barbershops/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type BookingTimePickerProps = {
   onHourSelect: (hour: string) => void;
@@ -20,6 +20,7 @@ export function BookingTimePicker({
   selectedStartsAt,
   slots,
 }: BookingTimePickerProps) {
+  const colors = useThemeColors();
   const hours = [...new Set(slots.map((slot) => slot.startTime.slice(0, 2)))];
   const visibleSlots = selectedHour
     ? slots.filter((slot) => slot.startTime.startsWith(`${selectedHour}:`))
@@ -41,7 +42,13 @@ export function BookingTimePicker({
             <Pressable
               key={hour}
               onPress={() => onHourSelect(hour)}
-              style={[styles.hour, isSelected && styles.selectedHour]}>
+              style={[
+                styles.hour,
+                {
+                  backgroundColor: isSelected ? colors.primary : colors.surface,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                },
+              ]}>
               <AppText color={isSelected ? 'onPrimary' : 'text'} variant="label">{hour}:00</AppText>
             </Pressable>
           );
@@ -49,7 +56,7 @@ export function BookingTimePicker({
       </ScrollView>
 
       {selectedHour ? (
-        <View style={styles.slotPanel}>
+        <View style={[styles.slotPanel, { backgroundColor: colors.surfaceMuted }]}>
           <AppText color="textMuted" variant="bodySmall">
             {selectedHour}:00 saat aralığındaki uygun başlangıçlar
           </AppText>
@@ -60,7 +67,13 @@ export function BookingTimePicker({
                 <Pressable
                   key={slot.startsAt}
                   onPress={() => onSlotSelect(slot)}
-                  style={[styles.slot, isSelected && styles.selectedSlot]}>
+                  style={[
+                    styles.slot,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}>
                   <AppText color={isSelected ? 'onPrimary' : 'text'} variant="label">{slot.startTime}</AppText>
                 </Pressable>
               );
@@ -75,29 +88,22 @@ export function BookingTimePicker({
 const styles = StyleSheet.create({
   hourContent: { gap: spacing.xs, paddingRight: spacing.lg },
   hour: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  selectedHour: { backgroundColor: colors.primary, borderColor: colors.primary },
   slotPanel: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     marginTop: spacing.sm,
     padding: spacing.sm,
   },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   slot: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     borderWidth: 1,
     minWidth: 64,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
-  selectedSlot: { backgroundColor: colors.primary, borderColor: colors.primary },
 });

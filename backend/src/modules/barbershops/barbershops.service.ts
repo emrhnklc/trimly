@@ -19,6 +19,11 @@ import { RedeemBarbershopAccessDto } from './dto/redeem-barbershop-access.dto';
 import { UpdateBarbershopAccessSettingsDto } from './dto/update-barbershop-access-settings.dto';
 import { UpdateBarbershopProfileDto } from './dto/update-barbershop-profile.dto';
 import { BarbershopSearchQueryDto } from './dto/barbershop-search-query.dto';
+import { BarbershopReadinessService } from './barbershop-readiness.service';
+import {
+  summarizeCustomerRatings,
+  summarizeCustomerRatingsByKey,
+} from '../reviews/customer-weighted-rating';
 
 const ACCESS_ATTEMPT_LIMIT = 5;
 const ACCESS_ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
@@ -28,7 +33,10 @@ const imageFilePattern = /^[0-9a-f-]{36}\.(jpg|png|webp)$/i;
 
 @Injectable()
 export class BarbershopsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly barbershopReadinessService: BarbershopReadinessService,
+  ) {}
 
   async getSlugAvailability(slug: string) {
     const normalizedSlug = slug.trim().toLowerCase();
@@ -64,8 +72,7 @@ export class BarbershopsService {
         address: dto.address?.trim(),
         latitude: dto.latitude,
         longitude: dto.longitude,
-        isDiscoverable:
-          dto.latitude !== undefined && dto.longitude !== undefined,
+        isDiscoverable: false,
         timezone: dto.timezone?.trim() ?? 'Europe/Istanbul',
         members: {
           create: {
@@ -134,8 +141,7 @@ export class BarbershopsService {
           address: dto.address?.trim(),
           latitude: dto.latitude,
           longitude: dto.longitude,
-          isDiscoverable:
-            dto.latitude !== undefined && dto.longitude !== undefined,
+          isDiscoverable: false,
           timezone: dto.timezone?.trim() ?? 'Europe/Istanbul',
           members: { create: { userId: ownerId, role: BusinessRole.OWNER } },
           bookingSettings: { create: {} },
@@ -229,6 +235,14 @@ export class BarbershopsService {
     const saved = await Promise.all(files.map((file) => this.saveImage(file)));
     try {
       return await this.prisma.$transaction(async (tx) => {
+        const photoCount = await tx.barbershopPhoto.count({
+          where: { barbershopId },
+        });
+        if (photoCount + saved.length > 8) {
+          throw new BadRequestException(
+            'İşletme galerisine en fazla 8 fotoğraf eklenebilir.',
+          );
+        }
         const current = await tx.barbershopPhoto.aggregate({
           where: { barbershopId },
           _max: { sortOrder: true },
@@ -340,6 +354,7 @@ export class BarbershopsService {
         longitude: true,
         timezone: true,
         isDiscoverable: true,
+        acceptsBookings: true,
         accessMode: true,
         galleryPhotos: {
           orderBy: { sortOrder: 'asc' },
@@ -388,14 +403,20 @@ export class BarbershopsService {
       throw new NotFoundException('İşletme bulunamadı.');
     }
 
-    const rating = await this.prisma.appointmentReview.aggregate({
+    const ratingGroups = await this.prisma.appointmentReview.groupBy({
+      by: ['customerId'],
       where: { barbershopId: barbershop.id },
       _avg: { rating: true },
       _count: { _all: true },
     });
+    const rating = summarizeCustomerRatings(ratingGroups);
 
+    const readiness = await this.barbershopReadinessService.getReadiness(
+      barbershop.id,
+    );
     return {
       ...barbershop,
+      isBookingOpen: readiness.isBookingOpen,
       galleryPhotos: barbershop.galleryPhotos.map((photo) => ({
         id: photo.id,
         sortOrder: photo.sortOrder,
@@ -404,8 +425,7 @@ export class BarbershopsService {
           barbershop.profileImageUrl ?? 'http://localhost:3000',
         ).toString(),
       })),
-      ratingAverage: rating._avg.rating,
-      ratingCount: rating._count._all,
+      ...rating,
     };
   }
 
@@ -424,6 +444,14 @@ export class BarbershopsService {
                 { name: { contains: term, mode: 'insensitive' } },
                 { description: { contains: term, mode: 'insensitive' } },
                 { address: { contains: term, mode: 'insensitive' } },
+                {
+                  services: {
+                    some: {
+                      isActive: true,
+                      name: { contains: term, mode: 'insensitive' },
+                    },
+                  },
+                },
               ],
             }
           : {}),
@@ -443,6 +471,11 @@ export class BarbershopsService {
         isDiscoverable: true,
         accessMode: true,
         createdAt: true,
+        services: {
+          where: { isActive: true },
+          orderBy: { name: 'asc' },
+          select: { id: true, name: true },
+        },
         members: {
           where: {
             isActive: true,
@@ -473,21 +506,25 @@ export class BarbershopsService {
     });
 
     const ratings = await this.prisma.appointmentReview.groupBy({
-      by: ['barbershopId'],
+      by: ['barbershopId', 'customerId'],
       where: { barbershopId: { in: barbershops.map(({ id }) => id) } },
       _avg: { rating: true },
       _count: { _all: true },
     });
-    const ratingsByBarbershop = new Map(
-      ratings.map((rating) => [rating.barbershopId, rating]),
+    const ratingsByBarbershop = summarizeCustomerRatingsByKey(
+      ratings,
+      'barbershopId',
     );
 
     const results = barbershops.map((barbershop) => {
       const rating = ratingsByBarbershop.get(barbershop.id);
+      const { services, ...barbershopSummary } = barbershop;
       return {
-        ...barbershop,
-        ratingAverage: rating?._avg.rating ?? null,
-        ratingCount: rating?._count._all ?? 0,
+        ...barbershopSummary,
+        serviceNames: services.map(({ name }) => name),
+        ratingAverage: rating?.ratingAverage ?? null,
+        ratingCount: rating?.ratingCount ?? 0,
+        ratingCustomerCount: rating?.ratingCustomerCount ?? 0,
         distanceKm:
           hasLocation &&
           barbershop.latitude !== null &&
@@ -517,7 +554,15 @@ export class BarbershopsService {
     try {
       const current = await this.prisma.barbershop.findUnique({
         where: { id: barbershopId },
-        select: { latitude: true, longitude: true, isDiscoverable: true },
+        select: {
+          acceptsBookings: true,
+          coverImageUrl: true,
+          latitude: true,
+          longitude: true,
+          isDiscoverable: true,
+          phone: true,
+          profileImageUrl: true,
+        },
       });
       if (!current) throw new NotFoundException('İşletme bulunamadı.');
 
@@ -527,10 +572,26 @@ export class BarbershopsService {
         dto.longitude !== undefined ? dto.longitude : current.longitude;
       this.validateLocationPair(latitude, longitude);
 
-      const isDiscoverable = dto.isDiscoverable ?? current.isDiscoverable;
-      if (isDiscoverable && (latitude === null || longitude === null)) {
-        throw new BadRequestException(
-          'İşletmeyi keşfette yayınlamak için konumunu doğrulamalısın.',
+      const isEnablingDiscovery =
+        dto.isDiscoverable === true && !current.isDiscoverable;
+      const isEnablingBookings =
+        dto.acceptsBookings === true && !current.acceptsBookings;
+      if (isEnablingDiscovery || isEnablingBookings) {
+        await this.barbershopReadinessService.assertReadyToPublish(
+          barbershopId,
+          {
+            latitude,
+            longitude,
+            phone: dto.phone !== undefined ? dto.phone : current.phone,
+            profileImageUrl:
+              dto.profileImageUrl !== undefined
+                ? dto.profileImageUrl
+                : current.profileImageUrl,
+            coverImageUrl:
+              dto.coverImageUrl !== undefined
+                ? dto.coverImageUrl
+                : current.coverImageUrl,
+          },
         );
       }
 
@@ -555,6 +616,9 @@ export class BarbershopsService {
           ...(dto.longitude !== undefined && { longitude: dto.longitude }),
           ...(dto.isDiscoverable !== undefined && {
             isDiscoverable: dto.isDiscoverable,
+          }),
+          ...(dto.acceptsBookings !== undefined && {
+            acceptsBookings: dto.acceptsBookings,
           }),
         },
       });

@@ -5,12 +5,13 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import type { BusinessAppointmentDetail } from '@/features/appointments/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
 import { fontFamily } from '@/theme/typography';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type BusinessHaircutRecordFormProps = {
   appointment: BusinessAppointmentDetail;
+  canAddPhoto: boolean;
   error: string | null;
   isSaved: boolean;
   isSubmitting: boolean;
@@ -24,6 +25,7 @@ type BusinessHaircutRecordFormProps = {
 
 export function BusinessHaircutRecordForm({
   appointment,
+  canAddPhoto,
   error,
   isSaved,
   isSubmitting,
@@ -34,6 +36,9 @@ export function BusinessHaircutRecordForm({
   onSubmit,
   styleName,
 }: BusinessHaircutRecordFormProps) {
+  const themeColors = useThemeColors();
+  const photoCount = appointment.haircutRecord?.photos.length ?? 0;
+
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -41,16 +46,16 @@ export function BusinessHaircutRecordForm({
       showsVerticalScrollIndicator={false}
     >
       <AppCard style={styles.summaryCard}>
-        <View style={styles.summaryIcon}>
+        <View style={[styles.summaryIcon, { backgroundColor: themeColors.surfaceMuted }]}>
           <SymbolView
             name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }}
             size={23}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         </View>
         <View style={styles.summaryCopy}>
           <AppText variant="heading">
-            {appointment.customer.firstName} {appointment.customer.lastName}
+            {appointment.attendeeNameSnapshot}
           </AppText>
           <AppText color="textMuted" style={styles.summaryService} variant="bodySmall">
             {appointment.serviceNameSnapshot} · {appointment.durationMinutes} dk
@@ -72,8 +77,8 @@ export function BusinessHaircutRecordForm({
         maxLength={100}
         onChangeText={onChangeStyleName}
         placeholder="Örn. Low fade, klasik kesim"
-        placeholderTextColor={colors.textMuted}
-        style={styles.input}
+        placeholderTextColor={themeColors.textMuted}
+        style={[styles.input, { backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }]}
         value={styleName}
       />
 
@@ -84,8 +89,8 @@ export function BusinessHaircutRecordForm({
         multiline
         onChangeText={onChangeNotes}
         placeholder="Geçiş numarası, üst uzunluğu, müşterinin tercihi…"
-        placeholderTextColor={colors.textMuted}
-        style={[styles.input, styles.notesInput]}
+        placeholderTextColor={themeColors.textMuted}
+        style={[styles.input, styles.notesInput, { backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }]}
         textAlignVertical="top"
         value={notes}
       />
@@ -94,7 +99,7 @@ export function BusinessHaircutRecordForm({
       </AppText>
 
       {error ? (
-        <View style={styles.errorBox}>
+        <View style={[styles.errorBox, { backgroundColor: themeColors.dangerSurface }]}>
           <AppText color="danger" variant="bodySmall">{error}</AppText>
         </View>
       ) : null}
@@ -110,25 +115,34 @@ export function BusinessHaircutRecordForm({
       </View>
 
       {isSaved ? (
-        <View style={styles.photoSuccessCard}>
-          <View style={styles.photoSuccessIcon}>
+        <View style={[styles.photoSuccessCard, { backgroundColor: themeColors.surfaceMuted }]}>
+          <View style={[styles.photoSuccessIcon, { backgroundColor: themeColors.surface }]}>
             <SymbolView
               name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
               size={20}
-              tintColor={colors.primary}
+              tintColor={themeColors.primary}
             />
           </View>
           <View style={styles.photoSuccessCopy}>
-            <AppText variant="label">Randevu tamamlandı</AppText>
+            <AppText variant="label">Randevu tamamlandı · {photoCount}/8 fotoğraf</AppText>
             <AppText color="textMuted" variant="bodySmall">
-              Müşteri izin verirse sonucu şimdi fotoğraflayabilirsin.
+              {canAddPhoto
+                ? 'Müşteri izin verirse sonucu farklı açılardan fotoğraflayabilirsin.'
+                : 'Fotoğraf ekleme süresi doldu; notları güncellemeye devam edebilirsin.'}
             </AppText>
           </View>
           <Pressable
             accessibilityRole="button"
+            disabled={!canAddPhoto || photoCount >= 8}
             onPress={onAddPhoto}
-            style={({ pressed }) => [styles.photoAddButton, pressed && styles.pressed]}>
-            <AppText color="primary" variant="label">Fotoğraf Ekle</AppText>
+            style={({ pressed }) => [styles.photoAddButton, { backgroundColor: themeColors.surface }, pressed && styles.pressed]}>
+            <AppText color="primary" variant="label">
+              {photoCount >= 8
+                ? 'Sınır Doldu'
+                : canAddPhoto
+                  ? 'Fotoğraf Ekle'
+                  : 'Süre Doldu'}
+            </AppText>
           </Pressable>
         </View>
       ) : null}
@@ -141,7 +155,6 @@ const styles = StyleSheet.create({
   summaryCard: { alignItems: 'center', flexDirection: 'row', marginTop: spacing.md },
   summaryIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     height: 48,
     justifyContent: 'center',
@@ -158,11 +171,8 @@ const styles = StyleSheet.create({
   introText: { lineHeight: 20, marginTop: spacing.xs },
   fieldLabel: { marginBottom: spacing.xs, marginTop: spacing.lg },
   input: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
-    color: colors.text,
     fontFamily: fontFamily.body,
     fontSize: 14,
     minHeight: 52,
@@ -172,7 +182,6 @@ const styles = StyleSheet.create({
   notesInput: { minHeight: 126 },
   counter: { marginTop: 4, textAlign: 'right' },
   errorBox: {
-    backgroundColor: '#F8E8E5',
     borderRadius: radius.md,
     marginTop: spacing.md,
     padding: spacing.sm,
@@ -180,7 +189,6 @@ const styles = StyleSheet.create({
   submitButton: { marginTop: spacing.xl },
   photoSuccessCard: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     flexDirection: 'row',
     marginTop: spacing.sm,
@@ -188,7 +196,6 @@ const styles = StyleSheet.create({
   },
   photoSuccessIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     height: 40,
     justifyContent: 'center',
@@ -197,7 +204,6 @@ const styles = StyleSheet.create({
   photoSuccessCopy: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   photoAddButton: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     justifyContent: 'center',
     minHeight: 40,

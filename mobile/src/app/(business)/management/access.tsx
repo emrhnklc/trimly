@@ -28,6 +28,7 @@ import type {
   BarbershopAccessSettings,
 } from '@/features/barbershops/types';
 import { createBarbershopAccessLink } from '@/features/barbershops/deep-link';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { BusinessManagementState } from '@/features/business-management/components/BusinessManagementState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
@@ -38,6 +39,7 @@ import {
 import type { CustomerBarbershopAccess } from '@/features/members/types';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type AccessModeOption = {
   description: string;
@@ -70,6 +72,7 @@ function formatUpdatedAt(value: string | null) {
 }
 
 export default function BusinessAccessSettingsScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { returnTo, source } = useLocalSearchParams<{
     returnTo?: string;
@@ -256,18 +259,18 @@ export default function BusinessAccessSettingsScreen() {
         <BusinessDetailHeader
           onBack={() => {
             if (returnTo === 'profile') {
-              router.replace('/(business)/profile');
+              goBackOrReplace(router, '/(business)/profile');
               return;
             }
             if (returnTo === 'business') {
-              router.dismissTo({
-                pathname: '/management/business',
+              goBackOrReplace(router, {
+                pathname: '/(business)/management/business',
                 params: source === 'profile' ? { source } : {},
               });
               return;
             }
 
-            router.dismissTo('/management');
+            goBackOrReplace(router, '/(business)/management');
           }}
           title={returnTo === 'profile' ? 'Davet ve Erişim' : 'Randevu Erişimi'}
         />
@@ -284,7 +287,7 @@ export default function BusinessAccessSettingsScreen() {
         {!isLoading && settings ? (
           <>
             <View style={styles.heroCard}>
-              <View style={styles.heroIcon}>
+              <View style={[styles.heroIcon, { backgroundColor: themeColors.surfaceMuted }]}>
                 <SymbolView
                   name={{ ios: 'lock.shield', android: 'shield_lock', web: 'shield_lock' }}
                   size={30}
@@ -312,7 +315,7 @@ export default function BusinessAccessSettingsScreen() {
                 }
                 style={({ pressed }) => pressed && styles.pressed}>
                 <AppCard style={styles.employeeInviteCard}>
-                  <View style={styles.employeeInviteIcon}>
+                  <View style={[styles.employeeInviteIcon, { backgroundColor: themeColors.surfaceMuted }]}>
                     <SymbolView
                       name={{ ios: 'person.badge.plus', android: 'group_add', web: 'group_add' }}
                       size={23}
@@ -351,10 +354,21 @@ export default function BusinessAccessSettingsScreen() {
                     }}
                     style={({ pressed }) => [
                       styles.option,
-                      selected && styles.selectedOption,
+                      {
+                        backgroundColor: selected
+                          ? themeColors.surfaceMuted
+                          : themeColors.surface,
+                        borderColor: selected
+                          ? themeColors.primary
+                          : themeColors.border,
+                      },
                       pressed && styles.pressed,
                     ]}>
-                    <View style={[styles.optionIcon, selected && styles.selectedOptionIcon]}>
+                    <View style={[
+                      styles.optionIcon,
+                      { backgroundColor: themeColors.background },
+                      selected && { backgroundColor: themeColors.surface },
+                    ]}>
                       <SymbolView name={option.icon} size={22} tintColor={colors.primary} />
                     </View>
                     <View style={styles.optionCopy}>
@@ -363,8 +377,13 @@ export default function BusinessAccessSettingsScreen() {
                         {option.description}
                       </AppText>
                     </View>
-                    <View style={[styles.radio, selected && styles.selectedRadio]}>
-                      {selected ? <View style={styles.radioDot} /> : null}
+                    <View style={[
+                      styles.radio,
+                      { borderColor: selected ? themeColors.primary : themeColors.border },
+                    ]}>
+                      {selected ? (
+                        <View style={[styles.radioDot, { backgroundColor: themeColors.primary }]} />
+                      ) : null}
                     </View>
                   </Pressable>
                 );
@@ -379,10 +398,17 @@ export default function BusinessAccessSettingsScreen() {
                     <>
                       <AppText color="textMuted" variant="bodySmall">Yeni kodun</AppText>
                       <AppText selectable style={styles.code} variant="displayMedium">{visibleCode}</AppText>
-                      <View style={styles.qrShell}>
+                      <View
+                        style={[
+                          styles.qrShell,
+                          {
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.border,
+                          },
+                        ]}>
                         <QRCode
-                          backgroundColor={colors.onPrimary}
-                          color={colors.text}
+                          backgroundColor={themeColors.surface}
+                          color={themeColors.text}
                           quietZone={10}
                           size={190}
                           value={createBarbershopAccessLink(
@@ -506,9 +532,11 @@ export default function BusinessAccessSettingsScreen() {
               </View>
             ) : null}
 
-            <AppButton disabled={!canManage || !hasChanges || isBusy} onPress={() => void saveMode()}>
-              {isSaving ? 'Kaydediliyor...' : hasChanges ? 'Erişimi Kaydet' : 'Değişiklik Yok'}
-            </AppButton>
+            <View style={styles.bottomAction}>
+              <AppButton disabled={!canManage || !hasChanges || isBusy} onPress={() => void saveMode()}>
+                {isSaving ? 'Kaydediliyor...' : hasChanges ? 'Erişimi Kaydet' : 'Değişiklik Yok'}
+              </AppButton>
+            </View>
           </>
         ) : null}
       </ScrollView>
@@ -518,6 +546,7 @@ export default function BusinessAccessSettingsScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
+  bottomAction: { marginBottom: spacing.lg, marginTop: spacing.xl },
   loader: { marginTop: spacing.xxxl },
   heroCard: {
     alignItems: 'center',
@@ -552,45 +581,36 @@ const styles = StyleSheet.create({
   options: { gap: spacing.sm },
   option: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 104,
     padding: spacing.md,
   },
-  selectedOption: { backgroundColor: '#FFFAED', borderColor: colors.primary },
   optionIcon: {
     alignItems: 'center',
-    backgroundColor: colors.background,
     borderRadius: radius.sm,
     height: 46,
     justifyContent: 'center',
     width: 46,
   },
-  selectedOptionIcon: { backgroundColor: '#F6E9C8' },
   optionCopy: { flex: 1, marginHorizontal: spacing.sm },
   optionDescription: { marginTop: 3 },
   radio: {
     alignItems: 'center',
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 2,
     height: 22,
     justifyContent: 'center',
     width: 22,
   },
-  selectedRadio: { borderColor: colors.primary },
-  radioDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 10, width: 10 },
+  radioDot: { borderRadius: radius.pill, height: 10, width: 10 },
   codeCard: { padding: spacing.md },
   code: { color: colors.primary, fontSize: 32, letterSpacing: 5, lineHeight: 40, marginVertical: spacing.xs },
   codeNotice: { marginBottom: spacing.md },
   qrShell: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: colors.onPrimary,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     marginBottom: spacing.md,

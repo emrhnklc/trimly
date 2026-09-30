@@ -6,7 +6,9 @@ import {
 import { AppointmentStatus, Weekday } from '@prisma/client';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../../database/prisma.service';
+import { BarbershopReadinessService } from '../barbershops/barbershop-readiness.service';
 import { AvailabilityQueryDto } from './dto/availability-query.dto';
+import { workingHoursForDate } from '../schedules/effective-working-hours';
 
 const weekdays: Weekday[] = [
   Weekday.MONDAY,
@@ -20,16 +22,24 @@ const weekdays: Weekday[] = [
 
 @Injectable()
 export class AvailabilityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly barbershopReadinessService: BarbershopReadinessService,
+  ) {}
 
   async findAvailableSlots(
     barbershopId: string,
     query: AvailabilityQueryDto,
     options?: {
       excludeAppointmentId?: string;
+      ignoreBookingState?: boolean;
       ignoreBookingWindow?: boolean;
     },
   ) {
+    if (!options?.ignoreBookingState) {
+      await this.barbershopReadinessService.assertBookingOpen(barbershopId);
+    }
+
     const barbershop = await this.prisma.barbershop.findUnique({
       where: { id: barbershopId },
       include: {
@@ -53,6 +63,8 @@ export class AvailabilityService {
       minBookingNoticeMinutes: 60,
       maxBookingAdvanceDays: 30,
       slotIntervalMinutes: 5,
+      pendingSlotIntervalMinutes: null,
+      slotIntervalEffectiveFrom: null,
     };
     const now = DateTime.now().setZone(barbershop.timezone);
     const today = now.startOf('day');
@@ -88,7 +100,24 @@ export class AvailabilityService {
       }),
     ]);
 
-    if (!shopHours || !member || !service) {
+    if (!member || !service) {
+      return this.emptyResult(query.date);
+    }
+
+    const effectiveShopHours = workingHoursForDate(
+      shopHours ? [shopHours] : [],
+      barbershop.previousWorkingHours,
+      barbershop.workingHoursEffectiveFrom,
+      targetDate,
+    ).find((hours) => hours.weekday === weekday);
+    const effectiveMemberHours = workingHoursForDate(
+      member.workingHours,
+      member.previousWorkingHours,
+      member.workingHoursEffectiveFrom,
+      targetDate,
+    ).find((hours) => hours.weekday === weekday);
+
+    if (!effectiveShopHours || !effectiveMemberHours) {
       return this.emptyResult(query.date);
     }
 
@@ -101,18 +130,17 @@ export class AvailabilityService {
       },
     });
 
-    const memberHours = member.workingHours[0];
-    if (!assignment || !memberHours) {
+    if (!assignment) {
       return this.emptyResult(query.date);
     }
 
     const windowStart = DateTime.max(
-      this.atLocalTime(targetDate, shopHours.startTime),
-      this.atLocalTime(targetDate, memberHours.startTime),
+      this.atLocalTime(targetDate, effectiveShopHours.startTime),
+      this.atLocalTime(targetDate, effectiveMemberHours.startTime),
     );
     const windowEnd = DateTime.min(
-      this.atLocalTime(targetDate, shopHours.endTime),
-      this.atLocalTime(targetDate, memberHours.endTime),
+      this.atLocalTime(targetDate, effectiveShopHours.endTime),
+      this.atLocalTime(targetDate, effectiveMemberHours.endTime),
     );
     const earliestStart = options?.ignoreBookingWindow
       ? windowStart
@@ -120,9 +148,18 @@ export class AvailabilityService {
           windowStart,
           now.plus({ minutes: settings.minBookingNoticeMinutes }),
         );
+    const slotIntervalMinutes =
+      settings.pendingSlotIntervalMinutes &&
+      settings.slotIntervalEffectiveFrom &&
+      targetDate >=
+        DateTime.fromJSDate(settings.slotIntervalEffectiveFrom).setZone(
+          barbershop.timezone,
+        )
+        ? settings.pendingSlotIntervalMinutes
+        : settings.slotIntervalMinutes;
     const firstCandidate = this.roundUpToSlot(
       earliestStart,
-      settings.slotIntervalMinutes,
+      slotIntervalMinutes,
     );
 
     if (firstCandidate >= windowEnd) {
@@ -168,7 +205,7 @@ export class AvailabilityService {
     for (
       let candidate = firstCandidate;
       candidate < windowEnd;
-      candidate = candidate.plus({ minutes: settings.slotIntervalMinutes })
+      candidate = candidate.plus({ minutes: slotIntervalMinutes })
     ) {
       const endsAt = candidate.plus({ minutes: service.durationMinutes });
 

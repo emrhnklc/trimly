@@ -6,9 +6,10 @@ import type {
   UpdateBusinessWorkingHoursInput,
 } from './types';
 
-export function getBusinessWorkingHours(barbershopId: string) {
+export function getBusinessWorkingHours(barbershopId: string, planned = false) {
   return apiGet<BusinessWorkingHours[]>(
     `/barbershops/${encodeURIComponent(barbershopId)}/working-hours`,
+    planned ? { planned: 'true' } : undefined,
   );
 }
 
@@ -36,10 +37,11 @@ export function getMemberWorkingHours(
   barbershopId: string,
   memberId: string,
   accessToken: string,
+  planned = false,
 ) {
   return apiGet<BusinessWorkingHours[]>(
     `/barbershops/${encodeURIComponent(barbershopId)}/working-hours/members/${encodeURIComponent(memberId)}`,
-    undefined,
+    planned ? { planned: 'true' } : undefined,
     accessToken,
   );
 }

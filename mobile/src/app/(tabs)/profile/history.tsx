@@ -1,21 +1,24 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 
-import { AppIconButton } from '@/components/ui/AppIconButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { SettingsPageHeader } from '@/components/ui/SettingsPageHeader';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { getMyHaircutHistory } from '@/features/haircut-history/api';
 import type { CustomerHaircutRecord } from '@/features/haircut-history/types';
 import { getFavoriteStyles } from '@/features/favorites/api';
 import type { FavoriteStyle } from '@/features/favorites/types';
 import { ProfileSavedStyles } from '@/features/profile/components/ProfileSavedStyles';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function ProfileHistoryScreen() {
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const themeColors = useThemeColors();
   const { token } = useAuth();
   const [records, setRecords] = useState<CustomerHaircutRecord[]>([]);
   const [favoriteStyles, setFavoriteStyles] = useState<FavoriteStyle[]>([]);
@@ -54,8 +57,7 @@ export default function ProfileHistoryScreen() {
   if (!token) return null;
 
   function goBack() {
-    if (router.canGoBack()) router.back();
-    else router.replace('/profile');
+    goBackOrReplace(router, returnTo === 'customer-home' ? '/(tabs)' : '/(tabs)/profile');
   }
 
   return (
@@ -64,25 +66,16 @@ export default function ProfileHistoryScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            colors={[colors.primary]}
+            colors={[themeColors.primary]}
             onRefresh={() => void loadHistory(true)}
             refreshing={isRefreshing}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         }
         showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <AppIconButton
-            accessibilityLabel="Profile geri dön"
-            icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-            onPress={goBack}
-            variant="transparent"
-          />
-          <AppText style={styles.title} variant="displayMedium">Kaydettiğim Stiller</AppText>
-          <View style={styles.topBarSpacer} />
-        </View>
+        <SettingsPageHeader onBackPress={goBack} title="Kaydettiğim Stiller" />
 
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+        {isLoading ? <ActivityIndicator color={themeColors.primary} style={styles.loader} /> : null}
         {!isLoading && error ? (
           <AppText color="danger" style={styles.error} variant="bodySmall">{error}</AppText>
         ) : null}
@@ -102,14 +95,6 @@ export default function ProfileHistoryScreen() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 112, paddingHorizontal: spacing.lg },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-  },
-  topBarSpacer: { width: 44 },
-  title: { flex: 1, fontSize: 24, lineHeight: 30, textAlign: 'center' },
   loader: { marginTop: spacing.xxxl },
   error: { marginTop: spacing.xl, textAlign: 'center' },
 });

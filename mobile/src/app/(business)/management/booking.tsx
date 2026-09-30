@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { UnsavedChangesSheet } from '@/components/ui/UnsavedChangesSheet';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   getBookingSettings,
@@ -19,12 +20,19 @@ import { formatMinutes } from '@/features/booking-settings/format';
 import { BusinessManagementState } from '@/features/business-management/components/BusinessManagementState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
 
 function serializeSettings(settings: BookingSettings | null) {
   return settings ? JSON.stringify(settings) : '';
+}
+
+function presentPendingSlot(settings: BookingSettings) {
+  return settings.pendingSlotIntervalMinutes
+    ? { ...settings, slotIntervalMinutes: settings.pendingSlotIntervalMinutes }
+    : settings;
 }
 
 export default function BookingSettingsScreen() {
@@ -39,6 +47,7 @@ export default function BookingSettingsScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false);
 
   const loadSettings = useCallback(async () => {
     if (!activeMembership) return;
@@ -46,7 +55,9 @@ export default function BookingSettingsScreen() {
     setLoading(true);
     setLoadError(null);
     try {
-      const nextSettings = await getBookingSettings(activeMembership.barbershop.id);
+      const nextSettings = presentPendingSlot(
+        await getBookingSettings(activeMembership.barbershop.id),
+      );
       setSettings(nextSettings);
       setSavedSettings(nextSettings);
     } catch (reason) {
@@ -74,26 +85,15 @@ export default function BookingSettingsScreen() {
 
   function handleBack() {
     if (!hasChanges) {
-      router.dismissTo('/management');
+      goBackOrReplace(router, '/(business)/management');
       return;
     }
 
-    Alert.alert(
-      'Kaydedilmemiş değişiklikler',
-      'Randevu ayarlarında yaptığın değişiklikler kaybolacak.',
-      [
-        { text: 'Düzenlemeye Devam Et', style: 'cancel' },
-        {
-          text: 'Değişiklikleri Sil',
-          style: 'destructive',
-          onPress: () => router.dismissTo('/management'),
-        },
-      ],
-    );
+    setUnsavedSheetVisible(true);
   }
 
   async function handleSave() {
-    if (!activeMembership || !settings || !token) return;
+    if (!activeMembership || !settings || !token) return false;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -110,13 +110,27 @@ export default function BookingSettingsScreen() {
         },
         token,
       );
-      setSettings(saved);
-      setSavedSettings(saved);
-      setSuccessMessage('Randevu ayarları kaydedildi. Yeni uygun saatler bu kurallara göre üretilecek.');
+      const displayedSettings = presentPendingSlot(saved);
+      setSettings(displayedSettings);
+      setSavedSettings(displayedSettings);
+      setSuccessMessage(
+        saved.pendingSlotIntervalMinutes && saved.slotIntervalEffectiveFrom
+          ? `Slot aralığı ${formatEffectiveDate(saved.slotIntervalEffectiveFrom)} tarihinden itibaren uygulanacak. Mevcut randevular korunuyor.`
+          : 'Randevu ayarları kaydedildi.',
+      );
+      return true;
     } catch (reason) {
       setSubmitError(reason instanceof Error ? reason.message : 'Randevu ayarları kaydedilemedi.');
+      return false;
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function saveAndLeave() {
+    if (await handleSave()) {
+      setUnsavedSheetVisible(false);
+      goBackOrReplace(router, '/(business)/management');
     }
   }
 
@@ -205,6 +219,17 @@ export default function BookingSettingsScreen() {
           </>
         ) : null}
       </ScrollView>
+      <UnsavedChangesSheet
+        description="Randevu ayarlarında yaptığın değişiklikleri kaydedebilir veya silebilirsin."
+        isSaving={isSubmitting}
+        onContinue={() => setUnsavedSheetVisible(false)}
+        onDiscard={() => {
+          setUnsavedSheetVisible(false);
+          goBackOrReplace(router, '/(business)/management');
+        }}
+        onSave={() => void saveAndLeave()}
+        visible={unsavedSheetVisible}
+      />
     </Screen>
   );
 }
@@ -225,3 +250,11 @@ const styles = StyleSheet.create({
   successMessage: { backgroundColor: '#E8F1E5' },
   successText: { color: '#4F7653' },
 });
+
+function formatEffectiveDate(value: string) {
+  return new Intl.DateTimeFormat('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(value));
+}

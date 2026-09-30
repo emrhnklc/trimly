@@ -5,7 +5,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -15,6 +14,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
 import { useAuth } from "@/features/auth/AuthProvider";
+import { useAppMode } from "@/features/app-mode/AppModeProvider";
 import { AuthScreenLayout } from "@/features/auth/components/AuthScreenLayout";
 import { AuthTextField } from "@/features/auth/components/AuthTextField";
 import {
@@ -59,7 +59,10 @@ export default function BusinessOnboardingScreen() {
   const themeColors = useThemeColors();
   const { source } = useLocalSearchParams<{ source?: string }>();
   const { refreshUser, token } = useAuth();
+  const { enterBusinessMode } = useAppMode();
   const [step, setStep] = useState(0);
+  const [createdBarbershopId, setCreatedBarbershopId] = useState<string | null>(null);
+  const [createdMembershipId, setCreatedMembershipId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [phone, setPhone] = useState("");
@@ -236,23 +239,6 @@ export default function BusinessOnboardingScreen() {
     try {
       if (businessLocation) {
         setMapInitialCoordinate(businessLocation);
-      } else {
-        if (Platform.OS === "android") {
-          const permission = await Location.requestForegroundPermissionsAsync();
-          if (!permission.granted) {
-            setError("Haritayı adrese götürmek için konum izni vermelisin.");
-            return;
-          }
-        }
-        const result = (await Location.geocodeAsync(fullAddress))[0];
-        if (!result) {
-          setError("Adres haritada bulunamadı. Açık adresi kontrol edip tekrar dene.");
-          return;
-        }
-        setMapInitialCoordinate({
-          latitude: result.latitude,
-          longitude: result.longitude,
-        });
       }
       setMapVisible(true);
     } catch {
@@ -364,12 +350,36 @@ export default function BusinessOnboardingScreen() {
         galleryPhotos,
         token,
       );
-      await refreshUser();
+      const refreshedUser = await refreshUser();
+      setCreatedMembershipId(
+        refreshedUser?.businessMemberships.find(
+          (membership) => membership.barbershop.id === created.id,
+        )?.id ?? null,
+      );
+      setCreatedBarbershopId(created.id);
       setCreatedName(created.name);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "İşletme oluşturulamadı.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function openBusinessSetup() {
+    try {
+      setError(null);
+      const refreshedUser = await refreshUser();
+      const membershipId = createdMembershipId ?? refreshedUser?.businessMemberships.find(
+        (membership) => membership.barbershop.id === createdBarbershopId,
+      )?.id;
+      if (!membershipId) {
+        setError('Yeni işletme profili hazırlanıyor. Lütfen tekrar dene.');
+        return;
+      }
+      await enterBusinessMode(membershipId);
+      router.replace('/(business)/management');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Kurulum ekranı açılamadı.');
     }
   }
 
@@ -379,11 +389,12 @@ export default function BusinessOnboardingScreen() {
         <AppCard style={styles.successCard}>
           <AppText color="primary" variant="overline">İŞLETME OLUŞTURULDU</AppText>
           <AppText style={styles.successName} variant="heading">{createdName}</AppText>
-          <AppText color="textMuted">Şimdi hizmetlerini, ekibini ve çalışma saatlerini yönetebilirsin.</AppText>
+          <AppText color="textMuted">İşletmen keşfette görünmeden önce hizmetlerini, ekibini ve çalışma saatlerini tamamlamalısın.</AppText>
         </AppCard>
+        {error ? <AppText color="danger" style={styles.error}>{error}</AppText> : null}
         <View style={styles.primaryAction}>
-          <AppButton onPress={() => router.replace(source === "profiles" ? "/profiles" : "/(tabs)")}>
-            {source === "profiles" ? "Profillerimi Gör" : "Ana Sayfaya Dön"}
+          <AppButton onPress={() => void openBusinessSetup()}>
+            Kurulumu Tamamla
           </AppButton>
         </View>
       </AuthScreenLayout>
@@ -417,11 +428,11 @@ export default function BusinessOnboardingScreen() {
           <View style={styles.verifyAction}>
             <AppText style={styles.locationChoiceTitle} variant="label">Konumu haritada nasıl işaretleyelim?</AppText>
             <LocationMethodCard
-              disabled={isLocating || !province || !district || !neighborhood || openAddress.trim().length < 5}
+              disabled={isLocating}
               icon={{ ios: "map.fill", android: "map", web: "map" }}
               onPress={() => void openMapPicker()}
               selected={locationMethod === "map"}
-              subtitle={!province || !district || !neighborhood || openAddress.trim().length < 5 ? "Önce yukarıdaki adres alanlarını tamamla." : "Haritayı aç, işletmenin bulunduğu noktayı işaretle."}
+              subtitle="Haritadaki aramayla işletmeni bul ve doğru noktayı işaretle."
               title={locatingMethod === "map" ? "Harita hazırlanıyor…" : "Haritadan konum seç"}
             />
             <LocationMethodCard

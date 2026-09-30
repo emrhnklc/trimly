@@ -25,6 +25,7 @@ export function BarbershopHero({
 }: BarbershopHeroProps) {
   const colors = useThemeColors();
   const initial = barbershop.name.slice(0, 1).toUpperCase();
+  const isBookable = Boolean(barbershop.services.length && barbershop.members.length);
 
   return (
     <View style={styles.hero}>
@@ -99,17 +100,23 @@ export function BarbershopHero({
           </AppText>
           <View style={styles.metaRow}>
             <View
-              style={[styles.pill, { backgroundColor: colors.successSurface }]}
+              style={[
+                styles.pill,
+                { backgroundColor: isBookable ? colors.successSurface : colors.dangerSurface },
+              ]}
             >
               <View
-                style={[styles.statusDot, { backgroundColor: colors.success }]}
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: isBookable ? colors.success : colors.danger },
+                ]}
               />
               <AppText
-                color="success"
+                color={isBookable ? "success" : "danger"}
                 style={styles.pillText}
                 variant="bodySmall"
               >
-                Randevuya açık
+                {isBookable ? "Randevuya açık" : "Randevu kapalı"}
               </AppText>
             </View>
             <View

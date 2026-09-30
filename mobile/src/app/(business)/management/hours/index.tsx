@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
+import { UnsavedChangesSheet } from '@/components/ui/UnsavedChangesSheet';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   defaultClosingTime,
@@ -25,6 +26,7 @@ import {
   updateBusinessWorkingHours,
 } from '@/features/schedules/api';
 import type { BusinessWorkingHours, Weekday } from '@/features/schedules/types';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { colors } from '@/theme/colors';
 import { layout, radius, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
@@ -64,6 +66,7 @@ export default function BusinessWorkingHoursScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false);
 
   const loadWorkingHours = useCallback(async () => {
     if (!activeMembership) return;
@@ -72,7 +75,7 @@ export default function BusinessWorkingHoursScreen() {
     setLoadError(null);
     try {
       const nextDays = createDrafts(
-        await getBusinessWorkingHours(activeMembership.barbershop.id),
+        await getBusinessWorkingHours(activeMembership.barbershop.id, true),
       );
       setDays(nextDays);
       setSavedDays(nextDays);
@@ -117,28 +120,21 @@ export default function BusinessWorkingHoursScreen() {
 
   function handleBack() {
     if (!hasChanges) {
-      router.dismissTo('/management');
+      goBackOrReplace(router, '/(business)/management');
       return;
     }
 
-    Alert.alert(
-      'Kaydedilmemiş değişiklikler',
-      'Çalışma saatlerinde yaptığın değişiklikler kaybolacak.',
-      [
-        { text: 'Düzenlemeye Devam Et', style: 'cancel' },
-        { text: 'Değişiklikleri Sil', style: 'destructive', onPress: () => router.dismissTo('/management') },
-      ],
-    );
+    setUnsavedSheetVisible(true);
   }
 
   async function handleSave() {
-    if (!activeMembership || !token) return;
+    if (!activeMembership || !token) return false;
 
     for (const day of days.filter((item) => item.isOpen)) {
       if (timeToMinutes(day.startTime) >= timeToMinutes(day.endTime)) {
         const label = weekdayOptions.find((item) => item.value === day.weekday)?.label ?? 'Seçilen gün';
         setSubmitError(`${label} için kapanış saati açılış saatinden sonra olmalı.`);
-        return;
+        return false;
       }
     }
 
@@ -159,11 +155,22 @@ export default function BusinessWorkingHoursScreen() {
       const nextDays = createDrafts(savedHours);
       setDays(nextDays);
       setSavedDays(nextDays);
-      setSuccessMessage('Çalışma saatlerin kaydedildi. Uygunluk takvimi artık bu düzene göre çalışacak.');
+      setSuccessMessage(
+        'Yeni çalışma saatleri en erken yarın, çakışan randevu varsa son çakışmanın ertesi günü uygulanacak. Mevcut randevular korunuyor.',
+      );
+      return true;
     } catch (reason) {
       setSubmitError(reason instanceof Error ? reason.message : 'Çalışma saatleri kaydedilemedi.');
+      return false;
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function saveAndLeave() {
+    if (await handleSave()) {
+      setUnsavedSheetVisible(false);
+      goBackOrReplace(router, '/(business)/management');
     }
   }
 
@@ -244,6 +251,17 @@ export default function BusinessWorkingHoursScreen() {
           value={pickerValue}
         />
       ) : null}
+      <UnsavedChangesSheet
+        description="Çalışma saatlerinde yaptığın değişiklikleri kaydedebilir veya silebilirsin."
+        isSaving={isSubmitting}
+        onContinue={() => setUnsavedSheetVisible(false)}
+        onDiscard={() => {
+          setUnsavedSheetVisible(false);
+          goBackOrReplace(router, '/(business)/management');
+        }}
+        onSave={() => void saveAndLeave()}
+        visible={unsavedSheetVisible}
+      />
     </Screen>
   );
 }

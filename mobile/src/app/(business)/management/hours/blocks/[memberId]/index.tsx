@@ -25,10 +25,12 @@ import {
   getUpcomingScheduleBlocks,
 } from '@/features/schedules/api';
 import type { MemberScheduleBlock } from '@/features/schedules/types';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { layout, radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 export default function EmployeeScheduleBlocksScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { memberId, source } = useLocalSearchParams<{ memberId: string; source?: string }>();
   const { token } = useAuth();
@@ -127,10 +129,10 @@ export default function EmployeeScheduleBlocksScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            colors={[colors.primary]}
+            colors={[themeColors.primary]}
             onRefresh={() => void loadBlocks(true)}
             refreshing={isRefreshing}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         }
         showsVerticalScrollIndicator={false}>
@@ -145,17 +147,17 @@ export default function EmployeeScheduleBlocksScreen() {
           }
           onBack={() => {
             if (source === 'team') {
-              router.dismissTo('/management/hours/blocks');
+              goBackOrReplace(router, '/(business)/management/hours/blocks');
               return;
             }
-            router.dismissTo({
-              pathname: '/management/hours/members/[memberId]',
+            goBackOrReplace(router, {
+              pathname: '/(business)/management/hours/members/[memberId]',
               params: { memberId },
             });
           }}
           title="Mola ve İzinler"
         />
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+        {isLoading ? <ActivityIndicator color={themeColors.primary} style={styles.loader} /> : null}
 
         {!isLoading && error ? (
           <BusinessManagementState
@@ -169,14 +171,17 @@ export default function EmployeeScheduleBlocksScreen() {
           <>
             <EmployeeScheduleIdentityCard member={member} />
 
-            <View style={styles.summaryCard}>
+            <View style={[
+              styles.summaryCard,
+              { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+            ]}>
               <View style={styles.summaryItem}>
                 <AppText color="primary" style={styles.summaryValue} variant="heading">
                   {summary.breaks}
                 </AppText>
                 <AppText color="textMuted" variant="bodySmall">Yaklaşan mola</AppText>
               </View>
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: themeColors.border }]} />
               <View style={styles.summaryItem}>
                 <AppText color="primary" style={styles.summaryValue} variant="heading">
                   {summary.timeOff}
@@ -185,11 +190,11 @@ export default function EmployeeScheduleBlocksScreen() {
               </View>
             </View>
 
-            <View style={styles.infoCard}>
+            <View style={[styles.infoCard, { backgroundColor: themeColors.surfaceMuted }]}>
               <SymbolView
                 name={{ ios: 'info.circle', android: 'info_outline', web: 'info_outline' }}
                 size={20}
-                tintColor={colors.primary}
+                tintColor={themeColors.primary}
               />
               <AppText color="textMuted" style={styles.infoCopy} variant="bodySmall">
                 Onaylı randevuyla çakışan zaman eklenemez. Önce randevuyu başka saate taşımalı veya iptal etmelisin.
@@ -202,12 +207,15 @@ export default function EmployeeScheduleBlocksScreen() {
             </View>
 
             {blocks.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
+              <View style={[
+                styles.emptyCard,
+                { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+              ]}>
+                <View style={[styles.emptyIcon, { backgroundColor: themeColors.surfaceMuted }]}>
                   <SymbolView
                     name={{ ios: 'calendar.badge.plus', android: 'event_available', web: 'event_available' }}
                     size={25}
-                    tintColor={colors.primary}
+                    tintColor={themeColors.primary}
                   />
                 </View>
                 <AppText style={styles.emptyTitle} variant="label">Yaklaşan mola veya izin yok</AppText>
@@ -237,8 +245,6 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, paddingBottom: 116, paddingHorizontal: layout.screenHorizontalPadding },
   loader: { marginTop: spacing.xxxl },
   summaryCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
@@ -247,10 +253,9 @@ const styles = StyleSheet.create({
   },
   summaryItem: { alignItems: 'center', flex: 1 },
   summaryValue: { fontSize: 22, lineHeight: 28 },
-  divider: { backgroundColor: colors.border, width: 1 },
+  divider: { width: 1 },
   infoCard: {
     alignItems: 'flex-start',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.card,
     flexDirection: 'row',
     marginTop: spacing.sm,
@@ -267,15 +272,12 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, lineHeight: 28 },
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     padding: spacing.xl,
   },
   emptyIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 52,
     justifyContent: 'center',

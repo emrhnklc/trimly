@@ -68,10 +68,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 96,
     padding: 10,
-    width: 138,
+    width: 156,
   },
   pressed: { opacity: 0.7 },
-  topRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xs },
+  topRow: { alignItems: 'flex-start', flexDirection: 'row', gap: spacing.xs },
   iconBox: {
     alignItems: 'center',
     borderRadius: radius.pill,
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 34,
   },
-  label: { flex: 1, fontSize: 14, lineHeight: 18 },
+  label: { flex: 1, fontSize: 14, lineHeight: 18, minHeight: 36 },
   bottomRow: { alignItems: 'flex-end', flexDirection: 'row', marginTop: 6 },
   description: { flex: 1, fontSize: 10, lineHeight: 14 },
   comingSoonBadge: {

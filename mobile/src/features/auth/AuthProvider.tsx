@@ -1,7 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
-import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
+import type { Href } from 'expo-router';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type PropsWithChildren,
+} from 'react';
 
-import { ApiError } from '@/lib/api/client';
+import { ApiError, clearApiCache } from '@/lib/api/client';
 import { getCurrentUser } from './api';
 import type { AuthResponse, AuthUser } from './types';
 
@@ -9,11 +17,22 @@ type PersistedAuthUser = Omit<AuthUser, 'businessMemberships'> & {
   businessMemberships?: AuthUser['businessMemberships'];
 };
 
+type AuthTransition = 'signing-in' | 'signing-out';
+
 type AuthContextValue = {
+  authTransition: AuthTransition | null;
+  finishAuthTransition: () => void;
   isReady: boolean;
+  isAuthTransitioning: boolean;
+  postAuthRoute: Href | null;
   token: string | null;
   user: AuthUser | null;
-  signIn: (result: AuthResponse, rememberMe?: boolean) => Promise<void>;
+  clearPostAuthRoute: () => void;
+  signIn: (
+    result: AuthResponse,
+    rememberMe?: boolean,
+    postAuthRoute?: Href,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<AuthUser | null>;
   updateUser: (user: AuthUser) => Promise<void>;
@@ -21,13 +40,24 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 const storageKey = 'trimly.auth';
+const authTransitionCoverMs = 180;
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<{ token: string | null; user: AuthUser | null }>({
+  const [state, setState] = useState<{
+    token: string | null;
+    user: AuthUser | null;
+  }>({
     token: null,
     user: null,
   });
   const [isReady, setReady] = useState(false);
+  const [authTransition, setAuthTransition] = useState<AuthTransition | null>(
+    null,
+  );
+  const [postAuthRoute, setPostAuthRoute] = useState<Href | null>(null);
+  const clearPostAuthRoute = useCallback(() => setPostAuthRoute(null), []);
+  const finishAuthTransition = useCallback(() => setAuthTransition(null), []);
+  const isAuthTransitioning = authTransition !== null;
 
   useEffect(() => {
     let isActive = true;
@@ -45,7 +75,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (session.token && session.user) {
           if (!isActive) return;
 
-          const restoredSession = { token: session.token, user: normalizeUser(session.user) };
+          const restoredSession = {
+            token: session.token,
+            user: normalizeUser(session.user),
+          };
           setState(restoredSession);
           setReady(true);
 
@@ -53,9 +86,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
             const currentUser = await getCurrentUser(session.token);
             if (!isActive) return;
 
-            const refreshedSession = { token: session.token, user: currentUser };
+            const refreshedSession = {
+              token: session.token,
+              user: currentUser,
+            };
             setState(refreshedSession);
-            await SecureStore.setItemAsync(storageKey, JSON.stringify(refreshedSession));
+            await SecureStore.setItemAsync(
+              storageKey,
+              JSON.stringify(refreshedSession),
+            );
           } catch (reason) {
             if (reason instanceof ApiError && reason.status === 401) {
               await SecureStore.deleteItemAsync(storageKey);
@@ -79,21 +118,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  async function signIn(result: AuthResponse, rememberMe = true) {
-    const nextSession = { token: result.accessToken, user: normalizeUser(result.user) };
+  async function signIn(
+    result: AuthResponse,
+    rememberMe = true,
+    nextRoute: Href = '/',
+  ) {
+    clearApiCache();
+    const nextSession = {
+      token: result.accessToken,
+      user: normalizeUser(result.user),
+    };
+    setPostAuthRoute(nextRoute);
+    setAuthTransition('signing-in');
 
-    if (rememberMe) {
-      await SecureStore.setItemAsync(storageKey, JSON.stringify(nextSession));
-    } else {
-      await SecureStore.deleteItemAsync(storageKey);
-    }
+    const storageOperation = rememberMe
+      ? SecureStore.setItemAsync(storageKey, JSON.stringify(nextSession))
+      : SecureStore.deleteItemAsync(storageKey);
 
+    await wait(authTransitionCoverMs);
+
+    // RootNavigator consumes this only after all user-dependent providers are
+    // ready, avoiding a race between protected routes and storage operations.
     setState(nextSession);
+    await storageOperation.catch(() => undefined);
   }
 
   async function signOut() {
-    await SecureStore.deleteItemAsync(storageKey);
+    clearApiCache();
+    setPostAuthRoute(null);
+    setAuthTransition('signing-out');
+    const storageOperation = SecureStore.deleteItemAsync(storageKey);
+    await wait(authTransitionCoverMs);
     setState({ token: null, user: null });
+    await storageOperation.catch(() => undefined);
   }
 
   async function updateUser(user: AuthUser) {
@@ -115,10 +172,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, isReady, refreshUser, signIn, signOut, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        authTransition,
+        clearPostAuthRoute,
+        finishAuthTransition,
+        isAuthTransitioning,
+        isReady,
+        postAuthRoute,
+        refreshUser,
+        signIn,
+        signOut,
+        updateUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
+}
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function normalizeUser(user: PersistedAuthUser): AuthUser {

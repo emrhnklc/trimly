@@ -68,6 +68,10 @@ export const updateMyProfile = (
     lastName?: string;
     phone?: string;
     birthDate?: string | null;
+    provinceCode?: string | null;
+    province?: string | null;
+    district?: string | null;
+    neighborhood?: string | null;
   },
   accessToken: string,
 ) => apiPatch<AuthUser>("/users/me", data, accessToken);

@@ -1,6 +1,6 @@
 import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
@@ -61,7 +61,7 @@ function isBusinessTabName(name: string): name is BusinessTabName {
   return name in tabs;
 }
 
-export function BusinessTabBar({ descriptors, navigation, state }: BottomTabBarProps) {
+export function BusinessTabBar({ descriptors, navigation, state, setupMode = false }: BottomTabBarProps & { setupMode?: boolean }) {
   const insets = useSafeAreaInsets();
   const { can } = useBusiness();
   const colors = useThemeColors();
@@ -79,14 +79,21 @@ export function BusinessTabBar({ descriptors, navigation, state }: BottomTabBarP
       ]}>
       {state.routes.map((route, index) => {
         if (!isBusinessTabName(route.name)) return null;
-
         const tab = tabs[route.name];
         if (!can(tab.permission)) return null;
         const label = tab.label[language];
         const isFocused = state.index === index;
+        const isSetupLocked = setupMode && route.name !== 'management' && route.name !== 'profile';
         const { options } = descriptors[route.key];
 
         function handlePress() {
+          if (isSetupLocked) {
+            Alert.alert(
+              'Önce kurulumu tamamla',
+              'Bu bölüm işletmeni yayınladıktan sonra açılacak. Eksik adımları Yönetim ekranından tamamlayabilirsin.',
+            );
+            return;
+          }
           const event = navigation.emit({
             canPreventDefault: true,
             target: route.key,
@@ -102,18 +109,18 @@ export function BusinessTabBar({ descriptors, navigation, state }: BottomTabBarP
           <Pressable
             accessibilityLabel={options.tabBarAccessibilityLabel ?? label}
             accessibilityRole="tab"
-            accessibilityState={{ selected: isFocused }}
+            accessibilityState={{ disabled: isSetupLocked, selected: isFocused }}
             key={route.key}
             onLongPress={() => navigation.emit({ target: route.key, type: 'tabLongPress' })}
             onPress={handlePress}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
+            style={({ pressed }) => [styles.item, isSetupLocked && styles.locked, pressed && !isSetupLocked && styles.pressed]}>
             <SymbolView
               name={tab.icon}
               size={21}
-              tintColor={isFocused ? colors.primary : colors.textMuted}
+              tintColor={isSetupLocked ? colors.border : isFocused ? colors.primary : colors.textMuted}
             />
             <AppText
-              color={isFocused ? 'primary' : 'textMuted'}
+              color={isSetupLocked ? 'textMuted' : isFocused ? 'primary' : 'textMuted'}
               numberOfLines={1}
               style={styles.label}
               variant="bodySmall">
@@ -137,4 +144,5 @@ const styles = StyleSheet.create({
   item: { alignItems: 'center', flex: 1, gap: 2, justifyContent: 'center', minHeight: 52 },
   label: { fontSize: 9, lineHeight: 13, textAlign: 'center' },
   pressed: { opacity: 0.66 },
+  locked: { opacity: 0.42 },
 });

@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Pressable,
@@ -22,8 +22,9 @@ import {
   markAppNotificationAsRead,
 } from './api';
 import type { AppNotification } from './types';
-import { colors } from '@/theme/colors';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 function formatNotificationDate(value: string) {
   return new Intl.DateTimeFormat('tr-TR', {
@@ -35,9 +36,11 @@ function formatNotificationDate(value: string) {
 }
 
 export function NotificationCenterScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { token } = useAuth();
-  const { enterBusinessMode, enterCustomerMode } = useAppMode();
+  const { enterBusinessMode, enterCustomerMode, mode } = useAppMode();
   const { memberships } = useBusiness();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setLoading] = useState(true);
@@ -84,7 +87,8 @@ export function NotificationCenterScreen() {
 
     if (
       notification.type === 'APPOINTMENT_REMINDER' ||
-      notification.type === 'PORTFOLIO_CONSENT_REQUEST'
+      notification.type === 'PORTFOLIO_CONSENT_REQUEST' ||
+      notification.type === 'APPOINTMENT_CHANGE_PROPOSAL'
     ) {
       await enterCustomerMode();
       router.replace({
@@ -116,16 +120,37 @@ export function NotificationCenterScreen() {
 
   const unreadCount = notifications.filter((notification) => !notification.readAt).length;
 
+  function goBack() {
+    const destination = {
+      'business-home': '/(business)',
+      'business-profile': '/(business)/profile',
+      'customer-home': '/(tabs)',
+      'customer-profile': '/(tabs)/profile',
+    }[returnTo ?? ''];
+
+    if (destination) {
+      goBackOrReplace(
+        router,
+        destination as '/(business)' | '/(business)/profile' | '/(tabs)' | '/(tabs)/profile',
+      );
+      return;
+    }
+
+    goBackOrReplace(router, mode === 'business' ? '/(business)' : '/(tabs)');
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
-        <AppIconButton
-          accessibilityLabel="Geri dön"
-          icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
-          onPress={() => router.back()}
-          variant="transparent"
-        />
-        <AppText style={styles.title} variant="heading">Bildirimler</AppText>
+        <View style={styles.backSlot}>
+          <AppIconButton
+            accessibilityLabel="Geri dön"
+            icon={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+            onPress={goBack}
+            variant="transparent"
+          />
+        </View>
+        <AppText style={styles.title} variant="pageTitle">Bildirimler</AppText>
         <Pressable
           accessibilityLabel="Tüm bildirimleri okundu işaretle"
           disabled={unreadCount === 0}
@@ -141,20 +166,20 @@ export function NotificationCenterScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            colors={[colors.primary]}
+            colors={[themeColors.primary]}
             onRefresh={() => void loadNotifications(true)}
             refreshing={isRefreshing}
-            tintColor={colors.primary}
+            tintColor={themeColors.primary}
           />
         }>
-        {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+        {isLoading ? <ActivityIndicator color={themeColors.primary} style={styles.loader} /> : null}
         {!isLoading && error ? <AppText color="danger">{error}</AppText> : null}
         {!isLoading && !error && notifications.length === 0 ? (
           <View style={styles.empty}>
             <SymbolView
               name={{ ios: 'bell.slash', android: 'notifications_off', web: 'notifications_off' }}
               size={28}
-              tintColor={colors.textMuted}
+              tintColor={themeColors.textMuted}
             />
             <AppText style={styles.emptyTitle} variant="heading">Henüz bildirim yok</AppText>
             <AppText color="textMuted" style={styles.emptyCopy} variant="bodySmall">
@@ -170,14 +195,17 @@ export function NotificationCenterScreen() {
             onPress={() => void openNotification(notification)}
             style={({ pressed }) => [
               styles.item,
-              !notification.readAt && styles.itemUnread,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: notification.readAt ? themeColors.border : themeColors.primary,
+              },
               pressed && styles.pressed,
             ]}>
-            <View style={styles.iconShell}>
+            <View style={[styles.iconShell, { backgroundColor: themeColors.surfaceMuted }]}>
               <SymbolView
                 name={{ ios: 'calendar.badge.plus', android: 'event_available', web: 'event_available' }}
                 size={19}
-                tintColor={colors.primary}
+                tintColor={themeColors.primary}
               />
             </View>
             <View style={styles.copy}>
@@ -189,7 +217,7 @@ export function NotificationCenterScreen() {
                 {notification.barbershop.name} · {formatNotificationDate(notification.createdAt)}
               </AppText>
             </View>
-            {!notification.readAt ? <View style={styles.unreadDot} /> : null}
+            {!notification.readAt ? <View style={[styles.unreadDot, { backgroundColor: themeColors.primary }]} /> : null}
           </Pressable>
         ))}
       </ScrollView>
@@ -205,6 +233,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   title: { flex: 1, textAlign: 'center' },
+  backSlot: { minWidth: 78 },
   readAll: { alignItems: 'flex-end', justifyContent: 'center', minWidth: 78, paddingVertical: spacing.sm },
   content: { padding: spacing.lg, paddingBottom: 48 },
   loader: { marginTop: spacing.xxxl },
@@ -213,18 +242,14 @@ const styles = StyleSheet.create({
   emptyCopy: { marginTop: spacing.xs, textAlign: 'center' },
   item: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
-  itemUnread: { borderColor: '#D5A538', backgroundColor: '#FFF9EE' },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 42,
     justifyContent: 'center',
@@ -234,6 +259,6 @@ const styles = StyleSheet.create({
   notificationTitle: { fontSize: 14, lineHeight: 19 },
   body: { lineHeight: 18, marginTop: 2 },
   date: { fontSize: 11, lineHeight: 15, marginTop: 4 },
-  unreadDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 8, marginLeft: spacing.xs, width: 8 },
+  unreadDot: { borderRadius: radius.pill, height: 8, marginLeft: spacing.xs, width: 8 },
   pressed: { opacity: 0.68 },
 });

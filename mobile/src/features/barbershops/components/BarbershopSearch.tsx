@@ -1,8 +1,8 @@
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
 
-import { AppIconButton } from '@/components/ui/AppIconButton';
+import { AppText } from '@/components/ui/AppText';
 import { radius, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
 
@@ -36,12 +36,22 @@ export function BarbershopSearch({ onChangeText, onFilterPress, onSubmit, value 
           value={value}
         />
       </View>
-      <AppIconButton
+      <Pressable
         accessibilityLabel="Filtreleri aç"
-        icon={{ ios: 'slider.horizontal.3', android: 'tune', web: 'tune' }}
+        accessibilityRole="button"
         onPress={onFilterPress}
-        variant="surface"
-      />
+        style={({ pressed }) => [
+          styles.filterButton,
+          { backgroundColor: themeColors.surface, borderColor: themeColors.primary },
+          pressed && styles.pressed,
+        ]}>
+        <SymbolView
+          name={{ ios: 'slider.horizontal.3', android: 'tune', web: 'tune' }}
+          size={19}
+          tintColor={themeColors.primary}
+        />
+        <AppText color="primary" style={styles.filterLabel} variant="label">Filtrele</AppText>
+      </Pressable>
     </View>
   );
 }
@@ -64,4 +74,16 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: spacing.sm,
   },
+  filterButton: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs,
+    height: 50,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  filterLabel: { fontSize: 13, lineHeight: 18 },
+  pressed: { opacity: 0.72 },
 });

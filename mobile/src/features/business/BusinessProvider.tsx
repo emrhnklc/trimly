@@ -20,7 +20,9 @@ type BusinessContextValue = {
   activeMembership: BusinessMembership | null;
   can: (permission: BusinessPermission) => boolean;
   isReady: boolean;
+  markBusinessPublished: (barbershopId: string) => void;
   memberships: BusinessMembership[];
+  publishedBusinessIds: ReadonlySet<string>;
   selectMembership: (membershipId: string) => Promise<void>;
 };
 
@@ -36,6 +38,7 @@ export function BusinessProvider({ children }: PropsWithChildren) {
   const membershipSignature = memberships.map((membership) => membership.id).join(',');
   const userId = user?.id ?? null;
   const [activeMembershipId, setActiveMembershipId] = useState<string | null>(null);
+  const [publishedBusinessIds, setPublishedBusinessIds] = useState<Set<string>>(() => new Set());
   const [resolvedUserId, setResolvedUserId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -98,16 +101,21 @@ export function BusinessProvider({ children }: PropsWithChildren) {
   async function selectMembership(membershipId: string) {
     if (!user) throw new Error('İşletme seçmek için giriş yapmalısın.');
 
-    const membership = memberships.find((item) => item.id === membershipId);
-    if (!membership) throw new Error('Bu işletmede aktif bir üyeliğin bulunmuyor.');
+    await SecureStore.setItemAsync(getStorageKey(user.id), membershipId);
+    setActiveMembershipId(membershipId);
+  }
 
-    await SecureStore.setItemAsync(getStorageKey(user.id), membership.id);
-    setActiveMembershipId(membership.id);
+  function markBusinessPublished(barbershopId: string) {
+    setPublishedBusinessIds((current) => {
+      const next = new Set(current);
+      next.add(barbershopId);
+      return next;
+    });
   }
 
   return (
     <BusinessContext.Provider
-      value={{ activeMembership, can, isReady, memberships, selectMembership }}>
+      value={{ activeMembership, can, isReady, markBusinessPublished, memberships, publishedBusinessIds, selectMembership }}>
       {children}
     </BusinessContext.Provider>
   );

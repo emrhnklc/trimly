@@ -12,6 +12,7 @@ import { UpsertHaircutRecordDto } from './dto/upsert-haircut-record.dto';
 
 @Injectable()
 export class HaircutHistoryService {
+  private readonly businessPhotoUploadWindowMs = 60 * 1000;
   private readonly uploadsDirectory = resolve(process.cwd(), 'uploads');
   private readonly acceptedMimeTypes = new Map([
     ['image/jpeg', 'jpg'],
@@ -156,6 +157,15 @@ export class HaircutHistoryService {
       appointmentId,
       userId,
     );
+    if (
+      !appointment.completedAt ||
+      Date.now() >
+        appointment.completedAt.getTime() + this.businessPhotoUploadWindowMs
+    ) {
+      throw new BadRequestException(
+        'Fotoğraf ekleme süresi doldu. Tıraş notlarını güncellemeye devam edebilirsin.',
+      );
+    }
     const record = await this.prisma.haircutRecord.findUnique({
       where: { appointmentId: appointment.id },
       select: { finalizedAt: true, id: true },
@@ -179,7 +189,7 @@ export class HaircutHistoryService {
       );
     }
 
-    return this.storePhoto(record.id, file, true);
+    return this.storePhoto(record.id, file, 'BUSINESS');
   }
 
   async finalizeForAppointment(
@@ -233,7 +243,7 @@ export class HaircutHistoryService {
       throw new BadRequestException('Bu randevu için henüz tıraş kaydı yok.');
     }
 
-    return this.storePhoto(appointment.haircutRecord.id, file, false);
+    return this.storePhoto(appointment.haircutRecord.id, file, 'CUSTOMER');
   }
 
   async getPhotoForCustomer(
@@ -310,6 +320,7 @@ export class HaircutHistoryService {
       select: {
         id: true,
         status: true,
+        completedAt: true,
         businessMember: { select: { userId: true } },
       },
     });
@@ -345,7 +356,7 @@ export class HaircutHistoryService {
   private async storePhoto(
     haircutRecordId: string,
     file: Express.Multer.File | undefined,
-    finalizeRecord: boolean,
+    uploadedBy: 'BUSINESS' | 'CUSTOMER',
   ) {
     if (!file?.buffer) {
       throw new BadRequestException('Bir fotoğraf dosyası gönderilmelidir.');
@@ -368,18 +379,6 @@ export class HaircutHistoryService {
 
     try {
       return await this.prisma.$transaction(async (transaction) => {
-        if (finalizeRecord) {
-          const lockResult = await transaction.haircutRecord.updateMany({
-            where: { finalizedAt: null, id: haircutRecordId },
-            data: { finalizedAt: new Date() },
-          });
-          if (!lockResult.count) {
-            throw new ForbiddenException(
-              'Tamamlanan tıraş kaydına işletme tarafından fotoğraf eklenemez.',
-            );
-          }
-        }
-
         const photoCount = await transaction.haircutPhoto.count({
           where: { haircutRecordId },
         });
@@ -401,7 +400,7 @@ export class HaircutHistoryService {
             sizeBytes: file.size,
             sortOrder: (orderResult._max.sortOrder ?? -1) + 1,
             customerConsentConfirmedAt: new Date(),
-            uploadedBy: finalizeRecord ? 'BUSINESS' : 'CUSTOMER',
+            uploadedBy,
           },
           select: {
             id: true,

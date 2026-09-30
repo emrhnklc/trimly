@@ -7,12 +7,12 @@ import {
 } from 'class-validator';
 
 export class LoginDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'E-posta veya şifre hatalı.' })
   email: string;
 
-  @IsString()
-  @MinLength(8)
-  @MaxLength(72)
+  @IsString({ message: 'E-posta veya şifre hatalı.' })
+  @MinLength(8, { message: 'E-posta veya şifre hatalı.' })
+  @MaxLength(72, { message: 'E-posta veya şifre hatalı.' })
   password: string;
 
   @IsOptional()

@@ -1,7 +1,8 @@
 export type AppNotificationType =
   | 'NEW_APPOINTMENT'
   | 'APPOINTMENT_REMINDER'
-  | 'PORTFOLIO_CONSENT_REQUEST';
+  | 'PORTFOLIO_CONSENT_REQUEST'
+  | 'APPOINTMENT_CHANGE_PROPOSAL';
 
 export type AppNotification = {
   id: string;

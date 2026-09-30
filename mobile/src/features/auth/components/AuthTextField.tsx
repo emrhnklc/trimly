@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type AuthTextFieldProps = TextInputProps & {
   icon: SymbolViewProps['name'];
@@ -21,16 +21,20 @@ export function AuthTextField({
   style,
   ...props
 }: AuthTextFieldProps) {
+  const colors = useThemeColors();
   const [isPasswordVisible, setPasswordVisible] = useState(false);
   return (
     <View style={styles.field}>
       <AppText variant="label">{label}</AppText>
-      <View style={styles.inputShell}>
+      <View style={[
+        styles.inputShell,
+        { backgroundColor: colors.background, borderColor: colors.border },
+      ]}>
         <SymbolView name={icon} size={19} tintColor={colors.textMuted} />
         <TextInput
           placeholderTextColor={colors.textMuted}
           selectionColor={colors.primary}
-          style={[styles.input, style]}
+          style={[styles.input, { color: colors.text }, style]}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           {...props}
         />
@@ -61,8 +65,6 @@ const styles = StyleSheet.create({
   field: { marginTop: spacing.sm },
   inputShell: {
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderColor: colors.border,
     borderRadius: radius.smallCard,
     borderWidth: 1,
     flexDirection: 'row',
@@ -70,7 +72,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   input: {
-    color: colors.text,
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,

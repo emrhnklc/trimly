@@ -11,8 +11,8 @@ import {
 import type { FavoriteStyle } from '@/features/favorites/types';
 import type { CustomerHaircutRecord } from '@/features/haircut-history/types';
 import { resolveApiUrl } from '@/lib/api/client';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type StyleTab = 'favorites' | 'mine';
 
@@ -25,8 +25,13 @@ export function ProfileSavedStyles({
   favoriteStyles: FavoriteStyle[];
   records: CustomerHaircutRecord[];
 }) {
+  const colors = useThemeColors();
   const [activeTab, setActiveTab] = useState<StyleTab>('favorites');
   const [viewer, setViewer] = useState<{ images: FullscreenImage[]; index: number } | null>(null);
+  const recordsWithPhotos = useMemo(
+    () => records.filter((record) => record.photos.length > 0),
+    [records],
+  );
   const favoriteImages = useMemo(
     () => favoriteStyles.map((style) => ({
       id: style.photo.id,
@@ -38,9 +43,9 @@ export function ProfileSavedStyles({
 
   return (
     <View style={styles.container}>
-      <View accessibilityRole="tablist" style={styles.segmentedControl}>
+      <View accessibilityRole="tablist" style={[styles.segmentedControl, { backgroundColor: colors.surfaceMuted }]}>
         <TabButton active={activeTab === 'favorites'} count={favoriteStyles.length} label="Beğendiklerim" onPress={() => setActiveTab('favorites')} />
-        <TabButton active={activeTab === 'mine'} count={records.length} label="Kendi Stillerim" onPress={() => setActiveTab('mine')} />
+        <TabButton active={activeTab === 'mine'} count={recordsWithPhotos.length} label="Kendi Stillerim" onPress={() => setActiveTab('mine')} />
       </View>
 
       {activeTab === 'favorites' ? (
@@ -53,9 +58,9 @@ export function ProfileSavedStyles({
         ) : (
           <EmptyState description="İşletme galerilerinde kalbe dokunduğun stiller burada görünür." title="Henüz beğendiğin stil yok" />
         )
-      ) : records.length ? (
+      ) : recordsWithPhotos.length ? (
         <View style={styles.grid}>
-          {records.map((record) => {
+          {recordsWithPhotos.map((record) => {
             const images = record.photos.map((photo, index) => ({
               id: photo.id,
               label: `${record.styleName ?? record.appointment.serviceNameSnapshot} fotoğrafı ${index + 1}`,
@@ -84,14 +89,15 @@ export function ProfileSavedStyles({
 }
 
 function TabButton({ active, count, label, onPress }: { active: boolean; count: number; label: string; onPress: () => void }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.tab, active && { backgroundColor: colors.primary }, pressed && styles.pressed]}>
       <AppText color={active ? 'onPrimary' : 'textMuted'} variant="label">{label}</AppText>
-      <View style={styles.countBadge}>
+      <View style={[styles.countBadge, { backgroundColor: colors.surface }]}>
         <AppText color={active ? 'primary' : 'textMuted'} variant="bodySmall">{count}</AppText>
       </View>
     </Pressable>
@@ -99,6 +105,7 @@ function TabButton({ active, count, label, onPress }: { active: boolean; count: 
 }
 
 function StyleCard({ image, label, onPress }: { image?: FullscreenImage; label: string; onPress?: () => void }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       accessibilityLabel={image ? `${label} fotoğrafını tam ekran aç` : `${label}, fotoğraf yok`}
@@ -109,7 +116,7 @@ function StyleCard({ image, label, onPress }: { image?: FullscreenImage; label: 
       {image ? (
         <Image contentFit="cover" source={image.source} style={styles.image} transition={180} />
       ) : (
-        <View style={[styles.image, styles.placeholder]}>
+        <View style={[styles.image, styles.placeholder, { backgroundColor: colors.surfaceMuted }]}>
           <SymbolView name={{ ios: 'scissors', android: 'content_cut', web: 'content_cut' }} size={30} tintColor={colors.primary} />
         </View>
       )}
@@ -119,9 +126,10 @@ function StyleCard({ image, label, onPress }: { image?: FullscreenImage; label: 
 }
 
 function EmptyState({ description, title }: { description: string; title: string }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.emptyState}>
-      <View style={styles.emptyIcon}>
+    <View style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceMuted }]}>
         <SymbolView name={{ ios: 'photo.stack', android: 'photo_library', web: 'photo_library' }} size={23} tintColor={colors.primary} />
       </View>
       <View style={styles.emptyCopy}>
@@ -135,7 +143,6 @@ function EmptyState({ description, title }: { description: string; title: string
 const styles = StyleSheet.create({
   container: { marginTop: spacing.lg },
   segmentedControl: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     flexDirection: 'row',
     marginBottom: spacing.lg,
@@ -150,10 +157,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
   },
-  activeTab: { backgroundColor: colors.darkSurface },
   countBadge: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
     borderRadius: radius.pill,
     justifyContent: 'center',
     minHeight: 22,
@@ -165,14 +170,11 @@ const styles = StyleSheet.create({
   image: { aspectRatio: 0.92, borderRadius: radius.md, width: '100%' },
   placeholder: {
     alignItems: 'center',
-    backgroundColor: colors.darkSurface,
     justifyContent: 'center',
   },
   name: { marginTop: spacing.xs, paddingHorizontal: 2 },
   emptyState: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -180,7 +182,6 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.pill,
     height: 44,
     justifyContent: 'center',

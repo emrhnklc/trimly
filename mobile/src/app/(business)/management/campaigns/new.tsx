@@ -20,6 +20,7 @@ import type {
   CampaignRewardType,
   CampaignType,
 } from '@/features/campaigns/types';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { radius, layout, spacing } from '@/theme/spacing';
 import { useThemeColors } from '@/theme/useThemeColors';
 
@@ -119,7 +120,10 @@ export default function NewCampaignScreen() {
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <BusinessDetailHeader onBack={() => router.dismissTo('/management/campaigns')} title="Yeni Kampanya" />
+          <BusinessDetailHeader
+            onBack={() => goBackOrReplace(router, '/(business)/management/campaigns')}
+            title="Yeni Kampanya"
+          />
 
           <Section title="Kampanya bilgileri">
             <Field label="Başlık" value={title} onChangeText={setTitle} placeholder="Örn. Hafta İçi Fırsatı" />

@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import type { MemberScheduleBlock } from '@/features/schedules/types';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 import { formatScheduleBlockDateRange } from '../date';
 
 export function ScheduleBlockCard({
@@ -16,11 +16,15 @@ export function ScheduleBlockCard({
   onDelete: () => void;
   timeZone: string;
 }) {
+  const colors = useThemeColors();
   const isBreak = block.type === 'BREAK';
 
   return (
-    <View style={styles.card}>
-      <View style={[styles.iconShell, !isBreak && styles.timeOffIcon]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[
+        styles.iconShell,
+        { backgroundColor: isBreak ? colors.background : colors.surfaceMuted },
+      ]}>
         <SymbolView
           name={isBreak
             ? { ios: 'cup.and.saucer', android: 'free_breakfast', web: 'free_breakfast' }
@@ -59,8 +63,6 @@ export function ScheduleBlockCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.card,
     borderWidth: 1,
     flexDirection: 'row',
@@ -69,13 +71,11 @@ const styles = StyleSheet.create({
   },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: '#F7E9C5',
     borderRadius: radius.md,
     height: 48,
     justifyContent: 'center',
     width: 48,
   },
-  timeOffIcon: { backgroundColor: colors.surfaceMuted },
   copy: { flex: 1, marginHorizontal: spacing.sm, minWidth: 0 },
   range: { marginTop: 2 },
   note: { marginTop: spacing.xs },

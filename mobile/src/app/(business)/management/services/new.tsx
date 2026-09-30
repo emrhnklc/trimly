@@ -11,6 +11,7 @@ import {
 } from '@/features/business-services/components/ServiceForm';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
+import { goBackOrReplace } from '@/lib/navigation/goBackOrReplace';
 import { layout } from '@/theme/spacing';
 
 export default function NewManagementServiceScreen() {
@@ -57,7 +58,7 @@ export default function NewManagementServiceScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <BusinessDetailHeader
-            onBack={() => router.dismissTo('/management/services')}
+            onBack={() => goBackOrReplace(router, '/(business)/management/services')}
             title="Yeni Hizmet"
           />
           <ServiceForm

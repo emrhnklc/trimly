@@ -2,8 +2,8 @@ import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
-import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { useThemeColors } from '@/theme/useThemeColors';
 
 type RegistrationIntentCardProps = {
   description: string;
@@ -20,6 +20,8 @@ export function RegistrationIntentCard({
   onPress,
   title,
 }: RegistrationIntentCardProps) {
+  const colors = useThemeColors();
+
   return (
     <Pressable
       accessibilityRole="radio"
@@ -27,10 +29,17 @@ export function RegistrationIntentCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        isSelected && styles.selectedCard,
+        {
+          backgroundColor: isSelected ? colors.surfaceMuted : colors.surface,
+          borderColor: isSelected ? colors.primary : colors.border,
+          borderWidth: isSelected ? 1.5 : 1,
+        },
         pressed && styles.pressed,
       ]}>
-      <View style={[styles.iconShell, isSelected && styles.selectedIconShell]}>
+      <View style={[
+        styles.iconShell,
+        { backgroundColor: isSelected ? colors.primary : colors.background },
+      ]}>
         <SymbolView name={icon} size={23} tintColor={isSelected ? colors.onPrimary : colors.primary} />
       </View>
       <View style={styles.copy}>
@@ -39,8 +48,8 @@ export function RegistrationIntentCard({
           {description}
         </AppText>
       </View>
-      <View style={[styles.radio, isSelected && styles.selectedRadio]}>
-        {isSelected ? <View style={styles.radioDot} /> : null}
+      <View style={[styles.radio, { borderColor: isSelected ? colors.primary : colors.border }]}>
+        {isSelected ? <View style={[styles.radioDot, { backgroundColor: colors.primary }]} /> : null}
       </View>
     </Pressable>
   );
@@ -49,41 +58,30 @@ export function RegistrationIntentCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 94,
     padding: spacing.md,
   },
-  selectedCard: {
-    backgroundColor: '#FCF5E6',
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
   pressed: { opacity: 0.76 },
   iconShell: {
     alignItems: 'center',
-    backgroundColor: colors.background,
     borderRadius: radius.md,
     height: 48,
     justifyContent: 'center',
     width: 48,
   },
-  selectedIconShell: { backgroundColor: colors.primary },
   copy: { flex: 1, marginHorizontal: spacing.md },
   title: { fontSize: 15, lineHeight: 20 },
   description: { lineHeight: 18, marginTop: spacing.xxs },
   radio: {
     alignItems: 'center',
-    borderColor: colors.border,
     borderRadius: radius.pill,
     borderWidth: 1.5,
     height: 22,
     justifyContent: 'center',
     width: 22,
   },
-  selectedRadio: { borderColor: colors.primary },
-  radioDot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 12, width: 12 },
+  radioDot: { borderRadius: radius.pill, height: 12, width: 12 },
 });

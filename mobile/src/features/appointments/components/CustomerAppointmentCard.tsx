@@ -77,7 +77,9 @@ export function CustomerAppointmentCard({
             {appointment.barbershop.name}
           </AppText>
           <AppText color="textMuted" numberOfLines={1} style={styles.employee} variant="bodySmall">
-            {barberName}
+            {appointment.dependentProfileId
+              ? `${appointment.attendeeNameSnapshot} · ${barberName}`
+              : barberName}
           </AppText>
           <View style={styles.metaRow}>
             <SymbolView

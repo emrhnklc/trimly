@@ -3,9 +3,11 @@ import { SymbolView } from "expo-symbols";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 
@@ -20,8 +22,16 @@ import {
 import { BookingTimePicker } from "@/features/appointments/components/BookingTimePicker";
 import type { BusinessAppointmentDetail } from "@/features/appointments/types";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { getAvailability } from "@/features/barbershops/api";
-import type { AvailabilitySlot } from "@/features/barbershops/types";
+import {
+  getActiveServices,
+  getAvailability,
+  getBookableBarbers,
+} from "@/features/barbershops/api";
+import type {
+  AvailabilitySlot,
+  BookableBarber,
+  PublicService,
+} from "@/features/barbershops/types";
 import { useBusiness } from "@/features/business/BusinessProvider";
 import { getDateKey } from "@/features/business-appointments/date";
 import { DatePickerModal } from "@/features/business-hours/components/DatePickerModal";
@@ -29,8 +39,17 @@ import { formatDateKey } from "@/features/business-hours/date";
 import { BusinessDetailHeader } from "@/features/business/components/BusinessDetailHeader";
 import { colors } from "@/theme/colors";
 import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
+
+const changeReasons = [
+  "Çalışan programı değişti",
+  "Randevu saati uygun değil",
+  "Hizmet planı değişti",
+  "Müşteri talebi",
+] as const;
 
 export default function BusinessAppointmentRescheduleScreen() {
+  const themeColors = useThemeColors();
   const router = useRouter();
   const { appointmentId } = useLocalSearchParams<{ appointmentId?: string }>();
   const { token } = useAuth();
@@ -38,11 +57,16 @@ export default function BusinessAppointmentRescheduleScreen() {
   const [appointment, setAppointment] =
     useState<BusinessAppointmentDetail | null>(null);
   const [date, setDate] = useState("");
+  const [services, setServices] = useState<PublicService[]>([]);
+  const [members, setMembers] = useState<BookableBarber[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedMemberId, setSelectedMemberId] = useState("");
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [selectedHour, setSelectedHour] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(
     null,
   );
+  const [reason, setReason] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [isLoadingSlots, setLoadingSlots] = useState(false);
@@ -53,7 +77,12 @@ export default function BusinessAppointmentRescheduleScreen() {
   const today = getDateKey(new Date(), timeZone);
 
   const loadSlots = useCallback(
-    async (nextAppointment: BusinessAppointmentDetail, nextDate: string) => {
+    async (
+      nextAppointment: BusinessAppointmentDetail,
+      nextDate: string,
+      memberId: string,
+      serviceId: string,
+    ) => {
       setLoadingSlots(true);
       setError(null);
       setSelectedHour(null);
@@ -64,8 +93,8 @@ export default function BusinessAppointmentRescheduleScreen() {
 
         const result = await getAvailability(
           nextAppointment.barbershop.id,
-          nextAppointment.businessMember.id,
-          nextAppointment.serviceId,
+          memberId,
+          serviceId,
           nextDate,
           token,
         );
@@ -94,19 +123,32 @@ export default function BusinessAppointmentRescheduleScreen() {
     setLoading(true);
     setError(null);
     try {
-      const result = await getBusinessAppointment(
-        activeMembership.barbershop.id,
-        appointmentId,
-        token,
-      );
+      const [result, serviceResult, memberResult] = await Promise.all([
+        getBusinessAppointment(
+          activeMembership.barbershop.id,
+          appointmentId,
+          token,
+        ),
+        getActiveServices(activeMembership.barbershop.id, token),
+        getBookableBarbers(activeMembership.barbershop.id, token),
+      ]);
       const appointmentDate = getDateKey(
         new Date(result.startsAt),
         result.barbershop.timezone,
       );
       const initialDate = appointmentDate < today ? today : appointmentDate;
       setAppointment(result);
+      setServices(serviceResult);
+      setMembers(memberResult);
+      setSelectedServiceId(result.serviceId);
+      setSelectedMemberId(result.businessMember.id);
       setDate(initialDate);
-      await loadSlots(result, initialDate);
+      await loadSlots(
+        result,
+        initialDate,
+        result.businessMember.id,
+        result.serviceId,
+      );
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -125,7 +167,15 @@ export default function BusinessAppointmentRescheduleScreen() {
   );
 
   async function submit() {
-    if (!appointment || !appointmentId || !token || !selectedSlot) return;
+    const trimmedReason = reason.trim();
+    if (
+      !appointment ||
+      !appointmentId ||
+      !token ||
+      !selectedSlot ||
+      trimmedReason.length < 3
+    )
+      return;
 
     setSubmitting(true);
     setError(null);
@@ -135,13 +185,20 @@ export default function BusinessAppointmentRescheduleScreen() {
         appointmentId,
         selectedSlot.startsAt,
         token,
+        trimmedReason,
+        selectedMemberId,
+        selectedServiceId,
       );
-      router.back();
+      Alert.alert(
+        "Teklif gönderildi",
+        "Randevu, müşteri kabul edene kadar eski tarihinde kalacak.",
+        [{ onPress: () => router.back(), text: "Tamam" }],
+      );
     } catch (reason) {
       setError(
         reason instanceof Error
           ? reason.message
-          : "Randevu yeniden planlanamadı.",
+            : "Değişiklik teklifi gönderilemedi.",
       );
     } finally {
       setSubmitting(false);
@@ -153,7 +210,7 @@ export default function BusinessAppointmentRescheduleScreen() {
       <View style={styles.header}>
         <BusinessDetailHeader
           onBack={() => router.back()}
-          title="Yeniden Planla"
+          title="Değişiklik Teklifi"
         />
       </View>
 
@@ -171,7 +228,7 @@ export default function BusinessAppointmentRescheduleScreen() {
               Randevu
             </AppText>
             <AppText style={styles.customerName} variant="heading">
-              {appointment.customer.firstName} {appointment.customer.lastName}
+              {appointment.attendeeNameSnapshot}
             </AppText>
             <AppText
               color="textMuted"
@@ -181,7 +238,109 @@ export default function BusinessAppointmentRescheduleScreen() {
               {appointment.serviceNameSnapshot} · {appointment.durationMinutes}{" "}
               dk
             </AppText>
+            <AppText color="textMuted" style={styles.proposalNote} variant="bodySmall">
+              Seçtiğin yeni saat müşteriye teklif edilir; kabul edilene kadar mevcut randevu korunur.
+            </AppText>
           </AppCard>
+
+          <AppText style={styles.sectionTitle} variant="heading">
+            Hizmet
+          </AppText>
+          <ScrollView
+            contentContainerStyle={styles.choiceList}
+            horizontal
+            showsHorizontalScrollIndicator={false}>
+            {services.map((service) => {
+              const selected = service.id === selectedServiceId;
+              return (
+                <Pressable
+                  key={service.id}
+                  onPress={() => {
+                    const compatibleMembers = members.filter((member) =>
+                      member.serviceAssignments.some(
+                        (assignment) => assignment.service.id === service.id,
+                      ),
+                    );
+                    const nextMemberId = compatibleMembers.some(
+                      (member) => member.id === selectedMemberId,
+                    )
+                      ? selectedMemberId
+                      : (compatibleMembers[0]?.id ?? "");
+                    setSelectedServiceId(service.id);
+                    setSelectedMemberId(nextMemberId);
+                    if (nextMemberId) {
+                      void loadSlots(appointment, date, nextMemberId, service.id);
+                    } else {
+                      setSlots([]);
+                      setError("Bu hizmete atanmış randevuya açık çalışan yok.");
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.choiceChip,
+                    {
+                      backgroundColor: selected
+                        ? themeColors.primary
+                        : themeColors.surface,
+                      borderColor: selected
+                        ? themeColors.primary
+                        : themeColors.border,
+                    },
+                    pressed && styles.pressed,
+                  ]}>
+                  <AppText color={selected ? "onPrimary" : "text"} variant="label">
+                    {service.name} · ₺{service.price}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <AppText style={styles.sectionTitle} variant="heading">
+            Çalışan
+          </AppText>
+          <ScrollView
+            contentContainerStyle={styles.choiceList}
+            horizontal
+            showsHorizontalScrollIndicator={false}>
+            {members
+              .filter((member) =>
+                member.serviceAssignments.some(
+                  (assignment) => assignment.service.id === selectedServiceId,
+                ),
+              )
+              .map((member) => {
+                const selected = member.id === selectedMemberId;
+                return (
+                  <Pressable
+                    key={member.id}
+                    onPress={() => {
+                      setSelectedMemberId(member.id);
+                      void loadSlots(
+                        appointment,
+                        date,
+                        member.id,
+                        selectedServiceId,
+                      );
+                    }}
+                    style={({ pressed }) => [
+                      styles.choiceChip,
+                      {
+                        backgroundColor: selected
+                          ? themeColors.primary
+                          : themeColors.surface,
+                        borderColor: selected
+                          ? themeColors.primary
+                          : themeColors.border,
+                      },
+                      pressed && styles.pressed,
+                    ]}>
+                    <AppText color={selected ? "onPrimary" : "text"} variant="label">
+                      {member.user.firstName} {member.user.lastName}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+          </ScrollView>
 
           <AppText style={styles.sectionTitle} variant="heading">
             Yeni tarih
@@ -235,6 +394,67 @@ export default function BusinessAppointmentRescheduleScreen() {
             />
           )}
 
+          <AppText style={styles.sectionTitle} variant="heading">
+            Değişiklik açıklaması
+          </AppText>
+          <AppText color="textMuted" style={styles.reasonHelp} variant="bodySmall">
+            Bu açıklama müşteriye gösterilecek ve teklif geçmişinde saklanacak.
+          </AppText>
+          <ScrollView
+            contentContainerStyle={styles.choiceList}
+            horizontal
+            keyboardShouldPersistTaps="handled"
+            showsHorizontalScrollIndicator={false}
+          >
+            {changeReasons.map((item) => {
+              const selected = reason === item;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  key={item}
+                  onPress={() => setReason(item)}
+                  style={({ pressed }) => [
+                    styles.choiceChip,
+                    {
+                      backgroundColor: selected
+                        ? themeColors.primary
+                        : themeColors.surface,
+                      borderColor: selected
+                        ? themeColors.primary
+                        : themeColors.border,
+                    },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <AppText color={selected ? "onPrimary" : "text"} variant="bodySmall">
+                    {item}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <TextInput
+            editable={!isSubmitting}
+            maxLength={500}
+            multiline
+            onChangeText={setReason}
+            placeholder="Değişikliğin nedenini yaz…"
+            placeholderTextColor={themeColors.textMuted}
+            style={[
+              styles.reasonInput,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+                color: themeColors.text,
+              },
+            ]}
+            textAlignVertical="top"
+            value={reason}
+          />
+          <AppText color="textMuted" style={styles.reasonCounter} variant="bodySmall">
+            {reason.length}/500
+          </AppText>
+
           {error ? (
             <View style={styles.errorBox}>
               <AppText color="danger" variant="bodySmall">
@@ -245,10 +465,10 @@ export default function BusinessAppointmentRescheduleScreen() {
 
           <View style={styles.submitButton}>
             <AppButton
-              disabled={!selectedSlot || isSubmitting}
+              disabled={!selectedSlot || reason.trim().length < 3 || isSubmitting}
               onPress={() => void submit()}
             >
-              {isSubmitting ? "Güncelleniyor…" : "Yeni Saati Onayla"}
+              {isSubmitting ? "Gönderiliyor…" : "Müşteriye Teklif Gönder"}
             </AppButton>
           </View>
         </ScrollView>
@@ -262,7 +482,14 @@ export default function BusinessAppointmentRescheduleScreen() {
           onSelect={(value) => {
             setDate(value);
             setShowDatePicker(false);
-            if (appointment) void loadSlots(appointment, value);
+            if (appointment && selectedMemberId && selectedServiceId) {
+              void loadSlots(
+                appointment,
+                value,
+                selectedMemberId,
+                selectedServiceId,
+              );
+            }
           }}
           value={date}
         />
@@ -278,6 +505,26 @@ const styles = StyleSheet.create({
   summaryCard: { marginTop: spacing.md, padding: spacing.md },
   customerName: { fontSize: 18, lineHeight: 24, marginTop: 2 },
   serviceName: { marginTop: 3 },
+  proposalNote: { lineHeight: 18, marginTop: spacing.sm },
+  reasonHelp: { lineHeight: 18, marginBottom: spacing.sm },
+  reasonInput: {
+    borderRadius: radius.smallCard,
+    borderWidth: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: spacing.sm,
+    minHeight: 96,
+    padding: spacing.md,
+  },
+  reasonCounter: { marginTop: spacing.xxs, textAlign: "right" },
+  choiceList: { gap: spacing.xs, paddingRight: spacing.md },
+  choiceChip: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
   sectionTitle: {
     fontSize: 17,
     lineHeight: 23,

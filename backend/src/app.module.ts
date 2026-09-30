@@ -21,6 +21,7 @@ import { PortfolioModule } from './modules/portfolio/portfolio.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { CampaignsModule } from './modules/campaigns/campaigns.module';
+import { DependentsModule } from './modules/dependents/dependents.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { CampaignsModule } from './modules/campaigns/campaigns.module';
     ReviewsModule,
     LocationsModule,
     CampaignsModule,
+    DependentsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

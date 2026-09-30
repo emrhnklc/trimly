@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { BrandedPageHeader } from '@/components/ui/BrandedPageHeader';
 import { Screen } from '@/components/ui/Screen';
 import { BarbershopPreviewCard } from '@/features/barbershops/components/BarbershopPreviewCard';
+import {
+  BarbershopFilterSheet,
+  type DetailedDiscoveryFilters,
+} from '@/features/barbershops/components/BarbershopFilterSheet';
 import {
   BarbershopDiscoveryFilters,
   type DiscoveryFilter,
@@ -14,17 +18,28 @@ import {
 import { BarbershopSearch } from '@/features/barbershops/components/BarbershopSearch';
 import { getPublicBarbershops } from '@/features/barbershops/api';
 import type { PublicBarbershop } from '@/features/barbershops/types';
+import { useAuth } from '@/features/auth/AuthProvider';
+import {
+  addFavoriteBarbershop,
+  getFavoriteBarbershops,
+  removeFavoriteBarbershop,
+} from '@/features/favorites/api';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 
 export default function BarbershopDiscoveryScreen() {
   const router = useRouter();
+  const { token } = useAuth();
   const { filter } = useLocalSearchParams<{ filter?: string }>();
   const [barbershops, setBarbershops] = useState<PublicBarbershop[]>([]);
   const [searchText, setSearchText] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<DiscoveryFilter>('featured');
-  const [showFilters, setShowFilters] = useState(true);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [districtFilter, setDistrictFilter] = useState<string | null>(null);
+  const [serviceFilter, setServiceFilter] = useState<string | null>(null);
+  const [teamOnly, setTeamOnly] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,31 +97,79 @@ export default function BarbershopDiscoveryScreen() {
     return () => clearTimeout(requestId);
   }, [changeFilter, filter, loadBarbershops]);
 
+  useEffect(() => {
+    if (!token) return;
+    let isActive = true;
+    void getFavoriteBarbershops(token)
+      .then((favorites) => {
+        if (isActive) setFavoriteIds(favorites.map(({ barbershop }) => barbershop.id));
+      })
+      .catch(() => undefined);
+    return () => {
+      isActive = false;
+    };
+  }, [token]);
+
+  const districtOptions = useMemo(
+    () => [...new Set(
+      barbershops
+        .map(({ address }) => getDistrict(address))
+        .filter((district): district is string => Boolean(district)),
+    )].sort((first, second) => first.localeCompare(second, 'tr')),
+    [barbershops],
+  );
+  const serviceOptions = useMemo(
+    () => [...new Set(barbershops.flatMap(({ serviceNames }) => serviceNames ?? []))]
+      .sort((first, second) => first.localeCompare(second, 'tr')),
+    [barbershops],
+  );
+
   const displayedBarbershops = useMemo(() => {
+    const filtered = barbershops.filter((barbershop) => {
+      if (districtFilter && getDistrict(barbershop.address) !== districtFilter) return false;
+      if (serviceFilter && !barbershop.serviceNames?.includes(serviceFilter)) return false;
+      if (teamOnly && (barbershop.members?.length ?? 0) < 2) return false;
+      return true;
+    });
+
     if (activeFilter === 'popular') {
-      return [...barbershops].sort((first, second) => second.ratingCount - first.ratingCount);
+      return [...filtered].sort((first, second) => second.ratingCount - first.ratingCount);
     }
 
     if (activeFilter === 'new') {
-      return [...barbershops].sort((first, second) => {
+      return [...filtered].sort((first, second) => {
         const firstCreatedAt = first.createdAt ? Date.parse(first.createdAt) : 0;
         const secondCreatedAt = second.createdAt ? Date.parse(second.createdAt) : 0;
         return secondCreatedAt - firstCreatedAt;
       });
     }
 
-    return barbershops;
-  }, [activeFilter, barbershops]);
+    return filtered;
+  }, [activeFilter, barbershops, districtFilter, serviceFilter, teamOnly]);
 
-  const sectionTitle = submittedSearch
-    ? `“${submittedSearch}” sonuçları`
-    : activeFilter === 'nearby'
-      ? 'Yakınındaki İşletmeler'
-      : activeFilter === 'popular'
-        ? 'Popüler İşletmeler'
-        : activeFilter === 'new'
-          ? 'Yeni İşletmeler'
-          : 'Öne Çıkan İşletmeler';
+  async function toggleFavorite(barbershopId: string) {
+    if (!token) return;
+    const wasFavorite = favoriteIds.includes(barbershopId);
+    setFavoriteIds((current) =>
+      wasFavorite ? current.filter((id) => id !== barbershopId) : [...current, barbershopId],
+    );
+    try {
+      if (wasFavorite) await removeFavoriteBarbershop(barbershopId, token);
+      else await addFavoriteBarbershop(barbershopId, token);
+    } catch {
+      setFavoriteIds((current) =>
+        wasFavorite ? [...new Set([...current, barbershopId])] : current.filter((id) => id !== barbershopId),
+      );
+    }
+  }
+
+  function applyDetailedFilters(filters: DetailedDiscoveryFilters) {
+    setDistrictFilter(filters.district);
+    setServiceFilter(filters.service);
+    setTeamOnly(filters.teamOnly);
+    setIsFilterOpen(false);
+    void changeFilter(filters.sort);
+  }
 
   return (
     <Screen>
@@ -118,9 +181,7 @@ export default function BarbershopDiscoveryScreen() {
         keyboardShouldPersistTaps="handled"
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          isLoading ? (
-            <ActivityIndicator color={colors.primary} style={styles.loader} />
-          ) : (
+          isLoading ? null : (
             <View style={styles.emptyState}>
               <AppText style={styles.emptyTitle} variant="heading">
                 {error ? 'Bir sorun oluştu' : 'İşletme bulunamadı'}
@@ -139,17 +200,14 @@ export default function BarbershopDiscoveryScreen() {
             />
             <BarbershopSearch
               onChangeText={setSearchText}
-              onFilterPress={() => setShowFilters((current) => !current)}
+              onFilterPress={() => setIsFilterOpen(true)}
               onSubmit={submitSearch}
               value={searchText}
             />
-            {showFilters ? (
-              <View style={styles.filters}>
-                <BarbershopDiscoveryFilters activeFilter={activeFilter} onChange={(filter) => void changeFilter(filter)} />
-              </View>
-            ) : null}
+            <View style={styles.filters}>
+              <BarbershopDiscoveryFilters activeFilter={activeFilter} onChange={(filter) => void changeFilter(filter)} />
+            </View>
             <View style={styles.resultsHeader}>
-              <AppText variant="heading">{sectionTitle}</AppText>
               {!isLoading ? (
                 <AppText color="primary" variant="bodySmall">{displayedBarbershops.length} sonuç</AppText>
               ) : null}
@@ -167,10 +225,22 @@ export default function BarbershopDiscoveryScreen() {
         renderItem={({ item }) => (
           <BarbershopPreviewCard
             barbershop={item}
+            isFavorite={favoriteIds.includes(item.id)}
+            onFavoritePress={() => void toggleFavorite(item.id)}
             onPress={() => router.push(`/barbers/${item.slug}`)}
           />
         )}
       />
+      {isFilterOpen ? (
+        <BarbershopFilterSheet
+          districts={districtOptions}
+          onApply={applyDetailedFilters}
+          onClose={() => setIsFilterOpen(false)}
+          services={serviceOptions}
+          value={{ district: districtFilter, service: serviceFilter, sort: activeFilter, teamOnly }}
+          visible
+        />
+      ) : null}
     </Screen>
   );
 }
@@ -181,9 +251,9 @@ const styles = StyleSheet.create({
   resultsHeader: {
     alignItems: 'baseline',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     marginBottom: spacing.md,
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
   },
   separator: { height: spacing.sm },
   loader: { marginTop: spacing.xxl },
@@ -192,3 +262,11 @@ const styles = StyleSheet.create({
   emptyDescription: { marginTop: spacing.xs, textAlign: 'center' },
   locationError: { marginBottom: spacing.sm, textAlign: 'center' },
 });
+
+function getDistrict(address: string | null) {
+  if (!address) return null;
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 3) return parts.at(-2) ?? null;
+  if (parts.length === 2) return parts.at(-1) ?? null;
+  return parts[0] ?? null;
+}
