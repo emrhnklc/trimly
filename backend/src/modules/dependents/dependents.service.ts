@@ -4,7 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AppointmentStatus, Prisma } from '@prisma/client';
+import {
+  AppointmentStatus,
+  DependentRelationship,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateDependentProfileDto } from './dto/create-dependent-profile.dto';
 import { UpdateDependentProfileDto } from './dto/update-dependent-profile.dto';
@@ -14,6 +18,7 @@ const dependentProfileSelect = {
   firstName: true,
   lastName: true,
   relationship: true,
+  relationshipLabel: true,
   birthDate: true,
   notes: true,
   createdAt: true,
@@ -52,12 +57,17 @@ export class DependentsService {
     }
 
     const birthDate = this.parseBirthDate(dto.birthDate);
+    const relationshipLabel = this.resolveRelationshipLabel(
+      dto.relationship,
+      dto.relationshipLabel,
+    );
     return this.prisma.dependentProfile.create({
       data: {
         ownerId,
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
         relationship: dto.relationship,
+        relationshipLabel,
         birthDate,
         notes: dto.notes?.trim() || null,
       },
@@ -70,7 +80,12 @@ export class DependentsService {
     dependentId: string,
     dto: UpdateDependentProfileDto,
   ) {
-    await this.findOne(ownerId, dependentId);
+    const dependent = await this.findOne(ownerId, dependentId);
+    const relationship = dto.relationship ?? dependent.relationship;
+    const relationshipLabel = this.resolveRelationshipLabel(
+      relationship,
+      dto.relationshipLabel ?? dependent.relationshipLabel ?? undefined,
+    );
     return this.prisma.dependentProfile.update({
       where: { id: dependentId },
       data: {
@@ -79,6 +94,7 @@ export class DependentsService {
         ...(dto.relationship !== undefined && {
           relationship: dto.relationship,
         }),
+        relationshipLabel,
         ...(dto.birthDate !== undefined && {
           birthDate: this.parseBirthDate(dto.birthDate),
         }),
@@ -136,5 +152,19 @@ export class DependentsService {
       throw new BadRequestException('Geçerli bir doğum tarihi girilmelidir.');
     }
     return birthDate;
+  }
+
+  private resolveRelationshipLabel(
+    relationship: DependentRelationship,
+    value?: string,
+  ) {
+    if (relationship !== DependentRelationship.DEPENDENT) return null;
+    const relationshipLabel = value?.trim();
+    if (!relationshipLabel || relationshipLabel.length < 2) {
+      throw new BadRequestException(
+        'Diğer yakınlık türü için yakınlık adı girilmelidir.',
+      );
+    }
+    return relationshipLabel;
   }
 }

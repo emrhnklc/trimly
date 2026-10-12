@@ -30,11 +30,6 @@ import { BarbershopInfoCard } from "@/features/barbershops/components/Barbershop
 import { BarbershopServiceTags } from "@/features/barbershops/components/BarbershopServiceTags";
 import type { PublicBarbershopDetail } from "@/features/barbershops/types";
 import { useAuth } from "@/features/auth/AuthProvider";
-import {
-  addFavoriteBarbershop,
-  getFavoriteBarbershops,
-  removeFavoriteBarbershop,
-} from "@/features/favorites/api";
 import { layout, spacing } from "@/theme/spacing";
 import { useThemeColors } from "@/theme/useThemeColors";
 import { isApiErrorCode } from "@/lib/api/client";
@@ -44,6 +39,8 @@ import { CampaignCard } from "@/features/campaigns/components/CampaignCard";
 import type { Campaign } from "@/features/campaigns/types";
 
 export default function BarbershopProfileScreen() {
+  const [showAllServices, setShowAllServices] = useState(false);
+  const [showAllTeam, setShowAllTeam] = useState(false);
   const router = useRouter();
   const themeColors = useThemeColors();
   const { token } = useAuth();
@@ -53,9 +50,6 @@ export default function BarbershopProfileScreen() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
   const [hasBookingAccess, setHasBookingAccess] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [isAccessSubmitting, setIsAccessSubmitting] = useState(false);
@@ -70,7 +64,6 @@ export default function BarbershopProfileScreen() {
 
     setIsLoading(true);
     setError(null);
-    setFavoriteError(null);
     setAccessError(null);
 
     try {
@@ -103,33 +96,14 @@ export default function BarbershopProfileScreen() {
 
       if (token && canLoadCampaigns) {
         try {
-          setCampaigns(await getActiveBarbershopCampaigns(loadedBarbershop.id, token));
+          setCampaigns(
+            await getActiveBarbershopCampaigns(loadedBarbershop.id, token),
+          );
         } catch {
           setCampaigns([]);
         }
       } else {
         setCampaigns([]);
-      }
-
-      if (token) {
-        setIsFavoriteLoading(true);
-
-        try {
-          const favorites = await getFavoriteBarbershops(token);
-          setIsFavorite(
-            favorites.some(
-              ({ barbershop: favorite }) => favorite.id === loadedBarbershop.id,
-            ),
-          );
-        } catch (reason: unknown) {
-          setFavoriteError(
-            reason instanceof Error
-              ? reason.message
-              : "Favori durumu alınamadı.",
-          );
-        } finally {
-          setIsFavoriteLoading(false);
-        }
       }
     } catch (reason: unknown) {
       setError(
@@ -152,29 +126,6 @@ export default function BarbershopProfileScreen() {
       message: `${barbershop.name} işletmesini Trimly'de keşfet: trimly://barbers/${barbershop.slug}`,
       title: barbershop.name,
     });
-  }
-
-  async function toggleFavorite() {
-    if (!barbershop || !token || isFavoriteLoading) return;
-
-    setIsFavoriteLoading(true);
-    setFavoriteError(null);
-
-    try {
-      if (isFavorite) {
-        await removeFavoriteBarbershop(barbershop.id, token);
-        setIsFavorite(false);
-      } else {
-        await addFavoriteBarbershop(barbershop.id, token);
-        setIsFavorite(true);
-      }
-    } catch (reason: unknown) {
-      setFavoriteError(
-        reason instanceof Error ? reason.message : "Favori işlemi yapılamadı.",
-      );
-    } finally {
-      setIsFavoriteLoading(false);
-    }
   }
 
   async function unlockBookingAccess(code: string) {
@@ -228,9 +179,9 @@ export default function BarbershopProfileScreen() {
 
   const canBook = Boolean(
     hasBookingAccess &&
-      barbershop.isBookingOpen &&
-      barbershop.services.length &&
-      barbershop.members.length,
+    barbershop.isBookingOpen &&
+    barbershop.services.length &&
+    barbershop.members.length,
   );
 
   function goBack() {
@@ -268,31 +219,36 @@ export default function BarbershopProfileScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <BarbershopHero
-            barbershop={barbershop}
-            isFavorite={isFavorite}
-            isFavoriteLoading={isFavoriteLoading}
-            onFavoritePress={() => void toggleFavorite()}
-          />
-          {favoriteError ? (
-            <AppText
-              color="danger"
-              style={styles.favoriteError}
-              variant="bodySmall"
-            >
-              {favoriteError}
-            </AppText>
-          ) : null}
+          <BarbershopHero barbershop={barbershop} />
           <BarbershopInfoCard barbershop={barbershop} />
 
           {!barbershop.isBookingOpen ? (
             <AppCard style={styles.bookingClosedCard}>
-              <AppText color="primary" variant="cardTitle">
-                Şu anda randevuya kapalı
-              </AppText>
-              <AppText color="textMuted" style={styles.bookingClosedText} variant="bodySmall">
-                Bu işletme şu anda yeni randevu kabul etmiyor. Mevcut randevular geçerliliğini korur.
-              </AppText>
+              <View
+                style={[
+                  styles.closedIcon,
+                  { backgroundColor: themeColors.surfaceMuted },
+                ]}
+              >
+                <SymbolView
+                  name={{ ios: "clock", android: "schedule", web: "schedule" }}
+                  size={29}
+                  tintColor={themeColors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AppText color="primary" variant="cardTitle">
+                  Şu anda randevuya kapalı
+                </AppText>
+                <AppText
+                  color="textMuted"
+                  style={styles.bookingClosedText}
+                  variant="bodySmall"
+                >
+                  Bu işletme şu anda yeni randevu kabul etmiyor. Mevcut
+                  randevular geçerliliğini korur.
+                </AppText>
+              </View>
             </AppCard>
           ) : null}
 
@@ -307,8 +263,31 @@ export default function BarbershopProfileScreen() {
             </View>
           ) : (
             <>
-              <ProfileSection title="Hizmetler">
-                <BarbershopServiceTags services={barbershop.services} />
+              <ProfileSection
+                title="Hizmetler"
+                action={
+                  barbershop.services.length > 4
+                    ? showAllServices
+                      ? "Daha Az Göster"
+                      : "Tümünü Gör"
+                    : undefined
+                }
+                onAction={() => setShowAllServices((value) => !value)}
+              >
+                <BarbershopServiceTags
+                  services={
+                    showAllServices
+                      ? barbershop.services
+                      : barbershop.services.slice(0, 4)
+                  }
+                  disabled={!canBook}
+                  onServicePress={(serviceId) =>
+                    router.push({
+                      pathname: "/book",
+                      params: { slug: barbershop.slug, serviceId },
+                    })
+                  }
+                />
               </ProfileSection>
 
               {campaigns.length ? (
@@ -318,34 +297,64 @@ export default function BarbershopProfileScreen() {
                       <CampaignCard
                         campaign={campaign}
                         key={campaign.id}
-                        onPress={campaign.campaignType === "LOYALTY" && !campaign.customerProgress?.isEligible ? undefined : () => router.push({
-                          pathname: "/book",
-                          params: {
-                            campaignId: campaign.id,
-                            serviceId: campaign.services[0]?.service.id,
-                            slug: barbershop.slug,
-                          },
-                        })}
+                        onPress={
+                          campaign.campaignType === "LOYALTY" &&
+                          !campaign.customerProgress?.isEligible
+                            ? undefined
+                            : () =>
+                                router.push({
+                                  pathname: "/book",
+                                  params: {
+                                    campaignId: campaign.id,
+                                    serviceId: campaign.services[0]?.service.id,
+                                    slug: barbershop.slug,
+                                  },
+                                })
+                        }
                       />
                     ))}
                   </View>
                 </ProfileSection>
               ) : null}
 
-              <ProfileSection title="Ekibimiz">
+              <ProfileSection
+                title="Ekibimiz"
+                action={
+                  barbershop.members.length > 2
+                    ? showAllTeam
+                      ? "Daha Az Göster"
+                      : "Tüm Ekibi Gör"
+                    : undefined
+                }
+                onAction={() => setShowAllTeam((value) => !value)}
+              >
                 {barbershop.members.length ? (
-                  barbershop.members.map((barber) => (
-                    <BarberPreviewCard
-                      barber={barber}
-                      key={barber.id}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/book",
-                          params: { memberId: barber.id, slug: barbershop.slug },
-                        })
-                      }
-                    />
-                  ))
+                  <View style={styles.teamGrid}>
+                    {barbershop.members
+                      .slice(0, showAllTeam ? undefined : 2)
+                      .map((barber) => (
+                        <View
+                          key={barber.id}
+                          style={styles.teamCell}
+                        >
+                          <BarberPreviewCard
+                            barber={barber}
+                            compact
+                            isBookingOpen={barbershop.isBookingOpen}
+                            key={barber.id}
+                            onPress={() =>
+                              router.push({
+                                pathname: "/barbers/[slug]/team/[memberId]",
+                                params: {
+                                  memberId: barber.id,
+                                  slug: barbershop.slug,
+                                },
+                              })
+                            }
+                          />
+                        </View>
+                      ))}
+                  </View>
                 ) : (
                   <BarbershopEmptyState
                     description="İşletme ekibi hazır olduğunda burada görünecek."
@@ -360,10 +369,32 @@ export default function BarbershopProfileScreen() {
               </ProfileSection>
 
               <ProfileSection title="Hakkında">
-                <ExpandableDescription description={barbershop.description} />
+                <AppCard style={styles.aboutCard}>
+                  <View
+                    style={[
+                      styles.aboutIcon,
+                      { backgroundColor: themeColors.surfaceMuted },
+                    ]}
+                  >
+                    <SymbolView
+                      name={{
+                        ios: "doc.text.fill",
+                        android: "description",
+                        web: "description",
+                      }}
+                      size={23}
+                      tintColor={themeColors.primary}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ExpandableDescription
+                      description={barbershop.description}
+                    />
+                  </View>
+                </AppCard>
               </ProfileSection>
 
-              <ProfileSection title="Galeri ve Tıraşlar">
+              <ProfileSection title="Mekân & Tıraşlar">
                 <BarbershopWorkShowcase
                   barbershopId={barbershop.id}
                   galleryPhotos={barbershop.galleryPhotos}
@@ -410,14 +441,19 @@ export default function BarbershopProfileScreen() {
                   { backgroundColor: themeColors.primary },
                   !canBook && styles.bookButtonDisabled,
                   pressed && canBook && styles.bookButtonPressed,
-                ]}>
+                ]}
+              >
                 <SymbolView
-                  name={{ ios: "calendar", android: "calendar_month", web: "calendar_month" }}
+                  name={{
+                    ios: "calendar",
+                    android: "calendar_month",
+                    web: "calendar_month",
+                  }}
                   size={20}
                   tintColor={themeColors.onPrimary}
                 />
                 <AppText color="onPrimary" variant="cardTitle">
-                  {barbershop.isBookingOpen ? 'Randevu Al' : 'Randevuya Kapalı'}
+                  {barbershop.isBookingOpen ? "Randevu Al" : "Randevuya Kapalı"}
                 </AppText>
               </Pressable>
             </View>
@@ -431,15 +467,42 @@ export default function BarbershopProfileScreen() {
 function ProfileSection({
   children,
   title,
+  subtitle,
+  action,
+  onAction,
 }: {
   children: React.ReactNode;
   title: string;
+  subtitle?: string;
+  action?: string;
+  onAction?: () => void;
 }) {
   return (
     <View style={styles.section}>
-      <AppText style={styles.sectionTitle} variant="sectionTitle">
-        {title}
-      </AppText>
+      <View style={styles.sectionHeading}>
+        <AppText
+          style={[styles.sectionTitle, { flex: 1 }]}
+          variant="sectionTitle"
+        >
+          {title}
+        </AppText>
+        {action ? (
+          <Pressable accessibilityRole="button" onPress={onAction} hitSlop={8}>
+            <AppText color="primary" variant="bodySmall">
+              {action} ›
+            </AppText>
+          </Pressable>
+        ) : null}
+      </View>
+      {subtitle ? (
+        <AppText
+          color="textMuted"
+          variant="bodySmall"
+          style={styles.sectionSubtitle}
+        >
+          {subtitle}
+        </AppText>
+      ) : null}
       {children}
     </View>
   );
@@ -479,6 +542,26 @@ function ExpandableDescription({
 }
 
 const styles = StyleSheet.create({
+  teamGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: spacing.xs,
+  },
+  teamCell: { width: "49%", minWidth: 0 },
+  aboutCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.sm,
+  },
+  aboutIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   loader: { marginTop: spacing.xxxl },
   errorState: {
     alignItems: "center",
@@ -499,14 +582,32 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
   },
   accessSection: { marginTop: spacing.lg },
-  bookingClosedCard: { marginTop: spacing.lg, padding: spacing.md },
+  bookingClosedCard: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "center",
+  },
+  closedIcon: {
+    width: 54,
+    height: 64,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionHeading: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "center",
+  },
+  sectionSubtitle: { marginTop: -spacing.xs, marginBottom: spacing.sm },
   bookingClosedText: { lineHeight: 19, marginTop: spacing.xs },
-  section: { marginTop: layout.sectionGap },
+  section: { marginTop: spacing.md },
   sectionTitle: { marginBottom: spacing.sm },
   campaigns: { gap: spacing.sm },
   description: { lineHeight: 22 },
   descriptionAction: { marginTop: spacing.xs },
-  favoriteError: { textAlign: "center" },
   footerSafeArea: {},
   footer: {
     borderTopWidth: 1,

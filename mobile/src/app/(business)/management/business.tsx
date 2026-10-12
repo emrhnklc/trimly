@@ -1,7 +1,7 @@
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import { Image } from "expo-image";
-import { useCallback, useState } from "react";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import {
@@ -62,9 +62,12 @@ function isValidOptionalUrl(value: string) {
 export default function BusinessSettingsScreen() {
   const themeColors = useThemeColors();
   const router = useRouter();
+  const navigation = useNavigation();
+  const allowNavigation = useRef(false);
   const { source } = useLocalSearchParams<{ source?: string }>();
   const { refreshUser, token } = useAuth();
-  const { activeMembership } = useBusiness();
+  const { activeMembership, can } = useBusiness();
+  const canEdit = can('MANAGE_BUSINESS_PROFILE');
   const [profile, setProfile] = useState<UpdateBarbershopProfileInput | null>(
     null,
   );
@@ -89,7 +92,7 @@ export default function BusinessSettingsScreen() {
   >([]);
 
   const loadProfile = useCallback(async () => {
-    if (!activeMembership) return;
+    if (!activeMembership || !canEdit) { setLoading(false); return; }
 
     setLoading(true);
     setLoadError(null);
@@ -121,7 +124,7 @@ export default function BusinessSettingsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeMembership]);
+  }, [activeMembership, canEdit]);
 
   useFocusEffect(
     useCallback(() => {
@@ -132,7 +135,16 @@ export default function BusinessSettingsScreen() {
   const hasChanges =
     serializeProfile(profile) !== serializeProfile(savedProfile);
 
+  useEffect(() => navigation.addListener('beforeRemove', (event) => {
+    if (allowNavigation.current) return;
+    if (isSubmitting || hasChanges) {
+      event.preventDefault();
+      if (!isSubmitting) setUnsavedSheetVisible(true);
+    }
+  }), [hasChanges, isSubmitting, navigation]);
+
   if (!activeMembership) return null;
+  if (!canEdit) return <Screen><BusinessDetailHeader title="İşletme Profili" onBack={() => goBackOrReplace(router, '/(business)/profile')} /><AppText>İşletme profilini yalnızca işletme sahibi ve yönetici düzenleyebilir.</AppText></Screen>;
 
   function updateProfile(updates: Partial<UpdateBarbershopProfileInput>) {
     setProfile((current) => (current ? { ...current, ...updates } : current));
@@ -141,6 +153,7 @@ export default function BusinessSettingsScreen() {
   }
 
   function handleBack() {
+    if (isSubmitting) return;
     if (!hasChanges) {
       leaveBusinessSettings();
       return;
@@ -150,6 +163,7 @@ export default function BusinessSettingsScreen() {
   }
 
   function leaveBusinessSettings() {
+    allowNavigation.current = true;
     if (source === "profile") {
       goBackOrReplace(router, "/(business)/profile");
       return;
@@ -385,7 +399,7 @@ export default function BusinessSettingsScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <BusinessDetailHeader onBack={handleBack} title="İşletme Ayarları" />
+          <BusinessDetailHeader onBack={handleBack} title={source === 'profile' ? 'İşletme Profili' : 'İşletme Ayarları'} />
           {isLoading ? (
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : null}

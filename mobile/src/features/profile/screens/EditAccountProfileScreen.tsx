@@ -7,7 +7,6 @@ import { useLocalSearchParams, useNavigation, useRouter, useSegments } from "exp
 import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import { useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -94,9 +93,11 @@ export function EditAccountProfileScreen() {
   } | null>(null);
   const [isPhotoRemoved, setIsPhotoRemoved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPhotoMenuVisible, setPhotoMenuVisible] = useState(false);
   const [isUnsavedChangesVisible, setUnsavedChangesVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const allowNavigation = useRef(false);
+  const openPhotoPickerAfterDismiss = useRef(false);
 
   const normalizedBirthDate = birthDate ? birthDateInputToIso(birthDate) : null;
   const isDirty = useMemo(() => {
@@ -210,18 +211,22 @@ export function EditAccountProfileScreen() {
       void selectPhoto();
       return;
     }
-    Alert.alert("Profil Fotoğrafı", undefined, [
-      { text: "Fotoğrafı Değiştir", onPress: () => void selectPhoto() },
-      {
-        text: "Fotoğrafı Kaldır",
-        style: "destructive",
-        onPress: () => {
-          setSelectedPhoto(null);
-          setIsPhotoRemoved(true);
-        },
-      },
-      { text: "İptal", style: "cancel" },
-    ]);
+    setPhotoMenuVisible(true);
+  }
+
+  function changePhotoFromMenu() {
+    setPhotoMenuVisible(false);
+    if (Platform.OS === "ios") {
+      openPhotoPickerAfterDismiss.current = true;
+    } else {
+      void selectPhoto();
+    }
+  }
+
+  function removePhotoFromMenu() {
+    setSelectedPhoto(null);
+    setIsPhotoRemoved(true);
+    setPhotoMenuVisible(false);
   }
 
   function openDatePicker() {
@@ -535,6 +540,64 @@ export function EditAccountProfileScreen() {
 
         <Modal
           animationType="fade"
+          onDismiss={() => {
+            if (!openPhotoPickerAfterDismiss.current) return;
+            openPhotoPickerAfterDismiss.current = false;
+            void selectPhoto();
+          }}
+          onRequestClose={() => setPhotoMenuVisible(false)}
+          statusBarTranslucent
+          transparent
+          visible={isPhotoMenuVisible}
+        >
+          <Pressable
+            accessibilityLabel="Fotoğraf seçeneklerini kapat"
+            onPress={() => setPhotoMenuVisible(false)}
+            style={styles.photoModalOverlay}
+          >
+            <Pressable
+              onPress={(event) => event.stopPropagation()}
+              style={[
+                styles.photoMenuCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View style={[styles.photoMenuIcon, { backgroundColor: colors.surfaceMuted }]}>
+                <SymbolView
+                  name={{ ios: "photo", android: "photo_camera", web: "photo_camera" }}
+                  size={25}
+                  tintColor={colors.primary}
+                />
+              </View>
+              <AppText style={styles.photoMenuTitle} variant="sectionTitle">
+                Profil Fotoğrafı
+              </AppText>
+              <AppText color="textMuted" style={styles.photoMenuDescription} variant="bodySmall">
+                Fotoğrafını değiştirebilir veya profilinden kaldırabilirsin.
+              </AppText>
+              <View style={styles.photoMenuActions}>
+                <AppButton onPress={changePhotoFromMenu}>Fotoğrafı Değiştir</AppButton>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={removePhotoFromMenu}
+                  style={({ pressed }) => [
+                    styles.removePhotoButton,
+                    { backgroundColor: colors.dangerSurface, borderColor: colors.danger },
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <AppText color="danger" variant="label">Fotoğrafı Kaldır</AppText>
+                </Pressable>
+                <AppButton onPress={() => setPhotoMenuVisible(false)} variant="secondary">
+                  Vazgeç
+                </AppButton>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        <Modal
+          animationType="fade"
           onRequestClose={() => setDatePickerVisible(false)}
           transparent
           visible={Platform.OS === "ios" && isDatePickerVisible}
@@ -815,6 +878,38 @@ const styles = StyleSheet.create({
   },
   error: { marginBottom: spacing.xs, textAlign: "center" },
   pressed: { opacity: 0.68 },
+  photoModalOverlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(12, 8, 5, 0.64)",
+    flex: 1,
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  photoMenuCard: {
+    borderRadius: radius.card,
+    borderWidth: 1,
+    maxWidth: 420,
+    padding: spacing.lg,
+    width: "100%",
+  },
+  photoMenuIcon: {
+    alignItems: "center",
+    alignSelf: "center",
+    borderRadius: radius.pill,
+    height: 56,
+    justifyContent: "center",
+    width: 56,
+  },
+  photoMenuTitle: { marginTop: spacing.md, textAlign: "center" },
+  photoMenuDescription: { lineHeight: 20, marginTop: spacing.xs, textAlign: "center" },
+  photoMenuActions: { gap: spacing.xs, marginTop: spacing.lg },
+  removePhotoButton: {
+    alignItems: "center",
+    borderRadius: radius.card,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 50,
+  },
   modalOverlay: {
     backgroundColor: "rgba(12, 8, 5, 0.55)",
     flex: 1,

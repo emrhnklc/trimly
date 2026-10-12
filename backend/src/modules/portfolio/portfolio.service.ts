@@ -10,6 +10,7 @@ import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { isMinorOnDate } from '../dependents/dependent-age';
 
 @Injectable()
 export class PortfolioService {
@@ -32,6 +33,9 @@ export class PortfolioService {
         customerId: true,
         serviceNameSnapshot: true,
         status: true,
+        appointmentLocalDate: true,
+        guardianPrivatePhotoConsentAt: true,
+        dependentProfile: { select: { birthDate: true } },
         businessMember: { select: { userId: true } },
         haircutRecord: {
           select: {
@@ -50,6 +54,18 @@ export class PortfolioService {
     if (appointment.status !== 'COMPLETED') {
       throw new BadRequestException(
         'Yalnız tamamlanan tıraşlar portföye eklenebilir.',
+      );
+    }
+    if (
+      appointment.dependentProfile &&
+      isMinorOnDate(
+        appointment.dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ) &&
+      !appointment.guardianPrivatePhotoConsentAt
+    ) {
+      throw new ForbiddenException(
+        'Çocuk fotoğrafı için veli izni bulunmuyor.',
       );
     }
 
@@ -149,6 +165,21 @@ export class PortfolioService {
       select: {
         id: true,
         title: true,
+        haircutPhoto: {
+          select: {
+            haircutRecord: {
+              select: {
+                appointment: {
+                  select: {
+                    appointmentLocalDate: true,
+                    guardianPrivatePhotoConsentAt: true,
+                    dependentProfile: { select: { birthDate: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
         businessMember: {
           select: {
             id: true,
@@ -163,20 +194,57 @@ export class PortfolioService {
         },
       },
     });
-    return items.map((item) => ({
-      ...item,
-      imageUrl: `/portfolio/items/${item.id}/image`,
-    }));
+    return items.flatMap(({ haircutPhoto, ...item }) => {
+      const appointment = haircutPhoto.haircutRecord.appointment;
+      if (
+        appointment.dependentProfile &&
+        isMinorOnDate(
+          appointment.dependentProfile.birthDate,
+          appointment.appointmentLocalDate,
+        ) &&
+        !appointment.guardianPrivatePhotoConsentAt
+      ) {
+        return [];
+      }
+      return [{ ...item, imageUrl: `/portfolio/items/${item.id}/image` }];
+    });
   }
 
   async getPublicImage(itemId: string) {
     const item = await this.prisma.barberPortfolioItem.findFirst({
       where: { id: itemId, status: PortfolioPublicationStatus.APPROVED },
       select: {
-        haircutPhoto: { select: { storageKey: true, mimeType: true } },
+        haircutPhoto: {
+          select: {
+            storageKey: true,
+            mimeType: true,
+            haircutRecord: {
+              select: {
+                appointment: {
+                  select: {
+                    appointmentLocalDate: true,
+                    guardianPrivatePhotoConsentAt: true,
+                    dependentProfile: { select: { birthDate: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
     if (!item) throw new NotFoundException('Portföy fotoğrafı bulunamadı.');
+    const appointment = item.haircutPhoto.haircutRecord.appointment;
+    if (
+      appointment.dependentProfile &&
+      isMinorOnDate(
+        appointment.dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ) &&
+      !appointment.guardianPrivatePhotoConsentAt
+    ) {
+      throw new NotFoundException('Portföy fotoğrafı bulunamadı.');
+    }
     try {
       return {
         buffer: await readFile(
@@ -201,6 +269,45 @@ export class PortfolioService {
       | typeof PortfolioPublicationStatus.APPROVED
       | typeof PortfolioPublicationStatus.REJECTED,
   ) {
+    if (status === PortfolioPublicationStatus.APPROVED) {
+      const publication = await this.prisma.barberPortfolioItem.findFirst({
+        where: {
+          id: itemId,
+          customerId,
+          status: PortfolioPublicationStatus.PENDING,
+        },
+        select: {
+          haircutPhoto: {
+            select: {
+              haircutRecord: {
+                select: {
+                  appointment: {
+                    select: {
+                      appointmentLocalDate: true,
+                      guardianPrivatePhotoConsentAt: true,
+                      dependentProfile: { select: { birthDate: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      const appointment = publication?.haircutPhoto.haircutRecord.appointment;
+      if (
+        appointment?.dependentProfile &&
+        isMinorOnDate(
+          appointment.dependentProfile.birthDate,
+          appointment.appointmentLocalDate,
+        ) &&
+        !appointment.guardianPrivatePhotoConsentAt
+      ) {
+        throw new ForbiddenException(
+          'Çocuk fotoğrafı için veli izni bulunmuyor.',
+        );
+      }
+    }
     const updated = await this.prisma.barberPortfolioItem.updateMany({
       where: {
         id: itemId,

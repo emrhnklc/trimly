@@ -5,6 +5,7 @@ import { AppText } from '@/components/ui/AppText';
 import type { DailyBusinessSummary } from '@/features/business-management/types';
 import { colors } from '@/theme/colors';
 import { radius, spacing } from '@/theme/spacing';
+import { fontFamily } from '@/theme/typography';
 import { formatTurkishPrice } from '../format';
 
 export function ManagementDailySummaryCard({ summary }: { summary: DailyBusinessSummary }) {
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   titleRow: { alignItems: 'center', flexDirection: 'row', gap: spacing.xxs },
   overline: { color: '#DFC78E', fontSize: 12, lineHeight: 16 },
-  revenue: { fontSize: 31, lineHeight: 38, marginTop: spacing.xs },
+  revenue: { fontFamily: fontFamily.bodyBold, fontSize: 31, lineHeight: 38, marginTop: spacing.xs },
   revenueLabel: { color: '#DDD3C9', fontSize: 12, lineHeight: 17, marginTop: 1 },
   iconShell: {
     alignItems: 'center',
@@ -121,6 +122,6 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row' },
   stat: { alignItems: 'center', flex: 1, minHeight: 86, paddingHorizontal: 1 },
   statDivided: { borderLeftColor: '#66584E', borderLeftWidth: 1 },
-  statValue: { fontSize: 17, lineHeight: 22, marginTop: spacing.xxs },
+  statValue: { fontFamily: fontFamily.bodySemiBold, fontSize: 17, lineHeight: 22, marginTop: spacing.xxs },
   statLabel: { color: '#DED6CE', fontSize: 12, lineHeight: 16, marginTop: 1, textAlign: 'center' },
 });

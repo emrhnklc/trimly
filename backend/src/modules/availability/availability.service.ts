@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AppointmentStatus, Weekday } from '@prisma/client';
+import {
+  AppointmentStatus,
+  BusinessReliabilityActionType,
+  Weekday,
+} from '@prisma/client';
 import { DateTime } from 'luxon';
 import { PrismaService } from '../../database/prisma.service';
 import { BarbershopReadinessService } from '../barbershops/barbershop-readiness.service';
@@ -90,6 +94,12 @@ export class AvailabilityService {
           barbershopId,
           isActive: true,
           isBookable: true,
+          reliabilityActions: {
+            none: {
+              type: BusinessReliabilityActionType.MEMBER_REVIEW_HOLD,
+              resolvedAt: null,
+            },
+          },
         },
         include: {
           workingHours: { where: { weekday } },

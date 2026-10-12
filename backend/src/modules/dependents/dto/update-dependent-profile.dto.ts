@@ -14,6 +14,11 @@ function trimString(value: unknown) {
   return typeof value === 'string' ? value.trim() : value;
 }
 
+function trimOptionalString(value: unknown) {
+  const trimmed = trimString(value);
+  return trimmed === '' ? undefined : trimmed;
+}
+
 export class UpdateDependentProfileDto {
   @IsOptional()
   @Transform(({ value }) => trimString(value as unknown))
@@ -32,6 +37,13 @@ export class UpdateDependentProfileDto {
   @IsOptional()
   @IsEnum(DependentRelationship)
   relationship?: DependentRelationship;
+
+  @IsOptional()
+  @Transform(({ value }) => trimOptionalString(value as unknown))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(40)
+  relationshipLabel?: string;
 
   @IsOptional()
   @IsDateString()

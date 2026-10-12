@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { BarbershopAccessMode, BusinessRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { DateTime } from 'luxon';
+import { workingHoursForDate } from '../schedules/effective-working-hours';
 import { randomInt } from 'node:crypto';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
@@ -355,6 +357,11 @@ export class BarbershopsService {
         timezone: true,
         isDiscoverable: true,
         acceptsBookings: true,
+        previousWorkingHours: true,
+        workingHoursEffectiveFrom: true,
+        workingHours: {
+          select: { weekday: true, startTime: true, endTime: true },
+        },
         accessMode: true,
         galleryPhotos: {
           orderBy: { sortOrder: 'asc' },
@@ -375,6 +382,9 @@ export class BarbershopsService {
           where: {
             isActive: true,
             isBookable: true,
+            reliabilityActions: {
+              none: { type: 'MEMBER_REVIEW_HOLD', resolvedAt: null },
+            },
             role: {
               in: [
                 BusinessRole.OWNER,
@@ -387,6 +397,11 @@ export class BarbershopsService {
           select: {
             id: true,
             role: true,
+            serviceAssignments: {
+              where: { service: { isActive: true } },
+              orderBy: { service: { name: 'asc' } },
+              select: { service: { select: { name: true } } },
+            },
             user: {
               select: {
                 firstName: true,
@@ -414,8 +429,66 @@ export class BarbershopsService {
     const readiness = await this.barbershopReadinessService.getReadiness(
       barbershop.id,
     );
+    const memberIds = barbershop.members.map(({ id }) => id);
+    // Aggregate all displayed members in two queries, not one request per card.
+    const [memberRatingGroups, memberCompletionGroups] = memberIds.length
+      ? await Promise.all([
+          this.prisma.appointmentReview.groupBy({
+            by: ['businessMemberId', 'customerId'],
+            where: {
+              barbershopId: barbershop.id,
+              businessMemberId: { in: memberIds },
+              appointment: { status: 'COMPLETED' },
+            },
+            _avg: { rating: true },
+            _count: { _all: true },
+          }),
+          this.prisma.appointment.groupBy({
+            by: ['businessMemberId'],
+            where: {
+              barbershopId: barbershop.id,
+              businessMemberId: { in: memberIds },
+              status: 'COMPLETED',
+            },
+            _count: { _all: true },
+          }),
+        ])
+      : [[], []];
+    const memberRatings = summarizeCustomerRatingsByKey(
+      memberRatingGroups,
+      'businessMemberId',
+    );
+    const memberCompletions = new Map(
+      memberCompletionGroups.map((group) => [
+        group.businessMemberId,
+        group._count._all,
+      ]),
+    );
+    const completedCount = await this.prisma.appointment.count({
+      where: { barbershopId: barbershop.id, status: 'COMPLETED' },
+    });
+    const {
+      previousWorkingHours,
+      workingHoursEffectiveFrom,
+      workingHours,
+      ...publicBarbershop
+    } = barbershop;
     return {
-      ...barbershop,
+      ...publicBarbershop,
+      completedCount,
+      members: barbershop.members.map(({ serviceAssignments, ...member }) => ({
+        ...member,
+        serviceNames: serviceAssignments.map(({ service }) => service.name),
+        ratingAverage: memberRatings.get(member.id)?.ratingAverage ?? null,
+        ratingCount: memberRatings.get(member.id)?.ratingCount ?? 0,
+        completedCount: memberCompletions.get(member.id) ?? 0,
+      })),
+      workingHours: workingHoursForDate(
+        workingHours,
+        previousWorkingHours,
+        workingHoursEffectiveFrom,
+        DateTime.now().setZone(barbershop.timezone),
+      ),
       isBookingOpen: readiness.isBookingOpen,
       galleryPhotos: barbershop.galleryPhotos.map((photo) => ({
         id: photo.id,
@@ -457,7 +530,7 @@ export class BarbershopsService {
           : {}),
       },
       orderBy: { name: 'asc' },
-      take: hasLocation ? 100 : 20,
+      take: 100,
       select: {
         id: true,
         name: true,
@@ -471,6 +544,15 @@ export class BarbershopsService {
         isDiscoverable: true,
         accessMode: true,
         createdAt: true,
+        reliabilityActions: {
+          where: {
+            type: 'DISCOVERY_DEMOTION',
+            resolvedAt: null,
+            endsAt: { gt: new Date() },
+          },
+          take: 1,
+          select: { id: true },
+        },
         services: {
           where: { isActive: true },
           orderBy: { name: 'asc' },
@@ -480,6 +562,9 @@ export class BarbershopsService {
           where: {
             isActive: true,
             isBookable: true,
+            reliabilityActions: {
+              none: { type: 'MEMBER_REVIEW_HOLD', resolvedAt: null },
+            },
             role: {
               in: [
                 BusinessRole.OWNER,
@@ -518,9 +603,10 @@ export class BarbershopsService {
 
     const results = barbershops.map((barbershop) => {
       const rating = ratingsByBarbershop.get(barbershop.id);
-      const { services, ...barbershopSummary } = barbershop;
+      const { services, reliabilityActions, ...barbershopSummary } = barbershop;
       return {
         ...barbershopSummary,
+        demoted: reliabilityActions.length > 0,
         serviceNames: services.map(({ name }) => name),
         ratingAverage: rating?.ratingAverage ?? null,
         ratingCount: rating?.ratingCount ?? 0,
@@ -539,15 +625,20 @@ export class BarbershopsService {
       };
     });
 
-    return hasLocation
-      ? results
-          .filter((barbershop) => barbershop.distanceKm !== null)
-          .sort(
-            (first, second) =>
-              (first.distanceKm ?? Infinity) - (second.distanceKm ?? Infinity),
-          )
-          .slice(0, 20)
-      : results;
+    return results
+      .filter((barbershop) => !hasLocation || barbershop.distanceKm !== null)
+      .sort(
+        (first, second) =>
+          Number(first.demoted) - Number(second.demoted) ||
+          (hasLocation
+            ? (first.distanceKm ?? Infinity) - (second.distanceKm ?? Infinity)
+            : first.name.localeCompare(second.name, 'tr')),
+      )
+      .slice(0, 20)
+      .map(({ demoted, ...barbershop }) => {
+        void demoted;
+        return barbershop;
+      });
   }
 
   async updateProfile(barbershopId: string, dto: UpdateBarbershopProfileDto) {

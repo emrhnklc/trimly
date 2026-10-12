@@ -8,6 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { PrismaService } from '../../database/prisma.service';
+import { Prisma } from '@prisma/client';
+import { isMinorOnDate } from '../dependents/dependent-age';
 import { UpsertHaircutRecordDto } from './dto/upsert-haircut-record.dto';
 
 @Injectable()
@@ -110,6 +112,16 @@ export class HaircutHistoryService {
           appointment: {
             select: {
               id: true,
+              dependentProfileId: true,
+              attendeeNameSnapshot: true,
+              dependentProfile: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  archivedAt: true,
+                },
+              },
               serviceId: true,
               serviceNameSnapshot: true,
               priceSnapshot: true,
@@ -157,6 +169,18 @@ export class HaircutHistoryService {
       appointmentId,
       userId,
     );
+    if (
+      appointment.dependentProfile &&
+      isMinorOnDate(
+        appointment.dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ) &&
+      !appointment.guardianPrivatePhotoConsentAt
+    ) {
+      throw new ForbiddenException(
+        'Çocuk adına fotoğraf eklemek için hesap sahibinin uygulamadan izin vermesi gerekir.',
+      );
+    }
     if (
       !appointment.completedAt ||
       Date.now() >
@@ -230,6 +254,9 @@ export class HaircutHistoryService {
       select: {
         haircutRecord: { select: { id: true } },
         status: true,
+        appointmentLocalDate: true,
+        guardianPrivatePhotoConsentAt: true,
+        dependentProfile: { select: { birthDate: true } },
       },
     });
 
@@ -242,8 +269,99 @@ export class HaircutHistoryService {
     if (!appointment.haircutRecord) {
       throw new BadRequestException('Bu randevu için henüz tıraş kaydı yok.');
     }
+    if (
+      appointment.dependentProfile &&
+      isMinorOnDate(
+        appointment.dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ) &&
+      !appointment.guardianPrivatePhotoConsentAt
+    ) {
+      throw new ForbiddenException(
+        'Çocuğun özel tıraş fotoğrafı için önce izin vermelisin.',
+      );
+    }
 
     return this.storePhoto(appointment.haircutRecord.id, file, 'CUSTOMER');
+  }
+
+  async setGuardianPrivatePhotoConsent(
+    appointmentId: string,
+    customerId: string,
+    allow: boolean,
+  ) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, customerId },
+      select: {
+        id: true,
+        status: true,
+        appointmentLocalDate: true,
+        dependentProfile: { select: { birthDate: true } },
+        haircutRecord: { select: { id: true } },
+      },
+    });
+    if (!appointment) throw new NotFoundException('Randevu bulunamadı.');
+    if (
+      !appointment.dependentProfile ||
+      !isMinorOnDate(
+        appointment.dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      )
+    ) {
+      throw new BadRequestException(
+        'Bu randevu çocuk fotoğraf izni gerektirmiyor.',
+      );
+    }
+    if (
+      allow &&
+      appointment.status !== 'CONFIRMED' &&
+      appointment.status !== 'ARRIVED' &&
+      appointment.status !== 'COMPLETED'
+    ) {
+      throw new BadRequestException('Bu randevu için fotoğraf izni verilemez.');
+    }
+
+    if (allow) {
+      const updated = await this.prisma.appointment.update({
+        where: { id: appointment.id },
+        data: { guardianPrivatePhotoConsentAt: new Date() },
+        select: { guardianPrivatePhotoConsentAt: true },
+      });
+      return {
+        guardianPrivatePhotoConsentAt: updated.guardianPrivatePhotoConsentAt,
+      };
+    }
+
+    const storageKeys = await this.prisma.$transaction(
+      async (transaction) => {
+        const photos = appointment.haircutRecord
+          ? await transaction.haircutPhoto.findMany({
+              where: { haircutRecordId: appointment.haircutRecord.id },
+              select: { storageKey: true },
+            })
+          : [];
+        await transaction.appointment.update({
+          where: { id: appointment.id },
+          data: { guardianPrivatePhotoConsentAt: null },
+        });
+        if (appointment.haircutRecord) {
+          await transaction.haircutPhoto.deleteMany({
+            where: { haircutRecordId: appointment.haircutRecord.id },
+          });
+        }
+        return photos.map((photo) => photo.storageKey);
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+    await Promise.all(
+      storageKeys.map((key) =>
+        unlink(this.resolveStoragePath(key)).catch(() => undefined),
+      ),
+    );
+    return {
+      guardianPrivatePhotoConsentAt: null,
+      deletedPhotoCount: storageKeys.length,
+    };
   }
 
   async getPhotoForCustomer(
@@ -280,7 +398,23 @@ export class HaircutHistoryService {
     photoId: string,
     userId: string,
   ) {
-    await this.assertCanManageRecord(barbershopId, appointmentId, userId);
+    const { appointment } = await this.assertCanManageRecord(
+      barbershopId,
+      appointmentId,
+      userId,
+    );
+    if (
+      appointment.dependentProfile &&
+      isMinorOnDate(
+        appointment.dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ) &&
+      !appointment.guardianPrivatePhotoConsentAt
+    ) {
+      throw new ForbiddenException(
+        'Çocuk fotoğrafı için veli izni bulunmuyor.',
+      );
+    }
     const photo = await this.prisma.haircutPhoto.findFirst({
       where: {
         id: photoId,
@@ -321,6 +455,9 @@ export class HaircutHistoryService {
         id: true,
         status: true,
         completedAt: true,
+        appointmentLocalDate: true,
+        guardianPrivatePhotoConsentAt: true,
+        dependentProfile: { select: { birthDate: true } },
         businessMember: { select: { userId: true } },
       },
     });
@@ -378,38 +515,65 @@ export class HaircutHistoryService {
     await writeFile(filePath, file.buffer);
 
     try {
-      return await this.prisma.$transaction(async (transaction) => {
-        const photoCount = await transaction.haircutPhoto.count({
-          where: { haircutRecordId },
-        });
-        if (photoCount >= 8) {
-          throw new BadRequestException(
-            'Bir tıraş kaydına en fazla 8 fotoğraf eklenebilir.',
-          );
-        }
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          const record = await transaction.haircutRecord.findUnique({
+            where: { id: haircutRecordId },
+            select: {
+              appointment: {
+                select: {
+                  appointmentLocalDate: true,
+                  guardianPrivatePhotoConsentAt: true,
+                  dependentProfile: { select: { birthDate: true } },
+                },
+              },
+            },
+          });
+          if (
+            record?.appointment.dependentProfile &&
+            isMinorOnDate(
+              record.appointment.dependentProfile.birthDate,
+              record.appointment.appointmentLocalDate,
+            ) &&
+            !record.appointment.guardianPrivatePhotoConsentAt
+          ) {
+            throw new ForbiddenException(
+              'Çocuk fotoğrafı için veli izni bulunmuyor.',
+            );
+          }
+          const photoCount = await transaction.haircutPhoto.count({
+            where: { haircutRecordId },
+          });
+          if (photoCount >= 8) {
+            throw new BadRequestException(
+              'Bir tıraş kaydına en fazla 8 fotoğraf eklenebilir.',
+            );
+          }
 
-        const orderResult = await transaction.haircutPhoto.aggregate({
-          where: { haircutRecordId },
-          _max: { sortOrder: true },
-        });
-        return transaction.haircutPhoto.create({
-          data: {
-            haircutRecordId,
-            storageKey,
-            mimeType: file.mimetype,
-            sizeBytes: file.size,
-            sortOrder: (orderResult._max.sortOrder ?? -1) + 1,
-            customerConsentConfirmedAt: new Date(),
-            uploadedBy,
-          },
-          select: {
-            id: true,
-            mimeType: true,
-            sizeBytes: true,
-            sortOrder: true,
-          },
-        });
-      });
+          const orderResult = await transaction.haircutPhoto.aggregate({
+            where: { haircutRecordId },
+            _max: { sortOrder: true },
+          });
+          return transaction.haircutPhoto.create({
+            data: {
+              haircutRecordId,
+              storageKey,
+              mimeType: file.mimetype,
+              sizeBytes: file.size,
+              sortOrder: (orderResult._max.sortOrder ?? -1) + 1,
+              customerConsentConfirmedAt: new Date(),
+              uploadedBy,
+            },
+            select: {
+              id: true,
+              mimeType: true,
+              sizeBytes: true,
+              sortOrder: true,
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error) {
       await this.prisma.haircutPhoto
         .deleteMany({ where: { storageKey } })

@@ -52,6 +52,15 @@ export class BusinessMembersController {
     return this.membersService.updateMember(barbershopId, memberId, dto);
   }
 
+  @Get(':memberId/appointment-impact')
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  appointmentImpact(
+    @Param('barbershopId') barbershopId: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.membersService.getAppointmentImpact(barbershopId, memberId);
+  }
+
   @Post(':memberId/ownership-transfer-request')
   @Roles(BusinessRole.OWNER)
   requestOwnershipTransfer(
@@ -93,6 +102,7 @@ export class BusinessMembersController {
       barbershopId,
       memberId,
       dto.isBookable,
+      dto.acknowledgeExistingAppointments,
     );
   }
 

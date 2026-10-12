@@ -3,7 +3,6 @@ import { StyleSheet, View } from "react-native";
 
 import { SymbolView } from "expo-symbols";
 
-import { AppIconButton } from "@/components/ui/AppIconButton";
 import { AppText } from "@/components/ui/AppText";
 import { BarbershopRating } from "@/features/barbershops/components/BarbershopRating";
 import type { PublicBarbershopDetail } from "@/features/barbershops/types";
@@ -12,20 +11,16 @@ import { useThemeColors } from "@/theme/useThemeColors";
 
 type BarbershopHeroProps = {
   barbershop: PublicBarbershopDetail;
-  isFavorite: boolean;
-  isFavoriteLoading?: boolean;
-  onFavoritePress: () => void;
 };
 
-export function BarbershopHero({
-  barbershop,
-  isFavorite,
-  isFavoriteLoading = false,
-  onFavoritePress,
-}: BarbershopHeroProps) {
+export function BarbershopHero({ barbershop }: BarbershopHeroProps) {
   const colors = useThemeColors();
   const initial = barbershop.name.slice(0, 1).toUpperCase();
-  const isBookable = Boolean(barbershop.services.length && barbershop.members.length);
+  const isBookable = Boolean(
+    barbershop.isBookingOpen &&
+    barbershop.services.length &&
+    barbershop.members.length,
+  );
 
   return (
     <View style={styles.hero}>
@@ -60,7 +55,12 @@ export function BarbershopHero({
           { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
       >
-        <View style={[styles.avatarFrame, { backgroundColor: colors.surface }]}>
+        <View
+          style={[
+            styles.avatarFrame,
+            { backgroundColor: colors.surface, borderColor: colors.primary },
+          ]}
+        >
           {barbershop.profileImageUrl ? (
             <Image
               accessibilityLabel={`${barbershop.name} profil fotoğrafı`}
@@ -102,13 +102,21 @@ export function BarbershopHero({
             <View
               style={[
                 styles.pill,
-                { backgroundColor: isBookable ? colors.successSurface : colors.dangerSurface },
+                {
+                  backgroundColor: isBookable
+                    ? colors.successSurface
+                    : colors.dangerSurface,
+                },
               ]}
             >
               <View
                 style={[
                   styles.statusDot,
-                  { backgroundColor: isBookable ? colors.success : colors.danger },
+                  {
+                    backgroundColor: isBookable
+                      ? colors.success
+                      : colors.danger,
+                  },
                 ]}
               />
               <AppText
@@ -130,22 +138,55 @@ export function BarbershopHero({
             </View>
           </View>
         </View>
-
-        <View style={styles.favoriteButton}>
-          <AppIconButton
-            accessibilityLabel={
-              isFavorite ? "Favorilerden çıkar" : "Favorilere ekle"
-            }
-            color="primary"
-            disabled={isFavoriteLoading}
-            icon={{
-              ios: isFavorite ? "heart.fill" : "heart",
-              android: isFavorite ? "favorite" : "favorite_border",
-              web: isFavorite ? "favorite" : "favorite_border",
-            }}
-            onPress={onFavoritePress}
-            variant="transparent"
-          />
+        <View style={[styles.summaryStats, { borderTopColor: colors.border }]}>
+          {(
+            [
+              {
+                value: barbershop.completedCount,
+                label: "Tamamlanan randevu",
+                icon: { ios: "calendar", android: "event", web: "event" },
+              },
+              {
+                value: barbershop.services.length,
+                label: "Hizmet",
+                icon: {
+                  ios: "scissors",
+                  android: "content_cut",
+                  web: "content_cut",
+                },
+              },
+              {
+                value: barbershop.members.length,
+                label: "Berber",
+                icon: { ios: "person.2", android: "group", web: "group" },
+              },
+            ] as const
+          ).map(({ value, label, icon }, index) => (
+            <View
+              key={label}
+              style={[
+                styles.summaryStat,
+                index > 0 && {
+                  borderLeftWidth: 1,
+                  borderLeftColor: colors.border,
+                },
+              ]}
+            >
+              <View style={styles.statHeader}>
+                <SymbolView name={icon} size={19} tintColor={colors.primary} />
+                <AppText variant="label">
+                  {value === undefined ? "—" : value.toLocaleString("tr-TR")}
+                </AppText>
+              </View>
+              <AppText
+                color="textMuted"
+                variant="bodySmall"
+                style={styles.statLabel}
+              >
+                {label}
+              </AppText>
+            </View>
+          ))}
         </View>
       </View>
     </View>
@@ -157,7 +198,7 @@ const styles = StyleSheet.create({
   cover: {
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    height: 218,
+    height: 284,
     overflow: "hidden",
   },
   fill: { bottom: 0, left: 0, position: "absolute", right: 0, top: 0 },
@@ -171,20 +212,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     marginTop: -18,
-    minHeight: 108,
+    minHeight: 144,
     paddingBottom: spacing.sm,
-    paddingLeft: 108,
-    paddingRight: 54,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.md,
     paddingTop: spacing.md,
   },
   avatarFrame: {
     borderRadius: radius.pill,
-    height: 88,
+    height: 96,
     left: spacing.md,
-    padding: 4,
+    padding: 3,
+    borderWidth: 1,
     position: "absolute",
     top: -32,
-    width: 88,
+    width: 96,
   },
   avatar: { borderRadius: radius.pill, height: "100%", width: "100%" },
   avatarPlaceholder: {
@@ -192,25 +234,44 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   initial: { fontSize: 42, lineHeight: 48 },
-  identity: { flex: 1 },
-  favoriteButton: { position: "absolute", right: spacing.sm, top: spacing.sm },
+  identity: { marginLeft: 108, minHeight: 72 },
   name: { fontSize: 28, lineHeight: 33 },
   metaRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginLeft: -92,
-    marginRight: -42,
-    marginTop: spacing.xs,
+    marginTop: spacing.md,
+    marginLeft: -108,
   },
   pill: {
     alignItems: "center",
     borderRadius: radius.pill,
     flexDirection: "row",
+    gap: 4,
     minHeight: 24,
     paddingHorizontal: spacing.xs,
     paddingVertical: 3,
   },
   pillText: { fontSize: 11, lineHeight: 15 },
   statusDot: { borderRadius: radius.pill, height: 6, marginRight: 5, width: 6 },
+  summaryStats: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  summaryStat: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 5,
+  },
+  statHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+  statLabel: { fontSize: 12, lineHeight: 16, textAlign: "center" },
 });

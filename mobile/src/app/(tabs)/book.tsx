@@ -69,6 +69,8 @@ type BookParams = {
   slug?: string;
   attendeeSelected?: string;
   dependentProfileId?: string;
+  suggestedDate?: string;
+  suggestedStartsAt?: string;
 };
 
 type BookingFormStep = 1 | 2 | 3;
@@ -83,6 +85,8 @@ export default function BookAppointmentScreen() {
     memberId: repeatedMemberId,
     serviceId: repeatedServiceId,
     slug,
+    suggestedDate,
+    suggestedStartsAt,
   } = useLocalSearchParams<BookParams>();
 
   const [dependents, setDependents] = useState<DependentProfile[]>([]);
@@ -280,6 +284,12 @@ export default function BookAppointmentScreen() {
           setSettings(nextSettings);
           setCampaigns(nextCampaigns);
 
+          const validSuggestedDate = suggestedDate &&
+            buildDateOptions(nextSettings.maxBookingAdvanceDays).some(
+              (option) => option.date === suggestedDate,
+            );
+          if (validSuggestedDate) setSelectedDate(suggestedDate);
+
           const repeatService = bookableShop.services.find(
             ({ id }) => id === repeatedServiceId,
           );
@@ -314,7 +324,7 @@ export default function BookAppointmentScreen() {
     }, 0);
 
     return () => clearTimeout(requestId);
-  }, [accessReloadKey, campaignId, repeatedMemberId, repeatedServiceId, slug, token]);
+  }, [accessReloadKey, campaignId, repeatedMemberId, repeatedServiceId, slug, suggestedDate, token]);
 
   useFocusEffect(
     useCallback(() => {
@@ -340,7 +350,16 @@ export default function BookAppointmentScreen() {
               selectedDate,
               token,
             );
-            if (isActive) setSlots(result.slots);
+            if (isActive) {
+              setSlots(result.slots);
+              const suggestedSlot = result.slots.find(
+                (slot) => slot.startsAt === suggestedStartsAt,
+              );
+              if (suggestedSlot && selectedDate === suggestedDate) {
+                setSelectedHour(suggestedSlot.startTime.slice(0, 2));
+                setSelectedSlot(suggestedSlot);
+              }
+            }
           } catch (loadError) {
             if (!isActive) return;
             setSlotError(
@@ -358,7 +377,7 @@ export default function BookAppointmentScreen() {
         isActive = false;
         clearTimeout(requestId);
       };
-    }, [selectedDate, selectedMemberId, selectedServiceId, shop, token]),
+    }, [selectedDate, selectedMemberId, selectedServiceId, shop, suggestedDate, suggestedStartsAt, token]),
   );
 
   function openShop(nextSlug: string, repeatAppointment?: CustomerAppointment) {

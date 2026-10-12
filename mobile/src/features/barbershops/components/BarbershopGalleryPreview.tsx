@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "@/components/ui/AppText";
@@ -16,6 +17,8 @@ export function BarbershopGalleryPreview({
 }) {
   const router = useRouter();
   const colors = useThemeColors();
+  const [galleryWidth, setGalleryWidth] = useState(0);
+  const tileWidth = Math.max(0, (galleryWidth - spacing.xs) / 2);
 
   if (!photos.length) {
     return (
@@ -55,20 +58,32 @@ export function BarbershopGalleryPreview({
           </AppText>
         </Pressable>
       </View>
-      <View style={styles.gallery}>
-        {photos.slice(0, 2).map((photo) => (
-          <Image
-            contentFit="cover"
+      <View
+        onLayout={({ nativeEvent }) => setGalleryWidth(nativeEvent.layout.width)}
+        style={styles.gallery}
+      >
+        {photos.slice(0, 4).map((photo) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Galeri fotoğrafını aç"
             key={photo.id}
-            source={photo.url}
+            onPress={() => router.push({ pathname: "/barbers/[slug]/gallery", params: { slug } })}
             style={[
               styles.tile,
               {
+                width: tileWidth,
+                height: tileWidth / 1.2,
                 backgroundColor: colors.surfaceMuted,
                 borderColor: colors.border,
               },
             ]}
-          />
+          >
+            <Image
+              contentFit="cover"
+              source={photo.url}
+              style={StyleSheet.absoluteFill}
+            />
+          </Pressable>
         ))}
       </View>
     </View>
@@ -82,12 +97,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: spacing.sm,
   },
-  gallery: { flexDirection: "row", gap: spacing.xs },
+  gallery: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   tile: {
-    aspectRatio: 1.2,
     borderRadius: radius.md,
     borderWidth: 1,
-    flex: 1,
+    overflow: "hidden",
   },
   allPhotosButton: {
     paddingHorizontal: spacing.xs,

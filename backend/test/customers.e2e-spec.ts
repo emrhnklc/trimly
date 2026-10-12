@@ -51,6 +51,13 @@ async function verifyRegistration(app: INestApplication<App>, body: unknown) {
   return response.body as RegisterResponse;
 }
 
+function appointmentLocalDate(startsAt: Date) {
+  const localDate = DateTime.fromJSDate(startsAt)
+    .setZone('Europe/Istanbul')
+    .toISODate();
+  return new Date(`${localDate}T00:00:00.000Z`);
+}
+
 describe('Business customers (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -128,6 +135,8 @@ describe('Business customers (e2e)', () => {
           barbershopId,
           businessMemberId: barbershop.members[0].id,
           customerId: customer.user.id,
+          attendeeNameSnapshot: 'Customer Test',
+          appointmentLocalDate: appointmentLocalDate(completedStart),
           serviceId: service.id,
           serviceNameSnapshot: service.name,
           originalPriceSnapshot: service.price,
@@ -142,6 +151,8 @@ describe('Business customers (e2e)', () => {
           barbershopId,
           businessMemberId: barbershop.members[0].id,
           customerId: customer.user.id,
+          attendeeNameSnapshot: 'Customer Test',
+          appointmentLocalDate: appointmentLocalDate(upcomingStart),
           serviceId: service.id,
           serviceNameSnapshot: service.name,
           originalPriceSnapshot: service.price,
@@ -160,6 +171,8 @@ describe('Business customers (e2e)', () => {
           barbershopId,
           businessMemberId: barbershop.members[0].id,
           customerId: customer.user.id,
+          attendeeNameSnapshot: 'Customer Test',
+          appointmentLocalDate: appointmentLocalDate(upcomingStart),
           serviceId: service.id,
           serviceNameSnapshot: service.name,
           originalPriceSnapshot: service.price,
@@ -170,7 +183,7 @@ describe('Business customers (e2e)', () => {
           status: 'ARRIVED',
         },
       }),
-    ).rejects.toMatchObject({ code: 'P2039' });
+    ).rejects.toMatchObject({ code: 'P2002' });
 
     const revenueAnchor = DateTime.fromJSDate(completedStart)
       .setZone('Europe/Istanbul')
@@ -275,6 +288,12 @@ describe('Business customers (e2e)', () => {
         notes: 'Yanlar 0.5 numara',
       },
     });
+    // The historical start time drives the revenue assertions above; photo
+    // uploads are intentionally limited by the completion timestamp instead.
+    await prisma.appointment.update({
+      where: { id: completedAppointment.id },
+      data: { completedAt: new Date() },
+    });
 
     await request(app.getHttpServer())
       .post(
@@ -374,6 +393,8 @@ describe('Business customers (e2e)', () => {
         barbershopId,
         businessMemberId: barbershop.members[0].id,
         customerId: customer.user.id,
+        attendeeNameSnapshot: 'Customer Test',
+        appointmentLocalDate: appointmentLocalDate(arrivalStart),
         serviceId: service.id,
         serviceNameSnapshot: service.name,
         originalPriceSnapshot: service.price,
@@ -442,12 +463,36 @@ describe('Business customers (e2e)', () => {
       .send({ appointmentRemindersEnabled: true })
       .expect(200);
 
-    const reminderStart = new Date(Date.now() + 90 * 60 * 1000);
+    // These same-day appointments belong to different attendees, as the
+    // booking database now enforces one active appointment per person/day.
+    const reminderDependent = await prisma.dependentProfile.create({
+      data: {
+        ownerId: customer.user.id,
+        firstName: 'Reminder',
+        lastName: 'Test',
+        relationship: 'SIBLING',
+        birthDate: new Date('2000-01-01T00:00:00.000Z'),
+      },
+    });
+    const forgottenDependent = await prisma.dependentProfile.create({
+      data: {
+        ownerId: customer.user.id,
+        firstName: 'Forgotten',
+        lastName: 'Test',
+        relationship: 'SIBLING',
+        birthDate: new Date('2000-01-01T00:00:00.000Z'),
+      },
+    });
+    // It was booked before the two-hour threshold, so a reminder is due now.
+    const reminderStart = new Date(Date.now() + 117 * 60 * 1000);
     const reminderAppointment = await prisma.appointment.create({
       data: {
         barbershopId,
         businessMemberId: barbershop.members[0].id,
         customerId: customer.user.id,
+        dependentProfileId: reminderDependent.id,
+        attendeeNameSnapshot: 'Reminder Test',
+        appointmentLocalDate: appointmentLocalDate(reminderStart),
         serviceId: service.id,
         serviceNameSnapshot: service.name,
         originalPriceSnapshot: service.price,
@@ -455,8 +500,13 @@ describe('Business customers (e2e)', () => {
         durationMinutes: service.durationMinutes,
         startsAt: reminderStart,
         endsAt: new Date(reminderStart.getTime() + 30 * 60 * 1000),
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       },
     });
+    expect(reminderAppointment.updatedAt.getTime()).toBeLessThan(
+      reminderStart.getTime() - 2 * 60 * 60 * 1000,
+    );
     await app.get(NotificationsService).reconcileAppointmentReminders();
     const reminderNotification = await prisma.appNotification.findFirst({
       where: {
@@ -508,17 +558,21 @@ describe('Business customers (e2e)', () => {
       data: { autoCompleteAt: new Date(Date.now() - 1000) },
     });
 
+    const forgottenStart = new Date(Date.now() - 3 * 60 * 60 * 1000);
     const forgottenArrivalAppointment = await prisma.appointment.create({
       data: {
         barbershopId,
         businessMemberId: barbershop.members[0].id,
         customerId: customer.user.id,
+        dependentProfileId: forgottenDependent.id,
+        attendeeNameSnapshot: 'Forgotten Test',
+        appointmentLocalDate: appointmentLocalDate(forgottenStart),
         serviceId: service.id,
         serviceNameSnapshot: service.name,
         originalPriceSnapshot: service.price,
         priceSnapshot: service.price,
         durationMinutes: service.durationMinutes,
-        startsAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+        startsAt: forgottenStart,
         endsAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
       },
     });

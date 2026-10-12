@@ -8,22 +8,22 @@ import { AppText } from "@/components/ui/AppText";
 import { AppIconButton } from "@/components/ui/AppIconButton";
 import { BrandedPageHeader } from "@/components/ui/BrandedPageHeader";
 import { CachedImageBackground } from "@/components/ui/CachedImageBackground";
-import { Screen } from "@/components/ui/Screen";
 import { getBusinessAppointments } from "@/features/appointments/api";
-import { useAuth } from "@/features/auth/AuthProvider";
-import { getPublicBarbershop } from "@/features/barbershops/api";
-import type { PublicBarbershopDetail } from "@/features/barbershops/types";
-import { useBusiness } from "@/features/business/BusinessProvider";
 import {
   businessRoleEnglishLabels,
   businessRoleLabels,
 } from "@/features/business/role-labels";
+import { colors } from "@/theme/colors";
+import { Screen } from "@/components/ui/Screen";
+import { useAuth } from "@/features/auth/AuthProvider";
+import { getPublicBarbershop } from "@/features/barbershops/api";
+import type { PublicBarbershopDetail } from "@/features/barbershops/types";
+import { useBusiness } from "@/features/business/BusinessProvider";
 import { useAppPreferences } from "@/features/preferences/AppPreferencesProvider";
 import {
   ProfileMenuGroup,
   type ProfileMenuItem,
 } from "@/features/profile/components/ProfileMenuGroup";
-import { colors } from "@/theme/colors";
 import { layout, radius, spacing } from "@/theme/spacing";
 import { useThemeColors } from "@/theme/useThemeColors";
 
@@ -33,6 +33,7 @@ export default function BusinessProfileScreen() {
   const { signOut, token, user } = useAuth();
   const { activeMembership, can, memberships } = useBusiness();
   const [business, setBusiness] = useState<PublicBarbershopDetail | null>(null);
+
   const [appointmentCount, setAppointmentCount] = useState(0);
 
   useFocusEffect(
@@ -57,7 +58,6 @@ export default function BusinessProfileScreen() {
             if (isActive) setAppointmentCount(0);
           });
       }
-
       return () => {
         isActive = false;
       };
@@ -261,10 +261,7 @@ export default function BusinessProfileScreen() {
               accessibilityLabel="Profili düzenle"
               accessibilityRole="button"
               onPress={() =>
-                router.push({
-                  pathname: "/(business)/profile/edit",
-                  params: { returnTo: "business-profile" },
-                })
+                router.push({ pathname: "/(business)/profile/edit" })
               }
               style={({ pressed }) => [
                 styles.editButton,
@@ -282,7 +279,6 @@ export default function BusinessProfileScreen() {
             </Pressable>
           </View>
         </CachedImageBackground>
-
         <View style={styles.statsRow}>
           <StatCard
             icon={{

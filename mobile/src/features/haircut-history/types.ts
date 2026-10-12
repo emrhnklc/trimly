@@ -12,6 +12,14 @@ export type CustomerHaircutRecord = {
   }[];
   appointment: {
     id: string;
+    dependentProfileId: string | null;
+    attendeeNameSnapshot: string;
+    dependentProfile: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      archivedAt: string | null;
+    } | null;
     serviceId: string;
     serviceNameSnapshot: string;
     priceSnapshot: string;

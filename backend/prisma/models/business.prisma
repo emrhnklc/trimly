@@ -45,6 +45,8 @@ model Barbershop {
   portfolioItems         BarberPortfolioItem[]
   reviews                AppointmentReview[]
   campaigns              Campaign[]
+  cancellationEvents      BusinessCancellationEvent[]
+  reliabilityActions      BusinessReliabilityAction[]
 }
 
 model BarbershopPhoto {
@@ -131,6 +133,7 @@ model BusinessMember {
   role                      BusinessRole
   isActive                  Boolean      @default(true)
   isBookable                Boolean      @default(false)
+  biography                 String?
   createdAt                 DateTime     @default(now())
   updatedAt                 DateTime     @updatedAt
   previousWorkingHours      Json?
@@ -149,6 +152,8 @@ model BusinessMember {
   createdCampaigns                   Campaign[]
   createdAppointmentChangeProposals  AppointmentChangeProposal[] @relation("AppointmentChangeProposalCreator")
   proposedAppointmentChangeProposals AppointmentChangeProposal[] @relation("AppointmentChangeProposalProposedMember")
+  cancellationEvents                 BusinessCancellationEvent[]
+  reliabilityActions                 BusinessReliabilityAction[]
 
   @@unique([userId, barbershopId])
   @@index([barbershopId, role])

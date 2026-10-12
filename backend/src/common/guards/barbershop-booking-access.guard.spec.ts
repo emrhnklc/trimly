@@ -1,5 +1,5 @@
 import type { ExecutionContext } from '@nestjs/common';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { BarbershopAccessMode } from '@prisma/client';
 import type { PrismaService } from '../../database/prisma.service';
 import { BarbershopBookingAccessGuard } from './barbershop-booking-access.guard';
@@ -65,7 +65,7 @@ describe('BarbershopBookingAccessGuard', () => {
         statusCode: 403,
         code: 'BARBERSHOP_ACCESS_REQUIRED',
       },
-    } satisfies Partial<ForbiddenException>);
+    });
   });
 
   it('olmayan işletme için 404 verir', async () => {

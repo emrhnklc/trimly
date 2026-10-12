@@ -504,8 +504,8 @@ describe('Authentication flow (e2e)', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ role: 'APPRENTICE', expiresInHours: 24 })
       .expect(201);
-    const invitation = invitationResponse.body as { inviteUrl: string };
-    expect(invitation.inviteUrl).toMatch(/^https:\/\/trimly\.app\/join\//);
+    const invitation = invitationResponse.body as { token: string };
+    expect(invitation.token).toMatch(/^[A-Za-z0-9_-]+$/);
 
     const employeeResponse = await request(app.getHttpServer())
       .post('/auth/register')
@@ -517,9 +517,8 @@ describe('Authentication flow (e2e)', () => {
       })
       .expect(201);
     const employee = await verifyRegistration(app, employeeResponse.body);
-    const invitationToken = invitation.inviteUrl.split('/').at(-1);
     const acceptedResponse = await request(app.getHttpServer())
-      .post(`/invitations/${invitationToken}/accept`)
+      .post(`/invitations/${invitation.token}/accept`)
       .set('Authorization', `Bearer ${employee.accessToken}`)
       .send({})
       .expect(201);
@@ -724,15 +723,41 @@ describe('Authentication flow (e2e)', () => {
         expect(body.isDiscoverable).toBe(false);
       });
 
+    // Publishing now requires a complete booking-ready shop. Leave only the
+    // location missing so the first request still checks that requirement.
+    await prisma.barbershop.update({
+      where: { id: ownerMembership.barbershop.id },
+      data: {
+        phone: '+905551112233',
+        profileImageUrl: 'https://trimly.test/profile.jpg',
+        coverImageUrl: 'https://trimly.test/cover.jpg',
+      },
+    });
+    await prisma.barbershopPhoto.createMany({
+      data: [0, 1].map((sortOrder) => ({
+        barbershopId: ownerMembership.barbershop.id,
+        storageKey: `e2e-gallery-${randomUUID()}.jpg`,
+        mimeType: 'image/jpeg',
+        sizeBytes: 1,
+        sortOrder,
+      })),
+    });
+    await prisma.service.update({
+      where: { id: createdService.id },
+      data: { isActive: true },
+    });
+    await prisma.businessMember.update({
+      where: { id: employeeMembership.id },
+      data: { role: 'BARBER', isBookable: true },
+    });
+
     await request(app.getHttpServer())
       .patch(`/barbershops/${ownerMembership.barbershop.id}`)
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ isDiscoverable: true })
       .expect(400)
       .expect(({ body }: { body: { message: string } }) => {
-        expect(body.message).toBe(
-          'İşletmeyi keşfette yayınlamak için konumunu doğrulamalısın.',
-        );
+        expect(body.message).toContain('doğrulanmış işletme konumu');
       });
 
     await request(app.getHttpServer())

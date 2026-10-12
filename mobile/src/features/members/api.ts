@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '@/lib/api/client';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/lib/api/client";
 import type {
   BusinessInvitation,
   BusinessInvitationPreview,
@@ -7,11 +7,12 @@ import type {
   CustomerBarbershopAccess,
   CreateBusinessInvitationInput,
   UpdateBusinessMemberInput,
-} from './types';
+  MemberAppointmentImpact,
+} from "./types";
 
 type AcceptedBusinessInvitation = {
   id: string;
-  role: 'OWNER' | 'MANAGER' | 'BARBER' | 'APPRENTICE';
+  role: "OWNER" | "MANAGER" | "BARBER" | "APPRENTICE";
   isBookable: boolean;
   barbershop: { id: string; name: string; slug: string };
 };
@@ -23,7 +24,7 @@ export function getBusinessMembers(barbershopId: string, accessToken: string) {
     accessToken,
   ).then((members) => {
     if (!Array.isArray(members) || !members.every(isBusinessMember)) {
-      throw new Error('Çalışan verisi eksik geldi. Lütfen tekrar dene.');
+      throw new Error("Çalışan verisi eksik geldi. Lütfen tekrar dene.");
     }
 
     return members;
@@ -41,7 +42,7 @@ export function getBusinessMember(
     accessToken,
   ).then((member) => {
     if (!isBusinessMember(member)) {
-      throw new Error('Çalışan verisi eksik geldi. Lütfen tekrar dene.');
+      throw new Error("Çalışan verisi eksik geldi. Lütfen tekrar dene.");
     }
 
     return member;
@@ -49,19 +50,19 @@ export function getBusinessMember(
 }
 
 function isBusinessMember(value: unknown): value is BusinessMember {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== "object") return false;
 
   const member = value as Partial<BusinessMember>;
   const user = member.user;
 
   return Boolean(
-    typeof member.id === 'string' &&
-      typeof member.isActive === 'boolean' &&
-      typeof member.isBookable === 'boolean' &&
-      user &&
-      typeof user.id === 'string' &&
-      typeof user.firstName === 'string' &&
-      typeof user.lastName === 'string',
+    typeof member.id === "string" &&
+    typeof member.isActive === "boolean" &&
+    typeof member.isBookable === "boolean" &&
+    user &&
+    typeof user.id === "string" &&
+    typeof user.firstName === "string" &&
+    typeof user.lastName === "string",
   );
 }
 
@@ -133,10 +134,25 @@ export function updateBusinessMember(
   input: UpdateBusinessMemberInput,
   accessToken: string,
 ) {
-  return apiPatch<Pick<BusinessMember, 'id' | 'role' | 'isActive' | 'isBookable'>>(
+  return apiPatch<
+    Pick<BusinessMember, "id" | "role" | "isActive" | "isBookable">
+  >(
     `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}`,
     input,
     accessToken,
+  );
+}
+
+export function getBusinessMemberAppointmentImpact(
+  barbershopId: string,
+  memberId: string,
+  accessToken: string,
+) {
+  return apiGet<MemberAppointmentImpact>(
+    `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}/appointment-impact`,
+    undefined,
+    accessToken,
+    { fresh: true },
   );
 }
 
@@ -145,10 +161,11 @@ export function updateBusinessMemberBookable(
   memberId: string,
   isBookable: boolean,
   accessToken: string,
+  acknowledgeExistingAppointments = false,
 ) {
-  return apiPut<Pick<BusinessMember, 'id' | 'isActive' | 'isBookable'>>(
+  return apiPut<Pick<BusinessMember, "id" | "isActive" | "isBookable">>(
     `/barbershops/${encodeURIComponent(barbershopId)}/members/${encodeURIComponent(memberId)}/bookable`,
-    { isBookable },
+    { isBookable, acknowledgeExistingAppointments },
     accessToken,
   );
 }

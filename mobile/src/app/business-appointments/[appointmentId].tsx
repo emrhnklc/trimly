@@ -9,10 +9,14 @@ import {
   getBusinessAppointment,
   markBusinessAppointmentNoShow,
 } from '@/features/appointments/api';
-import type { BusinessAppointmentDetail } from '@/features/appointments/types';
+import type {
+  BusinessAppointmentDetail,
+  BusinessCancellationResult,
+} from '@/features/appointments/types';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { BusinessAppointmentDetailContent } from '@/features/business-appointments/components/BusinessAppointmentDetailContent';
 import { BusinessAppointmentCancellationSheet } from '@/features/business-appointments/components/BusinessAppointmentCancellationSheet';
+import { BusinessCancellationResultSheet } from '@/features/business-appointments/components/BusinessCancellationResultSheet';
 import { BusinessAppointmentState } from '@/features/business-appointments/components/BusinessAppointmentState';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
@@ -29,6 +33,8 @@ export default function BusinessAppointmentDetailScreen() {
   const [isLoading, setLoading] = useState(true);
   const [isUpdating, setUpdating] = useState(false);
   const [isCancellationVisible, setCancellationVisible] = useState(false);
+  const [cancellationResult, setCancellationResult] =
+    useState<BusinessCancellationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadAppointment = useCallback(async () => {
@@ -68,12 +74,13 @@ export default function BusinessAppointmentDetailScreen() {
     setError(null);
     try {
       if (action === 'cancel') {
-        await cancelBusinessAppointment(
+        const result = await cancelBusinessAppointment(
           activeMembership.barbershop.id,
           appointmentId,
           token,
           cancellationReason ?? '',
         );
+        setCancellationResult(result);
       } else {
         await markBusinessAppointmentNoShow(
           activeMembership.barbershop.id,
@@ -204,6 +211,8 @@ export default function BusinessAppointmentDetailScreen() {
 
       {isCancellationVisible ? (
         <BusinessAppointmentCancellationSheet
+          appointmentStartsAt={appointment?.startsAt ?? new Date().toISOString()}
+          appointmentStatus={appointment?.status ?? 'CONFIRMED'}
           customerName={
             appointment
               ? appointment.attendeeNameSnapshot
@@ -213,6 +222,16 @@ export default function BusinessAppointmentDetailScreen() {
           onClose={() => setCancellationVisible(false)}
           onSubmit={(reason) => void runAction('cancel', reason)}
           visible
+        />
+      ) : null}
+      {cancellationResult ? (
+        <BusinessCancellationResultSheet
+          onClose={() => setCancellationResult(null)}
+          onOpenReliability={() => {
+            setCancellationResult(null);
+            router.push('/(business)/management/reliability');
+          }}
+          result={cancellationResult}
         />
       ) : null}
     </Screen>

@@ -1,15 +1,18 @@
 import { StyleSheet, View } from "react-native";
 
-import { AppCard } from "@/components/ui/AppCard";
-import { AppText } from "@/components/ui/AppText";
 import { BarbershopEmptyState } from "@/features/barbershops/components/BarbershopEmptyState";
 import type { PublicService } from "@/features/barbershops/types";
 import { spacing } from "@/theme/spacing";
+import { ProfileServiceRow } from "./ProfileServiceRow";
 
 export function BarbershopServiceTags({
   services,
+  onServicePress,
+  disabled = false,
 }: {
   services: PublicService[];
+  onServicePress?: (serviceId: string) => void;
+  disabled?: boolean;
 }) {
   if (!services.length) {
     return (
@@ -24,35 +27,17 @@ export function BarbershopServiceTags({
   return (
     <View style={styles.list}>
       {services.map((service) => (
-        <AppCard key={service.id} style={styles.serviceCard}>
-          <View style={styles.serviceIdentity}>
-            <AppText numberOfLines={1} variant="cardTitle">
-              {service.name}
-            </AppText>
-            <AppText
-              color="textMuted"
-              style={styles.duration}
-              variant="bodySmall"
-            >
-              {service.durationMinutes} dk
-            </AppText>
-          </View>
-          <AppText color="primary" style={styles.price} variant="cardTitle">
-            {formatPrice(service.price)}
-          </AppText>
-        </AppCard>
+        <ProfileServiceRow
+          key={service.id}
+          service={service}
+          disabled={disabled}
+          onPress={
+            onServicePress ? () => onServicePress(service.id) : undefined
+          }
+        />
       ))}
     </View>
   );
-}
-
-function formatPrice(value: string) {
-  const price = Number(value);
-  if (!Number.isFinite(price)) return `₺${value}`;
-  return `₺${price.toLocaleString("tr-TR", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: price % 1 === 0 ? 0 : 2,
-  })}`;
 }
 
 const styles = StyleSheet.create({

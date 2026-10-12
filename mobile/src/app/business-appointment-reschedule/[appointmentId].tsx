@@ -198,7 +198,7 @@ export default function BusinessAppointmentRescheduleScreen() {
       setError(
         reason instanceof Error
           ? reason.message
-            : "Değişiklik teklifi gönderilemedi.",
+          : "Değişiklik teklifi gönderilemedi.",
       );
     } finally {
       setSubmitting(false);
@@ -238,8 +238,13 @@ export default function BusinessAppointmentRescheduleScreen() {
               {appointment.serviceNameSnapshot} · {appointment.durationMinutes}{" "}
               dk
             </AppText>
-            <AppText color="textMuted" style={styles.proposalNote} variant="bodySmall">
-              Seçtiğin yeni saat müşteriye teklif edilir; kabul edilene kadar mevcut randevu korunur.
+            <AppText
+              color="textMuted"
+              style={styles.proposalNote}
+              variant="bodySmall"
+            >
+              Seçtiğin yeni saat müşteriye teklif edilir; kabul edilene kadar
+              mevcut randevu korunur.
             </AppText>
           </AppCard>
 
@@ -249,7 +254,8 @@ export default function BusinessAppointmentRescheduleScreen() {
           <ScrollView
             contentContainerStyle={styles.choiceList}
             horizontal
-            showsHorizontalScrollIndicator={false}>
+            showsHorizontalScrollIndicator={false}
+          >
             {services.map((service) => {
               const selected = service.id === selectedServiceId;
               return (
@@ -269,10 +275,17 @@ export default function BusinessAppointmentRescheduleScreen() {
                     setSelectedServiceId(service.id);
                     setSelectedMemberId(nextMemberId);
                     if (nextMemberId) {
-                      void loadSlots(appointment, date, nextMemberId, service.id);
+                      void loadSlots(
+                        appointment,
+                        date,
+                        nextMemberId,
+                        service.id,
+                      );
                     } else {
                       setSlots([]);
-                      setError("Bu hizmete atanmış randevuya açık çalışan yok.");
+                      setError(
+                        "Bu hizmete atanmış randevuya açık çalışan yok.",
+                      );
                     }
                   }}
                   style={({ pressed }) => [
@@ -286,8 +299,12 @@ export default function BusinessAppointmentRescheduleScreen() {
                         : themeColors.border,
                     },
                     pressed && styles.pressed,
-                  ]}>
-                  <AppText color={selected ? "onPrimary" : "text"} variant="label">
+                  ]}
+                >
+                  <AppText
+                    color={selected ? "onPrimary" : "text"}
+                    variant="label"
+                  >
                     {service.name} · ₺{service.price}
                   </AppText>
                 </Pressable>
@@ -301,7 +318,8 @@ export default function BusinessAppointmentRescheduleScreen() {
           <ScrollView
             contentContainerStyle={styles.choiceList}
             horizontal
-            showsHorizontalScrollIndicator={false}>
+            showsHorizontalScrollIndicator={false}
+          >
             {members
               .filter((member) =>
                 member.serviceAssignments.some(
@@ -333,8 +351,12 @@ export default function BusinessAppointmentRescheduleScreen() {
                           : themeColors.border,
                       },
                       pressed && styles.pressed,
-                    ]}>
-                    <AppText color={selected ? "onPrimary" : "text"} variant="label">
+                    ]}
+                  >
+                    <AppText
+                      color={selected ? "onPrimary" : "text"}
+                      variant="label"
+                    >
                       {member.user.firstName} {member.user.lastName}
                     </AppText>
                   </Pressable>
@@ -350,6 +372,10 @@ export default function BusinessAppointmentRescheduleScreen() {
             onPress={() => setShowDatePicker(true)}
             style={({ pressed }) => [
               styles.dateButton,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+              },
               pressed && styles.pressed,
             ]}
           >
@@ -397,7 +423,11 @@ export default function BusinessAppointmentRescheduleScreen() {
           <AppText style={styles.sectionTitle} variant="heading">
             Değişiklik açıklaması
           </AppText>
-          <AppText color="textMuted" style={styles.reasonHelp} variant="bodySmall">
+          <AppText
+            color="textMuted"
+            style={styles.reasonHelp}
+            variant="bodySmall"
+          >
             Bu açıklama müşteriye gösterilecek ve teklif geçmişinde saklanacak.
           </AppText>
           <ScrollView
@@ -426,7 +456,10 @@ export default function BusinessAppointmentRescheduleScreen() {
                     pressed && styles.pressed,
                   ]}
                 >
-                  <AppText color={selected ? "onPrimary" : "text"} variant="bodySmall">
+                  <AppText
+                    color={selected ? "onPrimary" : "text"}
+                    variant="bodySmall"
+                  >
                     {item}
                   </AppText>
                 </Pressable>
@@ -451,12 +484,21 @@ export default function BusinessAppointmentRescheduleScreen() {
             textAlignVertical="top"
             value={reason}
           />
-          <AppText color="textMuted" style={styles.reasonCounter} variant="bodySmall">
+          <AppText
+            color="textMuted"
+            style={styles.reasonCounter}
+            variant="bodySmall"
+          >
             {reason.length}/500
           </AppText>
 
           {error ? (
-            <View style={styles.errorBox}>
+            <View
+              style={[
+                styles.errorBox,
+                { backgroundColor: themeColors.dangerSurface },
+              ]}
+            >
               <AppText color="danger" variant="bodySmall">
                 {error}
               </AppText>
@@ -465,7 +507,9 @@ export default function BusinessAppointmentRescheduleScreen() {
 
           <View style={styles.submitButton}>
             <AppButton
-              disabled={!selectedSlot || reason.trim().length < 3 || isSubmitting}
+              disabled={
+                !selectedSlot || reason.trim().length < 3 || isSubmitting
+              }
               onPress={() => void submit()}
             >
               {isSubmitting ? "Gönderiliyor…" : "Müşteriye Teklif Gönder"}
@@ -533,8 +577,6 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderRadius: radius.md,
     borderWidth: 1,
     flexDirection: "row",
@@ -545,7 +587,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.65 },
   slotLoader: { marginVertical: spacing.lg },
   errorBox: {
-    backgroundColor: "#F8E8E5",
     borderRadius: radius.md,
     marginTop: spacing.md,
     padding: spacing.sm,

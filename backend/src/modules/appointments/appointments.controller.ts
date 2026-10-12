@@ -17,6 +17,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { AppointmentsService } from './appointments.service';
+import { BusinessReliabilityService } from './business-reliability.service';
+import { RequestBusinessCancellationAppealDto } from './dto/request-business-cancellation-appeal.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { DailySummaryQueryDto } from './dto/daily-summary-query.dto';
@@ -26,7 +28,49 @@ import { RevenueSummaryQueryDto } from './dto/revenue-summary-query.dto';
 @Controller('barbershops/:barbershopId/appointments')
 @ApiTags('İşletme Randevuları')
 export class AppointmentsController {
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+    private readonly businessReliabilityService: BusinessReliabilityService,
+  ) {}
+
+  @Get('reliability')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  getReliability(@Param('barbershopId') barbershopId: string) {
+    return this.businessReliabilityService.getStatus(barbershopId);
+  }
+
+  @Patch('reliability/cancellations/:eventId/appeal')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER, BusinessRole.MANAGER)
+  requestCancellationAppeal(
+    @Param('barbershopId') barbershopId: string,
+    @Param('eventId') eventId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RequestBusinessCancellationAppealDto,
+  ) {
+    return this.businessReliabilityService.requestAppeal(
+      barbershopId,
+      eventId,
+      user.id,
+      dto.reason,
+    );
+  }
+
+  @Patch('reliability/member-holds/:actionId/resolve')
+  @UseGuards(JwtAuthGuard, BusinessRolesGuard)
+  @Roles(BusinessRole.OWNER)
+  resolveMemberHold(
+    @Param('barbershopId') barbershopId: string,
+    @Param('actionId') actionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.businessReliabilityService.resolveMemberHold(
+      barbershopId,
+      actionId,
+      user.id,
+    );
+  }
 
   @Get()
   @UseGuards(JwtAuthGuard, BusinessRolesGuard)

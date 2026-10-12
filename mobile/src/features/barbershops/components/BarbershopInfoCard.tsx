@@ -1,30 +1,65 @@
-import { Alert, Platform, Pressable, StyleSheet, View } from "react-native";
-
+import { useEffect, useState } from "react";
+import {
+  Alert,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
-import { SymbolView } from "expo-symbols";
-
+import { SymbolView, type SymbolViewProps } from "expo-symbols";
 import { AppCard } from "@/components/ui/AppCard";
+import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
+import { PublicWorkingHours } from "./PublicWorkingHours";
 import type { PublicBarbershopDetail } from "@/features/barbershops/types";
-import { spacing } from "@/theme/spacing";
+import {
+  formatBusinessLocation,
+  formatBusinessPhone,
+} from "@/features/barbershops/profile-formatters";
+import { radius, spacing } from "@/theme/spacing";
 import { useThemeColors } from "@/theme/useThemeColors";
 
-type BarbershopInfoCardProps = {
+export function BarbershopInfoCard({
+  barbershop,
+}: {
   barbershop: PublicBarbershopDetail;
-};
-
-export function BarbershopInfoCard({ barbershop }: BarbershopInfoCardProps) {
-  const colors = useThemeColors();
+}) {
+  const [hoursVisible, setHoursVisible] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: barbershop.timezone,
+    weekday: "long",
+  })
+    .format(now)
+    .toUpperCase();
+  const hours = barbershop.workingHours?.find(
+    (item) => item.weekday === weekday,
+  );
+  const hoursText = hours
+    ? hours.startTime + " – " + hours.endTime
+    : barbershop.workingHours?.length
+      ? "Bugün kapalı"
+      : "Saatler eklenmemiş";
   const hasCoordinates =
-    barbershop.latitude !== null && barbershop.longitude !== null;
-
+    barbershop.latitude != null && barbershop.longitude != null;
   async function openLocation() {
     if (!hasCoordinates) return;
-    const destination = `${barbershop.latitude},${barbershop.longitude}`;
+    const destination = barbershop.latitude + "," + barbershop.longitude;
     const url =
       Platform.OS === "ios"
-        ? `http://maps.apple.com/?ll=${destination}&q=${encodeURIComponent(barbershop.name)}`
-        : `https://www.google.com/maps/search/?api=1&query=${destination}`;
+        ? "http://maps.apple.com/?ll=" +
+          destination +
+          "&q=" +
+          encodeURIComponent(barbershop.name)
+        : "https://www.google.com/maps/search/?api=1&query=" + destination;
     try {
       await Linking.openURL(url);
     } catch {
@@ -34,12 +69,10 @@ export function BarbershopInfoCard({ barbershop }: BarbershopInfoCardProps) {
       );
     }
   }
-
   async function openPhone() {
     if (!barbershop.phone) return;
-    const phoneNumber = barbershop.phone.replace(/[^+\d]/g, "");
     try {
-      await Linking.openURL(`tel:${phoneNumber}`);
+      await Linking.openURL("tel:" + barbershop.phone.replace(/[^+\d]/g, ""));
     } catch {
       Alert.alert(
         "Telefon açılamadı",
@@ -47,158 +80,163 @@ export function BarbershopInfoCard({ barbershop }: BarbershopInfoCardProps) {
       );
     }
   }
-
   return (
-    <AppCard style={styles.card}>
-      <LocationCell
-        address={barbershop.address || "Adres eklenmemiş"}
-        buttonColor={colors.primary}
-        disabled={!hasCoordinates}
-        onPress={() => void openLocation()}
-        shopName={barbershop.name}
-      />
-      <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <ContactCell
-        buttonColor={colors.primary}
-        disabled={!barbershop.phone}
-        onPress={() => void openPhone()}
-        phone={barbershop.phone || "Telefon eklenmemiş"}
-        shopName={barbershop.name}
-      />
-    </AppCard>
+    <>
+      <View style={styles.row}>
+        <InfoCell
+          title="Konum"
+          value={formatBusinessLocation(barbershop.address)}
+          icon={{
+            ios: "mappin.circle.fill",
+            android: "location_on",
+            web: "location_on",
+          }}
+          disabled={!hasCoordinates}
+          onPress={() => void openLocation()}
+        />
+        <InfoCell
+          title="İletişim"
+          singleLine
+          value={formatBusinessPhone(barbershop.phone)}
+          icon={{ ios: "phone.fill", android: "call", web: "call" }}
+          disabled={!barbershop.phone}
+          onPress={() => void openPhone()}
+        />
+        <InfoCell
+          title="Çalışma Saatleri"
+          value={hoursText}
+          icon={{ ios: "clock.fill", android: "schedule", web: "schedule" }}
+          onPress={() => setHoursVisible(true)}
+        />
+      </View>
+      <Modal
+        visible={hoursVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setHoursVisible(false)}
+      >
+        <SafeAreaView style={styles.modal}>
+          <Pressable
+            accessibilityLabel="Çalışma saatlerini kapat"
+            style={styles.backdrop}
+            onPress={() => setHoursVisible(false)}
+          />
+          <AppCard style={styles.dialog}>
+            <AppText variant="sectionTitle">Çalışma Saatleri</AppText>
+            <AppText color="textMuted" variant="bodySmall">
+              {barbershop.name}
+            </AppText>
+            <ScrollView>
+              <PublicWorkingHours business={barbershop} />
+            </ScrollView>
+            <AppButton onPress={() => setHoursVisible(false)}>Kapat</AppButton>
+          </AppCard>
+        </SafeAreaView>
+      </Modal>
+    </>
   );
 }
-
-function LocationCell({
-  address,
-  buttonColor,
-  disabled,
+function InfoCell({
+  title,
+  value,
+  icon,
   onPress,
-  shopName,
+  disabled = false,
+  singleLine = false,
 }: {
-  address: string;
-  buttonColor: string;
-  disabled: boolean;
+  title: string;
+  value: string;
+  icon: SymbolViewProps["name"];
   onPress: () => void;
-  shopName: string;
+  disabled?: boolean;
+  singleLine?: boolean;
 }) {
+  const colors = useThemeColors();
   return (
-    <View style={styles.locationCell}>
-      <AppText color="textMuted" variant="bodySmall">
-        Konum
-      </AppText>
-      <View style={styles.locationRow}>
-        <Pressable
-          accessibilityLabel={`${shopName} konumunu haritada aç`}
-          accessibilityRole="button"
-          disabled={disabled}
-          hitSlop={8}
-          onPress={onPress}
-          style={({ pressed }) => [
-            styles.locationButton,
-            { backgroundColor: buttonColor },
-            disabled && styles.disabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          <SymbolView
-            name={{ ios: "map.fill", android: "map", web: "map" }}
-            size={18}
-            tintColor="#FFFFFF"
-          />
-        </Pressable>
-        <AppText numberOfLines={2} style={styles.locationValue} variant="label">
-          {address}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title + ": " + value}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.cell,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <View style={styles.cellHeading}>
+        <View style={[styles.icon, { backgroundColor: colors.surfaceMuted }]}>
+          <SymbolView name={icon} size={18} tintColor={colors.primary} />
+        </View>
+        <AppText variant="label" style={styles.title}>
+          {title}
         </AppText>
       </View>
-    </View>
-  );
-}
-
-function ContactCell({
-  buttonColor,
-  disabled,
-  onPress,
-  phone,
-  shopName,
-}: {
-  buttonColor: string;
-  disabled: boolean;
-  onPress: () => void;
-  phone: string;
-  shopName: string;
-}) {
-  return (
-    <View style={styles.contactCell}>
-      <AppText color="textMuted" variant="bodySmall">
-        İletişim
-      </AppText>
-      <View style={styles.contactRow}>
-        <Pressable
-          accessibilityLabel={`${shopName} işletmesini ara`}
-          accessibilityRole="button"
-          disabled={disabled}
-          hitSlop={8}
-          onPress={onPress}
-          style={({ pressed }) => [
-            styles.contactButton,
-            { backgroundColor: buttonColor },
-            disabled && styles.disabled,
-            pressed && styles.pressed,
-          ]}
+      <View style={styles.valueRow}>
+        <AppText
+          variant="bodySmall"
+          numberOfLines={singleLine ? 1 : 3}
+          adjustsFontSizeToFit={singleLine}
+          minimumFontScale={0.85}
+          style={[styles.value, singleLine && styles.phoneValue]}
         >
-          <SymbolView
-            name={{ ios: "phone.fill", android: "call", web: "call" }}
-            size={17}
-            tintColor="#FFFFFF"
-          />
-        </Pressable>
-        <AppText numberOfLines={1} style={styles.contactValue} variant="label">
-          {phone}
+          {value}
         </AppText>
+        {!disabled ? (
+          <SymbolView
+            name={{
+              ios: "chevron.right",
+              android: "chevron_right",
+              web: "chevron_right",
+            }}
+            size={12}
+            tintColor={colors.textMuted}
+          />
+        ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
-
 const styles = StyleSheet.create({
-  card: {
-    alignItems: "center",
-    flexDirection: "row",
-    minHeight: 88,
-    paddingVertical: spacing.sm,
+  row: { flexDirection: "row", gap: spacing.xs },
+  cell: {
+    flex: 1,
+    minWidth: 0,
+    borderWidth: 1,
+    borderRadius: radius.card,
+    padding: spacing.xs,
+    gap: spacing.xs,
   },
-  locationCell: { flex: 1 },
-  locationRow: {
-    alignItems: "center",
+  cellHeading: {
     flexDirection: "row",
-    gap: spacing.xxs,
-    marginTop: spacing.xs,
-  },
-  locationButton: {
     alignItems: "center",
-    borderRadius: 9,
-    height: 32,
+    gap: 4,
+    minHeight: 32,
+  },
+  icon: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
     justifyContent: "center",
-    width: 32,
-  },
-  locationValue: { flex: 1 },
-  contactCell: { flex: 1 },
-  contactRow: {
     alignItems: "center",
+  },
+  title: { flex: 1, fontSize: 12, lineHeight: 16 },
+  valueRow: {
     flexDirection: "row",
-    gap: spacing.xxs,
-    marginTop: spacing.xs,
-  },
-  contactButton: {
     alignItems: "center",
-    borderRadius: 9,
-    height: 32,
-    justifyContent: "center",
-    width: 32,
+    gap: 3,
+    minHeight: 34,
   },
-  contactValue: { flex: 1, fontSize: 12, lineHeight: 16 },
-  divider: { height: 52, marginHorizontal: spacing.xs, width: 1 },
-  pressed: { opacity: 0.65 },
-  disabled: { opacity: 0.4 },
+  value: { flex: 1, fontSize: 12, lineHeight: 17 },
+  phoneValue: { letterSpacing: -0.35 },
+  modal: { flex: 1, justifyContent: "center", padding: spacing.lg },
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
+  },
+  dialog: { maxHeight: "90%", gap: spacing.sm },
 });

@@ -14,6 +14,11 @@ function trimString(value: unknown) {
   return typeof value === 'string' ? value.trim() : value;
 }
 
+function trimOptionalString(value: unknown) {
+  const trimmed = trimString(value);
+  return trimmed === '' ? undefined : trimmed;
+}
+
 export class CreateDependentProfileDto {
   @Transform(({ value }) => trimString(value as unknown))
   @IsString()
@@ -29,6 +34,13 @@ export class CreateDependentProfileDto {
 
   @IsEnum(DependentRelationship)
   relationship: DependentRelationship;
+
+  @IsOptional()
+  @Transform(({ value }) => trimOptionalString(value as unknown))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(40)
+  relationshipLabel?: string;
 
   @IsDateString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)

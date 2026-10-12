@@ -1,21 +1,22 @@
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  emailVerifiedAt DateTime?
-  authVersion     Int       @default(0)
-  passwordHash    String
-  phone           String?   @unique
-  firstName       String
-  lastName        String
-  birthDate       DateTime?
-  provinceCode    String?
-  province        String?
-  district        String?
-  neighborhood    String?
-  profileImageUrl String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  deletedAt       DateTime?
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  emailVerifiedAt     DateTime?
+  authVersion         Int       @default(0)
+  passwordHash        String
+  phone               String?   @unique
+  firstName           String
+  lastName            String
+  birthDate           DateTime?
+  provinceCode        String?
+  province            String?
+  district            String?
+  neighborhood        String?
+  profileImageUrl     String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+  isPlatformModerator Boolean   @default(false)
 
   memberships                 BusinessMember[]
   customerAppointments        Appointment[]
@@ -45,16 +46,17 @@ enum DependentRelationship {
 }
 
 model DependentProfile {
-  id           String                @id @default(cuid())
-  ownerId      String
-  firstName    String
-  lastName     String
-  relationship DependentRelationship
-  birthDate    DateTime              @db.Date
-  notes        String?
-  archivedAt   DateTime?
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
+  id                String                @id @default(cuid())
+  ownerId           String
+  firstName         String
+  lastName          String
+  relationship      DependentRelationship
+  relationshipLabel String?
+  birthDate         DateTime              @db.Date
+  notes             String?
+  archivedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   appointments Appointment[]

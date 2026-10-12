@@ -42,6 +42,12 @@ export type RotatedBarbershopAccessCode = {
 };
 
 export type PublicBarbershopDetail = PublicBarbershop & {
+  completedCount?: number;
+  workingHours?: {
+    weekday: import("@/features/schedules/types").Weekday;
+    startTime: string;
+    endTime: string;
+  }[];
   isBookingOpen: boolean;
   galleryPhotos: { id: string; sortOrder: number; url: string }[];
   members: PublicBarber[];
@@ -53,6 +59,10 @@ export type PublicBarbershopDetail = PublicBarbershop & {
 export type PublicBarber = {
   id: string;
   role: "OWNER" | "MANAGER" | "BARBER";
+  serviceNames?: string[];
+  ratingAverage?: number | null;
+  ratingCount?: number;
+  completedCount?: number;
   user: { firstName: string; lastName: string; profileImageUrl: string | null };
 };
 
@@ -95,6 +105,8 @@ export type BarbershopReadinessRequirement =
 
 export type BarbershopReadiness = {
   acceptsBookings: boolean;
+  bookingSuspendedUntil: string | null;
+  staffAvailabilityBlocked: boolean;
   isBookingOpen: boolean;
   isDiscoverable: boolean;
   isReadyToPublish: boolean;

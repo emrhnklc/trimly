@@ -88,7 +88,9 @@ export function NotificationCenterScreen() {
     if (
       notification.type === 'APPOINTMENT_REMINDER' ||
       notification.type === 'PORTFOLIO_CONSENT_REQUEST' ||
-      notification.type === 'APPOINTMENT_CHANGE_PROPOSAL'
+      notification.type === 'APPOINTMENT_CHANGE_PROPOSAL' ||
+      notification.type === 'APPOINTMENT_NO_SHOW' ||
+      notification.type === 'APPOINTMENT_BUSINESS_CANCELLED'
     ) {
       await enterCustomerMode();
       router.replace({
@@ -104,6 +106,13 @@ export function NotificationCenterScreen() {
     if (!membership) return;
 
     await enterBusinessMode(membership.id);
+    if (
+      notification.type === 'BUSINESS_CANCELLATION_APPEAL_DECISION' ||
+      notification.type === 'BUSINESS_RELIABILITY_POINTS_ADDED'
+    ) {
+      router.replace('/(business)/management/reliability');
+      return;
+    }
     router.replace({
       pathname: '/business-appointments/[appointmentId]',
       params: { appointmentId: notification.appointment.id },

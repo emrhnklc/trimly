@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+import { AppointmentStatus, Prisma } from '@prisma/client';
 import { EmailService } from '../../common/email/email.service';
 import { PrismaService } from '../../database/prisma.service';
 import { summarizeCustomerRatingsByKey } from '../reviews/customer-weighted-rating';
@@ -383,8 +384,8 @@ export class MembersService {
     return 'ACTIVE' as const;
   }
 
-  findByBarbershop(barbershopId: string) {
-    return this.prisma.businessMember.findMany({
+  async findByBarbershop(barbershopId: string) {
+    const members = await this.prisma.businessMember.findMany({
       where: { barbershopId },
       orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
       select: {
@@ -392,6 +393,22 @@ export class MembersService {
         role: true,
         isActive: true,
         isBookable: true,
+        _count: {
+          select: {
+            appointments: {
+              where: {
+                barbershopId,
+                OR: [
+                  {
+                    status: AppointmentStatus.CONFIRMED,
+                    endsAt: { gt: new Date() },
+                  },
+                  { status: AppointmentStatus.ARRIVED },
+                ],
+              },
+            },
+          },
+        },
         user: {
           select: {
             id: true,
@@ -415,6 +432,10 @@ export class MembersService {
         },
       },
     });
+    return members.map(({ _count, ...member }) => ({
+      ...member,
+      outstandingAppointmentCount: _count.appointments,
+    }));
   }
 
   async findOneByBarbershop(barbershopId: string, memberId: string) {
@@ -458,7 +479,14 @@ export class MembersService {
 
   async findPublicBarbers(barbershopId: string) {
     const members = await this.prisma.businessMember.findMany({
-      where: { barbershopId, isActive: true, isBookable: true },
+      where: {
+        barbershopId,
+        isActive: true,
+        isBookable: true,
+        reliabilityActions: {
+          none: { type: 'MEMBER_REVIEW_HOLD', resolvedAt: null },
+        },
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -499,36 +527,98 @@ export class MembersService {
     }));
   }
 
+  private outstandingAppointmentsWhere(
+    barbershopId: string,
+    memberId: string,
+  ): Prisma.AppointmentWhereInput {
+    return {
+      barbershopId,
+      businessMemberId: memberId,
+      OR: [
+        { status: AppointmentStatus.CONFIRMED, endsAt: { gt: new Date() } },
+        // A started service must be finalized before the employee loses access.
+        { status: AppointmentStatus.ARRIVED },
+      ],
+    };
+  }
+
+  async getAppointmentImpact(barbershopId: string, memberId: string) {
+    await this.findOneByBarbershop(barbershopId, memberId);
+    const where = this.outstandingAppointmentsWhere(barbershopId, memberId);
+    const [total, appointments] = await Promise.all([
+      this.prisma.appointment.count({ where }),
+      this.prisma.appointment.findMany({
+        where,
+        orderBy: { startsAt: 'asc' },
+        take: 100,
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          attendeeNameSnapshot: true,
+          serviceNameSnapshot: true,
+          changeProposals: {
+            where: { status: 'PENDING', expiresAt: { gt: new Date() } },
+            select: { id: true },
+            take: 1,
+          },
+        },
+      }),
+    ]);
+    return { total, appointments };
+  }
+
   async updateBookable(
     barbershopId: string,
     memberId: string,
     isBookable: boolean,
+    acknowledgeExistingAppointments = false,
   ) {
-    const member = await this.prisma.businessMember.findFirst({
-      where: { id: memberId, barbershopId },
-      select: { id: true, isActive: true, role: true },
-    });
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${barbershopId}, 0))`;
+      const member = await transaction.businessMember.findFirst({
+        where: { id: memberId, barbershopId },
+        select: { id: true, isActive: true, isBookable: true, role: true },
+      });
 
-    if (!member) {
-      throw new NotFoundException('Çalışan bu işletmeye ait değil.');
-    }
+      if (!member) {
+        throw new NotFoundException('Çalışan bu işletmeye ait değil.');
+      }
 
-    if (isBookable && !member.isActive) {
-      throw new BadRequestException(
-        'Pasif bir çalışan randevu alınabilir yapılamaz.',
-      );
-    }
+      if (isBookable && !member.isActive) {
+        throw new BadRequestException(
+          'Pasif bir çalışan randevu alınabilir yapılamaz.',
+        );
+      }
 
-    if (isBookable && member.role === 'APPRENTICE') {
-      throw new BadRequestException(
-        'Çırak rolündeki çalışan randevuya açılamaz.',
-      );
-    }
+      if (isBookable && member.role === 'APPRENTICE') {
+        throw new BadRequestException(
+          'Çırak rolündeki çalışan randevuya açılamaz.',
+        );
+      }
 
-    return this.prisma.businessMember.update({
-      where: { id: member.id },
-      data: { isBookable },
-      select: { id: true, isActive: true, isBookable: true },
+      if (
+        !isBookable &&
+        member.isBookable &&
+        !acknowledgeExistingAppointments
+      ) {
+        const affectedCount = await transaction.appointment.count({
+          where: this.outstandingAppointmentsWhere(barbershopId, memberId),
+        });
+        if (affectedCount > 0) {
+          throw new ConflictException({
+            code: 'MEMBER_APPOINTMENTS_CONFIRMATION_REQUIRED',
+            affectedCount,
+            message: `${affectedCount} mevcut randevu var. Yeni randevulara kapatmak mevcut randevuları iptal etmez; devam etmek için bunu onaylamalısın.`,
+          });
+        }
+      }
+      return transaction.businessMember.update({
+        where: { id: member.id },
+        data: { isBookable },
+        select: { id: true, isActive: true, isBookable: true },
+      });
     });
   }
 
@@ -537,30 +627,46 @@ export class MembersService {
     memberId: string,
     dto: UpdateBusinessMemberDto,
   ) {
-    const member = await this.prisma.businessMember.findFirst({
-      where: { id: memberId, barbershopId },
-      select: { id: true, role: true },
-    });
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${barbershopId}, 0))`;
+      const member = await transaction.businessMember.findFirst({
+        where: { id: memberId, barbershopId },
+        select: { id: true, role: true },
+      });
 
-    if (!member) {
-      throw new NotFoundException('Çalışan bu işletmeye ait değil.');
-    }
+      if (!member) {
+        throw new NotFoundException('Çalışan bu işletmeye ait değil.');
+      }
 
-    if (member.role === 'OWNER' || dto.role === 'OWNER') {
-      throw new BadRequestException(
-        'Owner rolü bu endpoint ile değiştirilemez. Sahiplik devri ayrı bir işlemdir.',
-      );
-    }
+      if (member.role === 'OWNER' || dto.role === 'OWNER') {
+        throw new BadRequestException(
+          'Owner rolü bu endpoint ile değiştirilemez. Sahiplik devri ayrı bir işlemdir.',
+        );
+      }
 
-    return this.prisma.businessMember.update({
-      where: { id: member.id },
-      data: {
-        ...(dto.role !== undefined && { role: dto.role }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-        ...(dto.isActive === false && { isBookable: false }),
-        ...(dto.role === 'APPRENTICE' && { isBookable: false }),
-      },
-      select: { id: true, role: true, isActive: true, isBookable: true },
+      if (dto.isActive === false || dto.role === 'APPRENTICE') {
+        const affectedCount = await transaction.appointment.count({
+          where: this.outstandingAppointmentsWhere(barbershopId, memberId),
+        });
+        if (affectedCount > 0) {
+          throw new ConflictException({
+            code: 'MEMBER_HAS_OUTSTANDING_APPOINTMENTS',
+            affectedCount,
+            message: `${affectedCount} mevcut randevu çözülmeden çalışan pasife alınamaz veya çırak yapılamaz. Önce yeni randevulara kapatıp mevcut randevuları müşteri onaylı teklif ya da işletme iptali ile çözmelisin.`,
+          });
+        }
+      }
+
+      return transaction.businessMember.update({
+        where: { id: member.id },
+        data: {
+          ...(dto.role !== undefined && { role: dto.role }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          ...(dto.isActive === false && { isBookable: false }),
+          ...(dto.role === 'APPRENTICE' && { isBookable: false }),
+        },
+        select: { id: true, role: true, isActive: true, isBookable: true },
+      });
     });
   }
 

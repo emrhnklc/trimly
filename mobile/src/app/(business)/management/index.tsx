@@ -29,8 +29,10 @@ import type {
 } from '@/features/barbershops/types';
 import { getDateKey } from '@/features/business-appointments/date';
 import {
+  getBusinessReliability,
   getDailyBusinessSummary,
   getManagementServices,
+  type BusinessReliabilityStatus,
 } from '@/features/business-management/api';
 import { BusinessManagementState } from '@/features/business-management/components/BusinessManagementState';
 import { BusinessBookingStatusSheet } from '@/features/business-management/components/BusinessBookingStatusSheet';
@@ -66,6 +68,7 @@ type ManagementData = {
   isDiscoverable: boolean;
   isBookingOpen: boolean;
   readiness: BarbershopReadiness;
+  reliability: BusinessReliabilityStatus;
 };
 
 function formatNotice(minutes: number) {
@@ -126,6 +129,7 @@ function BusinessManagementScreen() {
           summary,
           profile,
           readiness,
+          reliability,
         ] = await Promise.all([
           getManagementServices(barbershopId, token),
           getBusinessMembers(barbershopId, token),
@@ -134,6 +138,7 @@ function BusinessManagementScreen() {
           getDailyBusinessSummary(barbershopId, today, token),
           getPublicBarbershop(activeMembership.barbershop.slug),
           getBarbershopReadiness(barbershopId, token),
+          getBusinessReliability(barbershopId, token),
         ]);
 
         if (isCurrentRequest()) {
@@ -144,6 +149,7 @@ function BusinessManagementScreen() {
             isBookingOpen: readiness.isBookingOpen,
             members,
             readiness,
+            reliability,
             services,
             summary,
             workingHours,
@@ -248,6 +254,18 @@ function BusinessManagementScreen() {
         onPress: () => router.push('/(business)/management/booking'),
         title: 'Randevu Ayarları',
         value: `${data.bookingSettings.maxBookingAdvanceDays} gün ileri`,
+      },
+      {
+        description: 'Puan kuralları, aktif sonuçlar, iptal geçmişi ve itirazlar',
+        icon: {
+          ios: 'checkmark.shield',
+          android: 'verified_user',
+          web: 'verified_user',
+        },
+        id: 'reliability',
+        onPress: () => router.push('/(business)/management/reliability'),
+        title: 'İşletme Güvenilirliği',
+        value: `${data.reliability.points90Days} puan`,
       },
       {
         description: 'Ciroyu ve çalışan performansını incele',
@@ -458,7 +476,11 @@ function BusinessManagementScreen() {
             <View style={styles.bookingClosedCopy}>
               <AppText variant="label">Randevu alımı kapalı</AppText>
               <AppText color="textMuted" variant="bodySmall">
-                {data.readiness.missingRequirements.length
+                {data.readiness.bookingSuspendedUntil
+                  ? 'Güvenilirlik kısıtı ve bitiş tarihini görmek için dokun.'
+                  : data.readiness.staffAvailabilityBlocked
+                    ? 'Çalışan programı kontrolünü tamamlamak için aşağıya bak.'
+                    : data.readiness.missingRequirements.length
                   ? 'Eksikleri görüp randevuları açmak için dokun.'
                   : 'Müşterilerin yeniden randevu alabilmesi için dokun.'}
               </AppText>
@@ -471,6 +493,43 @@ function BusinessManagementScreen() {
               }}
               size={18}
               tintColor={themeColors.primary}
+            />
+          </Pressable>
+        ) : null}
+
+        {!isLoading && !error && data && data.reliability.points90Days > 0 ? (
+          <Pressable
+            accessibilityLabel={`İşletme güvenilirliğini aç. Son 90 gün ${data.reliability.points90Days} puan.`}
+            accessibilityRole="button"
+            onPress={() => router.push('/(business)/management/reliability')}
+            style={({ pressed }) => [
+              styles.reliabilityAlert,
+              {
+                backgroundColor: themeColors.dangerSurface,
+                borderColor: themeColors.danger,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.reliabilityAlertIcon}>
+              <SymbolView
+                name={{ ios: 'exclamationmark.shield.fill', android: 'gpp_maybe', web: 'gpp_maybe' }}
+                size={24}
+                tintColor={themeColors.danger}
+              />
+            </View>
+            <View style={styles.reliabilityAlertCopy}>
+              <AppText color="danger" variant="label">
+                {data.reliability.points90Days} aktif ceza puanı
+              </AppText>
+              <AppText color="textMuted" variant="bodySmall">
+                Nedenlerini, sonuçlarını ve itiraz seçeneklerini görmek için dokun.
+              </AppText>
+            </View>
+            <SymbolView
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={18}
+              tintColor={themeColors.danger}
             />
           </Pressable>
         ) : null}
@@ -775,6 +834,22 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 22, lineHeight: 28, marginTop: layout.sectionGap },
   menu: { marginTop: spacing.sm },
   pressed: { opacity: 0.78 },
+  reliabilityAlert: {
+    alignItems: 'center',
+    borderRadius: radius.smallCard,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  reliabilityAlertIcon: {
+    alignItems: 'center',
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  reliabilityAlertCopy: { flex: 1, gap: spacing.xxs },
   bookingClosedCard: {
     alignItems: 'center',
     borderRadius: radius.smallCard,

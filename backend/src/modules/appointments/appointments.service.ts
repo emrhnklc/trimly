@@ -21,10 +21,13 @@ import { canMarkCustomerArrived } from './appointment-time-rules';
 import { AvailabilityService } from '../availability/availability.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../../database/prisma.service';
+import { isMinorOnDate } from '../dependents/dependent-age';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 import { RevenuePeriod } from './dto/revenue-summary-query.dto';
+import { NoShowService } from './no-show.service';
+import { BusinessReliabilityService } from './business-reliability.service';
 
 const portfolioStatusSelect = {
   id: true,
@@ -97,6 +100,18 @@ const customerAppointmentSelect = {
   appointmentLocalDate: true,
   cancelledAt: true,
   completedAt: true,
+  businessCancellation: {
+    select: { reason: true },
+  },
+  noShowCase: {
+    select: {
+      status: true,
+      markedAt: true,
+      disputeDeadline: true,
+      disputedAt: true,
+      disputeReason: true,
+    },
+  },
   barbershop: {
     select: {
       id: true,
@@ -126,6 +141,8 @@ const customerAppointmentSelect = {
 
 const customerAppointmentDetailSelect = {
   ...customerAppointmentSelect,
+  guardianPrivatePhotoConsentAt: true,
+  dependentProfile: { select: { birthDate: true } },
   changeProposals: {
     orderBy: { createdAt: 'desc' as const },
     take: 1,
@@ -243,8 +260,13 @@ function presentCustomerAppointment(appointment: CustomerAppointmentRecord) {
 function presentCustomerAppointmentDetail(
   appointment: CustomerAppointmentDetailRecord,
 ) {
-  const { changeProposals, haircutRecord, review, ...appointmentRecord } =
-    appointment;
+  const {
+    changeProposals,
+    dependentProfile,
+    haircutRecord,
+    review,
+    ...appointmentRecord
+  } = appointment;
   const latestProposal = changeProposals[0];
   const presentedAppointment = presentCustomerAppointment(appointmentRecord);
   const rejectedProposalCancellation =
@@ -253,6 +275,13 @@ function presentCustomerAppointmentDetail(
 
   return {
     ...presentedAppointment,
+    requiresGuardianPhotoConsent: Boolean(
+      dependentProfile &&
+      isMinorOnDate(
+        dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ),
+    ),
     ...(rejectedProposalCancellation && {
       canCancel: true,
       cancellationReason: null,
@@ -292,6 +321,8 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly availabilityService: AvailabilityService,
     private readonly notificationsService: NotificationsService,
+    private readonly noShowService: NoShowService,
+    private readonly businessReliabilityService: BusinessReliabilityService,
   ) {}
 
   onModuleInit() {
@@ -337,11 +368,32 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private async assertMemberAcceptsBookings(
+    transaction: Prisma.TransactionClient,
+    barbershopId: string,
+    memberId: string,
+  ) {
+    const member = await transaction.businessMember.findFirst({
+      where: { id: memberId, barbershopId },
+      select: { isActive: true, isBookable: true, role: true },
+    });
+    if (
+      !member?.isActive ||
+      !member.isBookable ||
+      member.role === 'APPRENTICE'
+    ) {
+      throw new ConflictException(
+        'Seçilen çalışan artık yeni randevu kabul etmiyor. Başka bir çalışan veya saat seçmelisin.',
+      );
+    }
+  }
+
   async create(
     barbershopId: string,
     customerId: string,
     dto: CreateAppointmentDto,
   ) {
+    await this.noShowService.assertCanBook(customerId, barbershopId);
     const barbershop = await this.prisma.barbershop.findUnique({
       where: { id: barbershopId },
       select: { timezone: true },
@@ -397,9 +449,42 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException('Hizmet bulunamadı.');
     }
 
+    let attendeeNameForConflict = 'Seçilen kişi';
     try {
       const appointment = await this.prisma.$transaction(
         async (transaction) => {
+          await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${barbershopId}, 0))`;
+          await this.assertMemberAcceptsBookings(
+            transaction,
+            barbershopId,
+            dto.memberId,
+          );
+          const now = new Date();
+          const [businessSuspension, memberHold] = await Promise.all([
+            transaction.businessReliabilityAction.findFirst({
+              where: {
+                barbershopId,
+                type: 'BOOKING_SUSPENSION',
+                resolvedAt: null,
+                startsAt: { lte: now },
+                endsAt: { gt: now },
+              },
+              select: { id: true },
+            }),
+            transaction.businessReliabilityAction.findFirst({
+              where: {
+                businessMemberId: dto.memberId,
+                type: 'MEMBER_REVIEW_HOLD',
+                resolvedAt: null,
+              },
+              select: { id: true },
+            }),
+          ]);
+          if (businessSuspension || memberHold) {
+            throw new ConflictException(
+              'İşletme veya seçilen çalışan şu anda yeni randevu kabul etmiyor.',
+            );
+          }
           const attendee = dto.dependentProfileId
             ? await transaction.dependentProfile.findFirst({
                 where: {
@@ -418,6 +503,23 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
               dto.dependentProfileId
                 ? 'Seçilen yakın profili kullanılamıyor.'
                 : 'Müşteri profili bulunamadı.',
+            );
+          }
+          attendeeNameForConflict = attendee.firstName;
+
+          const appointmentLocalDate = new Date(`${localDate}T00:00:00.000Z`);
+          const dailyAppointmentCount = await transaction.appointment.count({
+            where: {
+              appointmentLocalDate,
+              status: { not: AppointmentStatus.CANCELLED },
+              ...(dto.dependentProfileId
+                ? { dependentProfileId: dto.dependentProfileId }
+                : { customerId, dependentProfileId: null }),
+            },
+          });
+          if (dailyAppointmentCount > 0) {
+            throw new ConflictException(
+              `${attendee.firstName} için bu tarihte zaten bir randevu bulunuyor.`,
             );
           }
 
@@ -548,7 +650,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
               customerId,
               dependentProfileId: dto.dependentProfileId ?? null,
               attendeeNameSnapshot: `${attendee.firstName} ${attendee.lastName}`,
-              appointmentLocalDate: new Date(`${localDate}T00:00:00.000Z`),
+              appointmentLocalDate,
               businessMemberId: dto.memberId,
               serviceId: service.id,
               campaignId,
@@ -573,6 +675,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `${attendeeNameForConflict} için bu tarihte zaten bir randevu bulunuyor.`,
+        );
+      }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
         (error.code === 'P2039' || error.code === 'P2034')
       ) {
         throw new ConflictException(
@@ -585,6 +695,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async findForCustomer(customerId: string) {
+    await this.noShowService.reconcileExpiredCases(customerId);
     await this.reconcileAutoCompletedAppointments({ customerId });
 
     const appointments = await this.prisma.appointment.findMany({
@@ -597,6 +708,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async findOneForCustomer(appointmentId: string, customerId: string) {
+    await this.noShowService.reconcileExpiredCases(customerId);
     await this.reconcileAutoCompletedAppointments({ customerId });
 
     const appointment = await this.prisma.appointment.findFirst({
@@ -652,6 +764,12 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const hasRejectedBusinessProposal =
       appointment.changeProposals[0]?.status === 'REJECTED';
+    if (hasRejectedBusinessProposal) {
+      return this.businessReliabilityService.cancelAfterRejectedChangeProposal(
+        appointment.id,
+        customerId,
+      );
+    }
     if (!cancellationPolicy.canCancel && !hasRejectedBusinessProposal) {
       throw new BadRequestException(
         cancellationPolicy.cancellationReason ?? 'Bu randevu iptal edilemez.',
@@ -782,12 +900,22 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         completedAt: true,
         cancelledAt: true,
         cancellationReason: true,
+        noShowCase: {
+          select: {
+            status: true,
+            markedAt: true,
+            disputeDeadline: true,
+            disputedAt: true,
+          },
+        },
         serviceNameSnapshot: true,
         campaignTitleSnapshot: true,
         campaignBenefitSnapshot: true,
         priceSnapshot: true,
         durationMinutes: true,
         dependentProfileId: true,
+        guardianPrivatePhotoConsentAt: true,
+        dependentProfile: { select: { birthDate: true } },
         attendeeNameSnapshot: true,
         appointmentLocalDate: true,
         customer: {
@@ -876,13 +1004,25 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     const {
       changeProposals,
+      dependentProfile,
       haircutRecord: businessHaircutRecord,
       ...appointmentRecord
     } = appointment;
+    const canShowBusinessPhotos = !(
+      dependentProfile &&
+      isMinorOnDate(
+        dependentProfile.birthDate,
+        appointment.appointmentLocalDate,
+      ) &&
+      !appointment.guardianPrivatePhotoConsentAt
+    );
     const haircutRecord = businessHaircutRecord
       ? {
           ...businessHaircutRecord,
-          photos: businessHaircutRecord.photos.map((photo) => ({
+          photos: (canShowBusinessPhotos
+            ? businessHaircutRecord.photos
+            : []
+          ).map((photo) => ({
             ...photo,
             url: businessHaircutRecord.finalizedAt
               ? null
@@ -893,6 +1033,13 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
 
     return {
       ...appointmentRecord,
+      requiresGuardianPhotoConsent: Boolean(
+        dependentProfile &&
+        isMinorOnDate(
+          dependentProfile.birthDate,
+          appointment.appointmentLocalDate,
+        ),
+      ),
       businessMember,
       changeProposal:
         changeProposals[0] && changeProposals[0].expiresAt > new Date()
@@ -1447,34 +1594,11 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     userId: string,
     dto: CancelAppointmentDto,
   ) {
-    const cancellationReason = dto.reason.trim();
-    if (cancellationReason.length < 3) {
-      throw new BadRequestException('İptal nedeni en az 3 karakter olmalıdır.');
-    }
-    const appointment = await this.findManageableAppointment(
+    return this.businessReliabilityService.cancelAppointment(
       barbershopId,
       appointmentId,
       userId,
-    );
-
-    if (
-      appointment.status !== AppointmentStatus.CONFIRMED &&
-      appointment.status !== AppointmentStatus.ARRIVED
-    ) {
-      throw new BadRequestException('Bu randevu iptal edilemez.');
-    }
-
-    return this.transitionAppointment(
-      appointment.id,
-      [AppointmentStatus.CONFIRMED, AppointmentStatus.ARRIVED],
-      'Bu randevu artık iptal edilemez.',
-      {
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-        cancellationReason,
-        arrivedAt: null,
-        autoCompleteAt: null,
-      },
+      dto.reason,
     );
   }
 
@@ -1499,6 +1623,9 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         serviceNameSnapshot: true,
         priceSnapshot: true,
         startsAt: true,
+        customerId: true,
+        dependentProfileId: true,
+        attendeeNameSnapshot: true,
         businessMemberId: true,
         barbershop: { select: { timezone: true } },
       },
@@ -1507,6 +1634,11 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     if (appointment.status !== 'CONFIRMED') {
       throw new BadRequestException('Bu randevu yeniden planlanamaz.');
     }
+
+    await this.noShowService.assertCanBook(
+      appointment.customerId,
+      barbershopId,
+    );
 
     const now = new Date();
     if (appointment.startsAt <= now) {
@@ -1528,6 +1660,26 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
     if (!date) {
       throw new BadRequestException(
         'Geçerli bir başlangıç zamanı gönderilmelidir.',
+      );
+    }
+
+    const proposedLocalDate = new Date(`${date}T00:00:00.000Z`);
+    const dailyAppointmentCount = await this.prisma.appointment.count({
+      where: {
+        id: { not: appointment.id },
+        appointmentLocalDate: proposedLocalDate,
+        status: { not: AppointmentStatus.CANCELLED },
+        ...(appointment.dependentProfileId
+          ? { dependentProfileId: appointment.dependentProfileId }
+          : {
+              customerId: appointment.customerId,
+              dependentProfileId: null,
+            }),
+      },
+    });
+    if (dailyAppointmentCount > 0) {
+      throw new ConflictException(
+        `${appointment.attendeeNameSnapshot} için bu tarihte zaten bir randevu bulunuyor.`,
       );
     }
 
@@ -1652,6 +1804,8 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
           select: {
             businessMemberId: true,
             customerId: true,
+            dependentProfileId: true,
+            attendeeNameSnapshot: true,
             serviceId: true,
             status: true,
             barbershop: { select: { id: true, timezone: true } },
@@ -1686,6 +1840,11 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Bu randevu artık değiştirilemez.');
     }
 
+    await this.noShowService.assertCanBook(
+      proposal.appointment.customerId,
+      proposal.appointment.barbershop.id,
+    );
+
     const date = DateTime.fromJSDate(proposal.proposedStartsAt)
       .setZone(proposal.appointment.barbershop.timezone)
       .toISODate();
@@ -1719,6 +1878,34 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       proposal.proposedServiceId !== proposal.appointment.serviceId;
     try {
       await this.prisma.$transaction(async (transaction) => {
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${proposal.appointment.barbershop.id}, 0))`;
+        await this.assertMemberAcceptsBookings(
+          transaction,
+          proposal.appointment.barbershop.id,
+          proposal.proposedBusinessMemberId,
+        );
+        const proposedLocalDate = new Date(`${date}T00:00:00.000Z`);
+        const dailyAppointmentCount = await transaction.appointment.count({
+          where: {
+            id: { not: appointmentId },
+            appointmentLocalDate: proposedLocalDate,
+            status: { not: AppointmentStatus.CANCELLED },
+            ...(proposal.appointment.dependentProfileId
+              ? {
+                  dependentProfileId: proposal.appointment.dependentProfileId,
+                }
+              : {
+                  customerId: proposal.appointment.customerId,
+                  dependentProfileId: null,
+                }),
+          },
+        });
+        if (dailyAppointmentCount > 0) {
+          throw new ConflictException(
+            `${proposal.appointment.attendeeNameSnapshot} için bu tarihte zaten bir randevu bulunuyor.`,
+          );
+        }
+
         const claimed = await transaction.appointmentChangeProposal.updateMany({
           where: {
             id: proposal.id,
@@ -1739,6 +1926,7 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
             serviceNameSnapshot: proposal.proposedServiceName,
             startsAt: proposal.proposedStartsAt,
             endsAt: proposal.proposedEndsAt,
+            appointmentLocalDate: proposedLocalDate,
             durationMinutes: proposal.proposedDurationMinutes,
             priceSnapshot: proposal.proposedPrice,
             reminder24hSentAt: null,
@@ -1754,6 +1942,14 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
         });
       });
     } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          `${proposal.appointment.attendeeNameSnapshot} için bu tarihte zaten bir randevu bulunuyor.`,
+        );
+      }
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         (error.code === 'P2039' || error.code === 'P2025')
@@ -1826,18 +2022,21 @@ export class AppointmentsService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Bu randevu no-show işaretlenemez.');
     }
 
-    if (new Date() < appointment.startsAt) {
+    if (Date.now() < appointment.startsAt.getTime() + 15 * 60 * 1000) {
       throw new BadRequestException(
-        'Müşteri ancak randevu saati geldikten sonra gelmedi işaretlenebilir.',
+        'Müşteri ancak randevu saatinden 15 dakika sonra gelmedi işaretlenebilir.',
       );
     }
 
-    return this.transitionAppointment(
-      appointment.id,
-      [AppointmentStatus.CONFIRMED],
-      'Bu randevu artık gelmedi olarak işaretlenemez.',
-      { status: AppointmentStatus.NO_SHOW },
-    );
+    return this.noShowService.mark(appointment.id, userId);
+  }
+
+  disputeNoShow(appointmentId: string, customerId: string, reason: string) {
+    return this.noShowService.dispute(appointmentId, customerId, reason);
+  }
+
+  getCustomerNoShowStatus(customerId: string) {
+    return this.noShowService.getCustomerStatus(customerId);
   }
 
   private async transitionAppointment(

@@ -1,0 +1,5 @@
+ALTER TYPE "BusinessCancellationPointReason"
+ADD VALUE IF NOT EXISTS 'BETWEEN_6_AND_24_HOURS';
+
+ALTER TYPE "BusinessCancellationPointReason"
+ADD VALUE IF NOT EXISTS 'BETWEEN_2_AND_6_HOURS';

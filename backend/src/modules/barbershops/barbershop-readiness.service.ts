@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { BusinessReliabilityActionType } from '@prisma/client';
 
 export const barbershopReadinessRequirementLabels = {
   LOCATION: 'doğrulanmış işletme konumu',
@@ -24,6 +25,8 @@ export type BarbershopReadinessRequirement =
 export type BarbershopReadiness = {
   acceptsBookings: boolean;
   isBookingOpen: boolean;
+  bookingSuspendedUntil: Date | null;
+  staffAvailabilityBlocked: boolean;
   isDiscoverable: boolean;
   isReadyToPublish: boolean;
   checks: {
@@ -57,6 +60,7 @@ export class BarbershopReadinessService {
       coverImageUrl?: string | null;
     },
   ): Promise<BarbershopReadiness> {
+    const now = new Date();
     const barbershop = await this.prisma.barbershop.findUnique({
       where: { id: barbershopId },
       select: {
@@ -67,6 +71,17 @@ export class BarbershopReadinessService {
         phone: true,
         profileImageUrl: true,
         coverImageUrl: true,
+        reliabilityActions: {
+          where: {
+            type: BusinessReliabilityActionType.BOOKING_SUSPENSION,
+            resolvedAt: null,
+            startsAt: { lte: now },
+            endsAt: { gt: now },
+          },
+          orderBy: { endsAt: 'desc' },
+          take: 1,
+          select: { endsAt: true },
+        },
         galleryPhotos: { select: { id: true } },
         services: {
           where: { isActive: true },
@@ -88,6 +103,13 @@ export class BarbershopReadinessService {
             },
           },
           select: {
+            reliabilityActions: {
+              where: {
+                type: BusinessReliabilityActionType.MEMBER_REVIEW_HOLD,
+                resolvedAt: null,
+              },
+              select: { id: true },
+            },
             workingHours: {
               select: {
                 weekday: true,
@@ -181,13 +203,24 @@ export class BarbershopReadinessService {
       }));
 
     const isReadyToPublish = missingRequirements.length === 0;
+    const bookingSuspendedUntil =
+      barbershop.reliabilityActions[0]?.endsAt ?? null;
+    const staffAvailabilityBlocked =
+      barbershop.members.length > 0 &&
+      barbershop.members.every(
+        (member) => member.reliabilityActions.length > 0,
+      );
 
     return {
       acceptsBookings: barbershop.acceptsBookings,
+      bookingSuspendedUntil,
+      staffAvailabilityBlocked,
       checks,
       isBookingOpen:
         barbershop.isDiscoverable &&
         barbershop.acceptsBookings &&
+        !bookingSuspendedUntil &&
+        !staffAvailabilityBlocked &&
         isReadyToPublish,
       isDiscoverable: barbershop.isDiscoverable,
       isReadyToPublish,
@@ -220,13 +253,17 @@ export class BarbershopReadinessService {
     const readiness = await this.getReadiness(barbershopId);
     if (readiness.isBookingOpen) return readiness;
 
-    const reason = !readiness.isDiscoverable
-      ? 'İşletme henüz yayında değil.'
-      : !readiness.acceptsBookings
-        ? 'İşletme şu anda yeni randevu kabul etmiyor.'
-        : `İşletmenin randevu alabilmesi için eksik adımlar var: ${readiness.missingRequirements
-            .map((requirement) => requirement.label)
-            .join(', ')}.`;
+    const reason = readiness.bookingSuspendedUntil
+      ? `İşletme güvenilirlik kısıtı nedeniyle ${new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(readiness.bookingSuspendedUntil)} tarihine kadar yeni randevu alamıyor.`
+      : !readiness.isDiscoverable
+        ? 'İşletme henüz yayında değil.'
+        : !readiness.acceptsBookings
+          ? 'İşletme şu anda yeni randevu kabul etmiyor.'
+          : readiness.staffAvailabilityBlocked
+            ? 'Çalışan programı işletme sahibi tarafından doğrulanana kadar yeni randevu alınamıyor.'
+            : `İşletmenin randevu alabilmesi için eksik adımlar var: ${readiness.missingRequirements
+                .map((requirement) => requirement.label)
+                .join(', ')}.`;
 
     throw new ConflictException({
       statusCode: 409,

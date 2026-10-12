@@ -1,23 +1,23 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from "expo-symbols";
 
-import { AppCard } from '@/components/ui/AppCard';
-import { AppText } from '@/components/ui/AppText';
+import { AppCard } from "@/components/ui/AppCard";
+import { AppText } from "@/components/ui/AppText";
 import type {
   AppointmentStatus,
   CustomerAppointment,
-} from '@/features/appointments/types';
-import { colors } from '@/theme/colors';
-import { radius, spacing } from '@/theme/spacing';
-import { useThemeColors } from '@/theme/useThemeColors';
+} from "@/features/appointments/types";
+import { colors } from "@/theme/colors";
+import { radius, spacing } from "@/theme/spacing";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const statusLabels: Record<AppointmentStatus, string> = {
-  CONFIRMED: 'Onaylandı',
-  ARRIVED: 'Geldi',
-  COMPLETED: 'Tamamlandı',
-  CANCELLED: 'İptal Edildi',
-  NO_SHOW: 'Gelmedi',
+  CONFIRMED: "Onaylandı",
+  ARRIVED: "Geldi",
+  COMPLETED: "Tamamlandı",
+  CANCELLED: "İptal Edildi",
+  NO_SHOW: "Gelmedi",
 };
 
 export function CustomerAppointmentCard({
@@ -30,78 +30,137 @@ export function CustomerAppointmentCard({
   const themeColors = useThemeColors();
   const startsAt = new Date(appointment.startsAt);
   const barberName = `${appointment.businessMember.user.firstName} ${appointment.businessMember.user.lastName}`;
-  const dayLabel = new Intl.DateTimeFormat('tr-TR', { weekday: 'short' })
+  const dayLabel = new Intl.DateTimeFormat("tr-TR", { weekday: "short" })
     .format(startsAt)
-    .replace('.', '');
-  const dayNumber = new Intl.DateTimeFormat('tr-TR', { day: '2-digit' }).format(startsAt);
-  const monthLabel = new Intl.DateTimeFormat('tr-TR', { month: 'short' })
+    .replace(".", "");
+  const dayNumber = new Intl.DateTimeFormat("tr-TR", { day: "2-digit" }).format(
+    startsAt,
+  );
+  const monthLabel = new Intl.DateTimeFormat("tr-TR", { month: "short" })
     .format(startsAt)
-    .replace('.', '');
-  const timeLabel = new Intl.DateTimeFormat('tr-TR', {
-    hour: '2-digit',
-    minute: '2-digit',
+    .replace(".", "");
+  const timeLabel = new Intl.DateTimeFormat("tr-TR", {
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(startsAt);
   const presentationByStatus: Record<
     AppointmentStatus,
     { backgroundColor: string; color: keyof typeof colors }
   > = {
-    CONFIRMED: { backgroundColor: themeColors.successSurface, color: 'success' },
-    ARRIVED: { backgroundColor: themeColors.surfaceMuted, color: 'primary' },
-    COMPLETED: { backgroundColor: themeColors.surfaceMuted, color: 'textMuted' },
-    CANCELLED: { backgroundColor: themeColors.dangerSurface, color: 'danger' },
-    NO_SHOW: { backgroundColor: themeColors.dangerSurface, color: 'danger' },
+    CONFIRMED: {
+      backgroundColor: themeColors.successSurface,
+      color: "success",
+    },
+    ARRIVED: { backgroundColor: themeColors.surfaceMuted, color: "primary" },
+    COMPLETED: {
+      backgroundColor: themeColors.surfaceMuted,
+      color: "textMuted",
+    },
+    CANCELLED: { backgroundColor: themeColors.dangerSurface, color: "danger" },
+    NO_SHOW: { backgroundColor: themeColors.dangerSurface, color: "danger" },
   };
   const presentation = presentationByStatus[appointment.status];
+  const statusLabel =
+    appointment.noShowCase?.status === "PENDING_DISPUTE"
+      ? "İtiraz süresi açık"
+      : appointment.noShowCase?.status === "UNDER_REVIEW"
+        ? "İncelemede"
+        : statusLabels[appointment.status];
 
   return (
     <Pressable
       accessibilityLabel={`${appointment.barbershop.name} randevu detayını aç`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}>
+      style={({ pressed }) => pressed && styles.pressed}
+    >
       <AppCard style={styles.card}>
-        <View style={[styles.dateBox, { backgroundColor: themeColors.darkSurface }]}>
-          <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
+        <View
+          style={[styles.dateBox, { backgroundColor: themeColors.darkSurface }]}
+        >
+          <AppText
+            color="onPrimary"
+            style={styles.dateText}
+            variant="bodySmall"
+          >
             {dayLabel}
           </AppText>
-          <AppText color="onPrimary" style={styles.dayNumber} variant="displayMedium">
+          <AppText
+            color="onPrimary"
+            style={styles.dayNumber}
+            variant="displayMedium"
+          >
             {dayNumber}
           </AppText>
-          <AppText color="onPrimary" style={styles.dateText} variant="bodySmall">
+          <AppText
+            color="onPrimary"
+            style={styles.dateText}
+            variant="bodySmall"
+          >
             {monthLabel}
           </AppText>
         </View>
 
         <View style={styles.content}>
-          <AppText numberOfLines={1} style={styles.shopName} variant="cardTitle">
+          <AppText
+            numberOfLines={1}
+            style={styles.shopName}
+            variant="cardTitle"
+          >
             {appointment.barbershop.name}
           </AppText>
-          <AppText color="textMuted" numberOfLines={1} style={styles.employee} variant="bodySmall">
+          <AppText
+            color="textMuted"
+            numberOfLines={1}
+            style={styles.employee}
+            variant="bodySmall"
+          >
             {appointment.dependentProfileId
               ? `${appointment.attendeeNameSnapshot} · ${barberName}`
               : barberName}
           </AppText>
           <View style={styles.metaRow}>
             <SymbolView
-              name={{ ios: 'clock', android: 'schedule', web: 'schedule' }}
+              name={{ ios: "clock", android: "schedule", web: "schedule" }}
               size={15}
               tintColor={themeColors.textMuted}
             />
-            <AppText color="textMuted" variant="bodySmall">{timeLabel}</AppText>
+            <AppText color="textMuted" variant="bodySmall">
+              {timeLabel}
+            </AppText>
             <View style={styles.dot} />
-            <AppText color="textMuted" numberOfLines={1} style={styles.serviceName} variant="bodySmall">
+            <AppText
+              color="textMuted"
+              numberOfLines={1}
+              style={styles.serviceName}
+              variant="bodySmall"
+            >
               {appointment.serviceNameSnapshot}
             </AppText>
           </View>
         </View>
         <View style={styles.trailing}>
-          <View style={[styles.badge, { backgroundColor: presentation.backgroundColor }]}>
-            <AppText color={presentation.color} numberOfLines={1} style={styles.badgeText} variant="bodySmall">
-              {statusLabels[appointment.status]}
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: presentation.backgroundColor },
+            ]}
+          >
+            <AppText
+              color={presentation.color}
+              numberOfLines={1}
+              style={styles.badgeText}
+              variant="bodySmall"
+            >
+              {statusLabel}
             </AppText>
           </View>
           <SymbolView
-            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+            name={{
+              ios: "chevron.right",
+              android: "chevron_right",
+              web: "chevron_right",
+            }}
             size={13}
             tintColor={themeColors.textMuted}
           />
@@ -113,23 +172,28 @@ export function CustomerAppointmentCard({
 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
-  card: { alignItems: 'center', flexDirection: 'row', marginBottom: spacing.sm, padding: spacing.sm },
+  card: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+  },
   dateBox: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: radius.md,
-    justifyContent: 'center',
+    justifyContent: "center",
     minHeight: 80,
     width: 58,
   },
-  dateText: { fontSize: 11, lineHeight: 14, textTransform: 'capitalize' },
+  dateText: { fontSize: 11, lineHeight: 14, textTransform: "capitalize" },
   dayNumber: { fontSize: 24, lineHeight: 28 },
-  content: { flex: 1, justifyContent: 'center', marginLeft: 10, minWidth: 0 },
+  content: { flex: 1, justifyContent: "center", marginLeft: 10, minWidth: 0 },
   shopName: { flex: 1 },
   employee: { marginTop: 2 },
   trailing: {
-    alignItems: 'flex-end',
-    alignSelf: 'stretch',
-    justifyContent: 'space-between',
+    alignItems: "flex-end",
+    alignSelf: "stretch",
+    justifyContent: "space-between",
     marginLeft: 6,
     paddingVertical: 5,
   },
@@ -141,7 +205,17 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   badgeText: { fontSize: 9, lineHeight: 14 },
-  metaRow: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: spacing.xs },
-  dot: { backgroundColor: colors.primary, borderRadius: radius.pill, height: 4, width: 4 },
+  metaRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    marginTop: spacing.xs,
+  },
+  dot: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    height: 4,
+    width: 4,
+  },
   serviceName: { flex: 1 },
 });

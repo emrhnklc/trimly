@@ -32,7 +32,7 @@ Bu sıra takvim tahmini değil, **bağımlılık sırasıdır**. Bir fazın çı
 - [ ] Geç kalma, gerçek hizmet başlangıcı ve cezasız ayrılma süreleri.
 - [ ] `COMPLETED`, `NO_SHOW` ve yanlış durum işaretleme itiraz akışı.
 - [ ] Ek hizmet, uzayan süre ve son fiyat için müşteri onayı.
-- [ ] Çalışan ayrıldığında veya pasife alındığında gelecek randevular.
+- [x] Çalışan pasife alınmadan önce mevcut randevuların çözülmesi: etki önizlemesi, yeni rezervasyonları ayrı kapatma, müşteri onaylı alternatif teklifi ve reddedilen teklifte cezasız müşteri iptali. Kalıcı isim/fotoğraf snapshot'ı aşağıda ayrı takip edilir.
 - [ ] Fotoğraf rızasının geri çekilmesi ve veri saklama/silme süreleri.
 - [ ] Müşteri ve işletme ceza kararlarının kullanıcıya nasıl açıklanacağı ve itiraz edileceği.
 
@@ -181,18 +181,21 @@ Her özellik veya hata aşağıdaki sırayla ele alınır:
 
 Amaç, müşteri işletmeye girdikten sonra hizmeti kimin vereceğine güvenle karar verebilsin. İlk sürüm ayrı bir sosyal ağ değil, işletme içindeki doğrulanmış çalışan profilidir.
 
-- [ ] İşletme detayında **Ekibimiz / Berberler** bölümü gösterilsin.
-- [ ] Çalışan kartında fotoğraf, ad, rol, kısa uzmanlıklar, ortalama puan, yorum sayısı ve tamamlanan randevu sayısı gösterilsin.
-- [ ] Çalışan kartına basıldığında public çalışan profil ekranı açılsın.
-- [ ] Profilde çalışanın verdiği hizmetler, randevuya açık durumu, açık rızalı portföyü ve doğrulanmış son yorumları gösterilsin.
-- [ ] **Bu berberden randevu al** butonu randevu akışını işletme ve çalışan seçilmiş olarak başlatsın.
-- [ ] Puan ve tamamlanan işlem sayısı yalnız o işletmedeki doğrulanmış randevulardan hesaplansın.
-- [ ] Telefon, e-posta, gelir, müşteri listesi, özel müşteri notları ve izinsiz fotoğraflar public profilde gösterilmesin.
-- [ ] Çalışan kendi profilinde fotoğraf, biyografi ve uzmanlık önerisi yapabilsin; işletmenin doğrulaması gereken alanlar ayrıca belirlensin.
-- [ ] Owner/manager çalışanın hizmet eşleşmesini ve randevuya açık durumunu yönetebilsin.
+- [x] İşletme detayında **Ekibimiz / Berberler** bölümü gösterilsin.
+- [x] Çalışan kartında fotoğraf, ad, rol, kısa hizmet bilgisi, ortalama puan, değerlendirme sayısı ve tamamlanan randevu sayısı gösterilsin. Uzmanlık özeti çalışana atanmış aktif hizmetlerden türetilir; sayılar yalnız ilgili işletmedeki tamamlanan randevulardan, puan müşteri ağırlıklı ortalamadan gelir. Ekibimiz kartında işletmenin gerçek randevuya açık/kapalı durumu kullanılır. Toplu sorgular ve boş geçmiş backend unit testleriyle doğrulandı; açık/koyu gerçek cihaz kontrolü aşağıdaki maddede açık kalır.
+- [x] Çalışan kartına basıldığında public çalışan profil ekranı açılsın.
+- [x] Profilde çalışanın verdiği hizmetler, randevuya açık durumu, açık rızalı portföyü ve doğrulanmış son yorumları gösterilsin.
+- [x] **Bu berberden randevu al** butonu randevu akışını işletme ve çalışan seçilmiş olarak başlatsın.
+- [x] Puan ve tamamlanan işlem sayısı yalnız o işletmedeki doğrulanmış randevulardan hesaplansın.
+- [x] Telefon, e-posta, gelir, müşteri listesi, özel müşteri notları ve izinsiz fotoğraflar public profilde gösterilmesin.
+- [x] **Ürün kararı (8 Ekim 2026):** Ayrı berber profili düzenleme alanı ve kişisel Hakkında/biyografi kaldırıldı. Müşteriye görünen işletme içi berber sayfası hesap adı/fotoğrafı, atanmış hizmetler, randevu durumu, doğrulanmış puan/yorum ve izinli portföyden otomatik oluşur. Hesap adı/fotoğrafı normal hesap düzenleme akışında kalır.
+- [x] Owner/manager çalışanın hizmet eşleşmesini ve randevuya açık durumunu yönetebilsin.
 - [ ] Çalışan işletmeden ayrıldığında public profil o işletmede pasife alınsın; geçmiş randevularda isim/fotoğraf snapshot'ı korunsun.
-- [ ] Public çalışan detay endpoint'i; üye bazlı puan, yorum, tamamlanan randevu ve portföy özetini güvenli şekilde dönsün.
-- [ ] Boş profil, yorum yok, portföy yok ve randevuya kapalı durumlarının tasarımları tamamlansın.
+- [x] Public çalışan detay endpoint'i; üye bazlı puan, yorum ve tamamlanan randevu özetini güvenli şekilde dönsün. Portföy mevcut açık rıza kontrollerini kullanan API'den çalışan bazında gösterilir.
+- [x] Boş profil, yorum yok, portföy yok ve randevuya kapalı durumlarının tasarımları tamamlansın.
+- [x] Son karara göre owner/manager profilindeki **Benim Profilim / İşletme** sekmeleri, Berber Profilim hızlı işlemi ve çalışan ekranındaki public profil düzenleme girişi kaldırıldı. İşletme düzenlemesi Yönetim'de kalır; eski berber düzenleme bağlantıları normal profile döner.
+- [x] Ayrı çalışan biyografisi düzenleme API'si kapatıldı; mevcut veritabanı alanı/verileri silinmedi fakat public cevapta ve arayüzde kullanılmaz.
+- [ ] Sekmesiz profil, normal hesap düzenleme ve otomatik public çalışan profili → randevu akışı gerçek cihazda açık/koyu temada doğrulansın.
 
 **Tamamlanma ölçütü:** Müşteri işletme detayından bir çalışanı inceleyip ilgili çalışan seçili şekilde uygun hizmet ve saate ulaşabilmeli; gizli çalışan/müşteri verisi public API'ye çıkmamalıdır.
 
@@ -207,23 +210,34 @@ Amaç, tek hesaptan çocuk veya bakmakla yükümlü olunan kişi için randevu a
 - [x] Randevu akışına **Kimin için?** adımı eklensin: **Kendim için** veya kayıtlı yakın.
 - [x] İşletme randevuda hizmeti alacak kişinin adını; iletişim ve bildirimlerde rezervasyonu yapan hesap sahibini görsün.
 - [x] Randevu onaylandıktan sonra katılımcı değiştirilemesin; yanlış seçim iptal ve yeni randevuyla çözülsün.
-- [ ] Günlük tek randevu sınırı hesap yerine katılımcı bazında uygulansın; her yakın için ayrıca kontrol edilsin.
-- [ ] Yakının randevu, no-show ve tıraş geçmişi hesap sahibinin geçmişinden ayrı gösterilsin.
-- [ ] Yakın adına oluşan no-show ve diğer ihlaller hem yakın kaydına hem rezervasyonu yapan ana hesaba bağlansın.
-- [ ] Reşit olmayanlarda özel geçmiş fotoğrafı varsayılan kapalı olsun; fotoğraf çekimi ve public portföy için ayrı veli onayları alınsın.
+- [x] Günlük tek randevu sınırı hesap yerine katılımcı bazında uygulansın; her yakın için ayrıca kontrol edilsin.
+- [x] Yakının randevu, no-show ve tıraş geçmişi hesap sahibinin geçmişinden ayrı gösterilsin. Randevularım kişi filtresine ek olarak tıraş geçmişinde Ben/Tümü/yakın seçimi var; arşivlenmiş yakınların eski kayıtları korunur.
+- [x] Yakın adına oluşan no-show kaydı hem yakın kaydına hem rezervasyonu yapan ana hesaba bağlansın.
+- [x] Reşit olmayanlarda özel geçmiş fotoğrafı varsayılan kapalı olsun; fotoğraf çekimi ve public portföy için ayrı veli onayları alınsın. Özel izin randevu detayında, public yayın izni ayrıca portföy talebinde verilir.
+- [ ] Çocuk fotoğraf iznini verme/geri çekme ve public yayını gerçek cihazda uçtan uca dene.
 - [x] Aktif/gelecek randevusu veya korunması gereken geçmişi bulunan yakın doğrudan silinmesin; geçmişi bulunan profil silinmek yerine arşivlensin.
 - [x] Backend'e yakın profili modeli ile randevuya `dependentProfileId`, değişmez `attendeeNameSnapshot` ve `appointmentLocalDate` alanları eklensin.
-- [ ] Self randevuda kullanıcı+tarih, yakın randevusunda yakın+tarih benzersizliği transaction/veritabanı seviyesinde korunsun.
+- [x] Self randevuda kullanıcı+tarih, yakın randevusunda yakın+tarih benzersizliği transaction/veritabanı seviyesinde korunsun.
 - [ ] Yakınlarım listesi, ekleme/düzenleme ekranları, boş durum ve hata mesajları açık/koyu temada test edilsin.
 
 **Tamamlanma ölçütü:** Aynı hesap kendisi ve farklı bir yakını için aynı güne ayrı randevu alabilmeli; aynı katılımcı için ikinci randevu backend tarafından engellenmeli ve çocuk fotoğrafı açık rıza olmadan hiçbir public alana çıkmamalıdır.
 
 ## Karar verilecek kurallar
 
+- [ ] İşletme iptalinde platform arızası/mücbir sebep muafiyeti için kanıt ve moderasyon akışı tamamlansın; müşteri talebi müşterinin onayı olmadan işletme gerekçesi sayılmasın.
+- [x] İşletme iptalinden sonra müşteriye aynı hizmet için uygun saatler ve gerekirse yakın işletmeler gösterilsin; iptal → alternatif → yeniden rezervasyon backend E2E senaryosu geçsin.
+- [x] İşletmede 3/5/8 puan eşikleri, itiraz yetkisi ve kabul edilen itirazın 8 puan kısıtını kaldırması backend E2E'de doğrulansın.
+- [x] İşletme iptalinden önce tahmini, işlemden sonra kesin puan/toplam/yaptırım gösterilsin; owner/manager bildirimi ile kalıcı güvenilirlik ve ayrıntılı geçmiş ekranı eklensin.
+- [x] İşletme zaman puanı 24+ / 6–24 / 2–6 / 2 saat altı olarak ayrılsın; günlük, seri ve haftalık tekrarlar ek ceza yerine operasyon sinyali olarak gösterilsin.
+- [ ] İşletme iptal oranı için gerçek kullanım verisi toplandıktan sonra minimum örneklem ve otomatik yaptırım eşikleri kesinleştirilsin; şimdilik 30 günlük oran bilgi amaçlı kalsın.
+- [x] No-show itirazında kabulün kaydı geri alması ve iki reddedilen itiraz sonrası işletmeye özel kısıt backend E2E'de doğrulansın.
+- [ ] İşletme/no-show cezalarının kalan eşikleri ve süreleri gerçek cihazda ve genişletilmiş backend E2E turunda doğrulansın. Müşteri no-show için 2/3/6 eşikleri, 14/30/7/30 günlük süreler ve haklı itirazın sayaca etkisi backend E2E'de doğrulandı; gerçek cihaz ve işletme tarafındaki kalan sınırlar açık.
+- [ ] Altıncı kesinleşmiş no-show sonrasında 30 günlük kısıtla birlikte operasyonun kullanacağı hesap inceleme kuyruğu/karar akışı tasarlansın; moderatör hesabı kurulumu ve itiraz süreçleri tamamlanıp test edilsin.
+
 - [ ] Müşteri ve işletme geç kalma süreleri ile cezasız ayrılma hakkı kesinleştirilsin.
 - [ ] Randevu başlatma ve tamamlama doğrulaması kesinleştirilsin.
 - [ ] Ek hizmet, süre ve fiyat değişikliğinde müşteri onay akışı kesinleştirilsin.
-- [ ] Çalışanın ayrılması/pasife alınması hâlinde gelecek randevuların çözümü kesinleştirilsin.
+- [x] Çalışanın ayrılması/pasife alınması hâlinde gelecek randevuların çözümü: aktif/geçerli randevu veya başlayan hizmet varken pasife alma/çırak rolü engellenir; önce yalnız yeni rezervasyonlar kapatılır. Çalışan ekranındaki kalıcı liste teklif/detay akışına yönlendirir; teklif kabulü olmadan atama değişmez. Randevu oluşturma ve teklif kabulü, çalışan durumunu ortak işletme kilidi altında yeniden doğrular. Backend unit testleri eklendi; gerçek cihaz kontrolü yapılacak.
 - [ ] Yorum moderasyonu, fotoğraf iznini geri çekme ve veri saklama süreleri kesinleştirilsin.
 - [ ] Spam, ceza aşma, sahte randevu ve puan manipülasyonu kontrolleri tasarlansın.
 - [ ] Ödeme geliştirilmeden önce kapora, iade, komisyon, itiraz ve ters ibraz politikası kesinleştirilsin.
@@ -292,3 +306,23 @@ Bu maddeler söz verilmiş özellik değildir. Pilot verisi veya gerçek kullan�
 ## Tamamlandı
 
 Tamamlanan büyük işler burada kısa bir satırla tutulur; ayrıntı git geçmişinde ve ilgili ürün belgesinde kalır.
+
+## ⭐ En son — Trimly Plus AI İşletme Asistanı
+
+**Sıra kararı:** Çekirdek randevu/işletme akışları, güvenlik, pilot/yayın kontrolleri ve Plus abonelik altyapısı tamamlandıktan sonra ele alınsın. Ücretsiz temel yönetim ekranları aynen çalışmaya devam etsin. İşletmelere küçük bir deneme hakkı verilebilir; Plus kullanımı backend tarafından doğrulanan aylık kota ve maliyet sınırıyla açılsın. Kota ve fiyat gerçek kullanım maliyeti ölçülerek belirlensin, sınırsız kullanım vaat edilmesin. Kişisel ChatGPT Plus aboneliği Trimly işletme Plus hakkı sayılmasın.
+
+- [ ] Owner/manager'ın doğal dille soru sorup güvenli işletme işlemleri yapabildiği metin tabanlı sohbetin ürün kapsamı, başarı ölçüleri ve kapatma koşulu netleştirilsin; sesli komut ve arka plan ajanı sonraya bırakılsın.
+- [ ] Backend'de seçili işletmeye bağlı `AssistantModule`/orchestrator ve izinli action kataloğu kurulsun; mobil uygulama AI sağlayıcısına veya veritabanına doğrudan bağlanmasın. AI mevcut servis/business rule'ları atlayamasın.
+- [ ] Her action için versiyonlu structured JSON Schema, sunucu tarafı DTO doğrulaması, sınırlı çıktı ve açık hata kodları tanımlansın; model yalnız izinli action/argüman önersin. Eksik tarih, hizmet veya benzer isimli çalışan/müşteri varsa tahmin etmek yerine kullanıcıya sorulsun.
+- [ ] Salt-okuma action'ları eklensin: `getAppointments`, `getAvailableSlots`, `getAppointmentDetails`, `searchCustomers`, `getBusinessAnalytics`, `getEmployeeAnalytics`. Tarih/çalışan/durum filtresi, sayfalama, işletme saat dilimi ve en az gerekli kişisel veri esas alınsın.
+- [ ] “Bu hafta en çok hangi hizmet satıldı?” için tamamlanan randevulara dayalı hizmet agregasyonu ve çalışan analitiği tamamlanıp kullanılan metrik kullanıcıya açıkça anlatılsın. Hizmet süresine bağlı boş saat sorularında hizmet belirtilmemişse netleştirme istensin.
+- [ ] Veri değiştiren action'lar yalnız dar kapsamda eklensin: `updateEmployeeWorkingHours`, `blockTimeRange`, `updateServicePrice`, `toggleServiceStatus`. Tek seferlik saat kapatma ile haftalık vardiya değişikliği karıştırılmasın; mevcut servislerin erteleme/çakışma kuralları korunsun.
+- [ ] Her değişiklikten önce Trimly temalı confirmation preview gösterilsin: hedef çalışan/hizmet, tarih-saat ve saat dilimi, eski/yeni değer, yürürlük tarihi, etkilenen mevcut randevular ve engelleyici çakışmalar. Çakışan blok gibi kurala aykırı işlem onaylanamasın.
+- [ ] Onay akışı kısa ömürlü `proposalId` ile yürüsün; onayda kullanıcı üyeliği/rolü, güncel kayıtlar ve çakışmalar yeniden doğrulansın. Değişen önizleme tekrar onay istesin; çift gönderim idempotent olsun.
+- [ ] Owner/manager, barber ve apprentice için backend action yetki matrisi mevcut izinlerle eşlensin. Barber yalnız kendi verilerini, apprentice yalnız izinli sınırlı bilgileri görebilsin; müşteri/gelir ve işletme geneli verisi rol dışına sızmasın. Mobil buton gizleme tek başına güvenlik sayılmasın.
+- [ ] Okuma, teklif, ret, onay, başarı, hata ve yetkisiz denemeleri kapsayan AI audit log/proposal modeli eklensin; aktör, işletme, rol, action, temizlenmiş argüman, hedef kayıt, sonuç ve zamanlar saklansın. Telefon, özel not ve ham müşteri listesi gereksiz yere loglanmasın; saklama süresi belirlensin.
+- [ ] Yönetimden açılan sohbet ekranında yanıt, netleştirme, veri kartı ve onay kartı ayrı durumlar olarak tasarlansın; işlem sonucunda ilgili ekranlar/önbellek yenilensin. Açık/koyu tema, bağlantı hatası, kota dolması ve işlemin artık geçerli olmaması durumları tasarlansın.
+- [ ] Kota/rate limit, token ve maliyet ölçümü, timeout, prompt-injection ve hassas veri kontrolleri backend'de kurulsun; tüm AI action'ları için rol, işletmeler arası erişim, yarış durumu, çakışma, eski teklif ve çift onay testleri yazılsın.
+- [ ] İlk MVP'ye toplu iptal, randevu iptali, müşteri mesajlaşması veya modelin kendi kendine işlem zinciri başlatması dahil edilmesin; bunlar ancak ayrı ürün/güvenlik kararıyla değerlendirilsin.
+
+**Çıkış kapısı:** Bir owner veya manager sorulara güvenilir yanıt alabilmeli, düşük riskli değişiklikleri açık onayla tamamlayabilmeli; onaysız/izinsiz işlem ve mevcut randevuyu sessizce etkileyen değişiklik yapılamamalı. Kullanım başı maliyet ile audit izi ölçülebilir olmalı.

@@ -1,7 +1,9 @@
 import {
   Controller,
+  Body,
   Get,
   Param,
+  Patch,
   Post,
   Res,
   UploadedFile,
@@ -16,6 +18,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { HaircutHistoryService } from './haircut-history.service';
+import { SetGuardianPrivatePhotoConsentDto } from './dto/set-guardian-private-photo-consent.dto';
 
 @Controller('haircut-records')
 @ApiTags('Tıraş Geçmişi')
@@ -63,6 +66,19 @@ export class CustomerHaircutHistoryController {
       appointmentId,
       user.id,
       file,
+    );
+  }
+
+  @Patch('appointments/:appointmentId/guardian-photo-consent')
+  setGuardianPhotoConsent(
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: SetGuardianPrivatePhotoConsentDto,
+  ) {
+    return this.haircutHistoryService.setGuardianPrivatePhotoConsent(
+      appointmentId,
+      user.id,
+      dto.allow,
     );
   }
 }

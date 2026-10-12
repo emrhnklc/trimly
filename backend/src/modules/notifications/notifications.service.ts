@@ -420,6 +420,291 @@ export class NotificationsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async notifyAppointmentNoShow(appointmentId: string) {
+    try {
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          barbershopId: true,
+          barbershop: { select: { name: true } },
+          customer: {
+            select: {
+              id: true,
+              pushDevices: { select: { expoPushToken: true } },
+            },
+          },
+        },
+      });
+      if (!appointment) return;
+      const title = 'Randevuya gelinmedi kaydı';
+      const body = `${appointment.barbershop.name} randevunu gelinmedi olarak işaretledi. 48 saat içinde randevu detayından itiraz edebilirsin. İnceleme süresince ceza uygulanmaz.`;
+      await this.prisma.appNotification.create({
+        data: {
+          userId: appointment.customer.id,
+          barbershopId: appointment.barbershopId,
+          appointmentId,
+          type: 'APPOINTMENT_NO_SHOW',
+          title,
+          body,
+        },
+      });
+      await this.sendExpoPush(
+        appointment.customer.pushDevices.map((device) => device.expoPushToken),
+        {
+          appointmentId,
+          barbershopId: appointment.barbershopId,
+          type: 'APPOINTMENT_NO_SHOW',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Gelmedi bildirimi gönderilemedi: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`,
+      );
+    }
+  }
+
+  async notifyBusinessCancellation(appointmentId: string) {
+    try {
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          id: true,
+          barbershopId: true,
+          cancellationReason: true,
+          barbershop: { select: { name: true } },
+          customer: {
+            select: {
+              id: true,
+              pushDevices: { select: { expoPushToken: true } },
+            },
+          },
+        },
+      });
+      if (!appointment) return;
+      const title = 'İşletme randevunu iptal etti';
+      const body = `${appointment.barbershop.name} randevunu iptal etti. Neden: ${appointment.cancellationReason ?? 'Belirtilmedi'}. Bu iptal sana ceza olarak yansımaz.`;
+      await this.prisma.appNotification.create({
+        data: {
+          userId: appointment.customer.id,
+          barbershopId: appointment.barbershopId,
+          appointmentId,
+          type: 'APPOINTMENT_BUSINESS_CANCELLED',
+          title,
+          body,
+        },
+      });
+      await this.sendExpoPush(
+        appointment.customer.pushDevices.map((device) => device.expoPushToken),
+        {
+          appointmentId,
+          barbershopId: appointment.barbershopId,
+          type: 'APPOINTMENT_BUSINESS_CANCELLED',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `İşletme iptal bildirimi gönderilemedi: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`,
+      );
+    }
+  }
+
+  async notifyBusinessReliabilityImpact(
+    eventId: string,
+    totalPoints90Days: number,
+  ) {
+    try {
+      const event = await this.prisma.businessCancellationEvent.findUnique({
+        where: { id: eventId },
+        select: {
+          appointmentId: true,
+          barbershopId: true,
+          cancelledByUserId: true,
+          points: true,
+          pointReason: true,
+          barbershop: {
+            select: {
+              name: true,
+              members: {
+                where: {
+                  isActive: true,
+                  role: { in: [BusinessRole.OWNER, BusinessRole.MANAGER] },
+                },
+                select: {
+                  user: {
+                    select: {
+                      id: true,
+                      pushDevices: { select: { expoPushToken: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+      if (!event || event.points <= 0) return;
+
+      const recipients = event.barbershop.members
+        .map((member) => member.user)
+        .filter((user) => user.id !== event.cancelledByUserId);
+      if (!recipients.length) return;
+
+      const reason = {
+        AFTER_START: 'randevu başladıktan sonra iptal edildi',
+        CUSTOMER_ARRIVED: 'müşteri geldi durumundayken iptal edildi',
+        LESS_THAN_2_HOURS: 'randevuya 2 saatten az kala iptal edildi',
+        BETWEEN_2_AND_6_HOURS: 'randevuya 2–6 saat kala iptal edildi',
+        BETWEEN_6_AND_24_HOURS: 'randevuya 6–24 saat kala iptal edildi',
+        BETWEEN_2_AND_24_HOURS: 'randevuya 2–24 saat kala iptal edildi',
+        MORE_THAN_24_HOURS: 'randevuya 24 saatten fazla kala iptal edildi',
+      }[event.pointReason];
+      const title = `${event.barbershop.name}: +${event.points} güvenilirlik puanı`;
+      const body = `Bir randevu ${reason}. Son 90 gündeki aktif puan: ${totalPoints90Days}. Ayrıntıları İşletme Güvenilirliği ekranından inceleyebilirsin.`;
+
+      await this.prisma.appNotification.createMany({
+        data: recipients.map((user) => ({
+          userId: user.id,
+          barbershopId: event.barbershopId,
+          appointmentId: event.appointmentId,
+          type: 'BUSINESS_RELIABILITY_POINTS_ADDED',
+          title,
+          body,
+        })),
+      });
+      await this.sendExpoPush(
+        recipients.flatMap((user) =>
+          user.pushDevices.map((device) => device.expoPushToken),
+        ),
+        {
+          appointmentId: event.appointmentId,
+          barbershopId: event.barbershopId,
+          type: 'BUSINESS_RELIABILITY_POINTS_ADDED',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `İşletme güvenilirlik bildirimi gönderilemedi: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`,
+      );
+    }
+  }
+
+  async notifyBusinessCancellationAppealDecision(
+    eventId: string,
+    approved: boolean,
+  ) {
+    try {
+      const event = await this.prisma.businessCancellationEvent.findUnique({
+        where: { id: eventId },
+        select: {
+          appointmentId: true,
+          barbershopId: true,
+          appealRequestedByUserId: true,
+          appealReviewNote: true,
+        },
+      });
+      if (!event?.appealRequestedByUserId) return;
+      const user = await this.prisma.user.findUnique({
+        where: { id: event.appealRequestedByUserId },
+        select: {
+          id: true,
+          pushDevices: { select: { expoPushToken: true } },
+        },
+      });
+      if (!user) return;
+      const title = approved
+        ? 'İşletme iptal itirazı kabul edildi'
+        : 'İşletme iptal itirazı reddedildi';
+      const body = `${approved ? 'Bu iptalin ceza puanı kaldırıldı.' : 'Bu iptalin ceza puanı korundu.'} İnceleme notu: ${event.appealReviewNote ?? 'Belirtilmedi'}`;
+      await this.prisma.appNotification.create({
+        data: {
+          userId: user.id,
+          barbershopId: event.barbershopId,
+          appointmentId: event.appointmentId,
+          type: 'BUSINESS_CANCELLATION_APPEAL_DECISION',
+          title,
+          body,
+        },
+      });
+      await this.sendExpoPush(
+        user.pushDevices.map((device) => device.expoPushToken),
+        {
+          appointmentId: event.appointmentId,
+          barbershopId: event.barbershopId,
+          type: 'BUSINESS_CANCELLATION_APPEAL_DECISION',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `İşletme iptal itirazı bildirimi gönderilemedi: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`,
+      );
+    }
+  }
+
+  async notifyNoShowDecision(
+    appointmentId: string,
+    accepted: boolean,
+    reviewed: boolean,
+  ) {
+    try {
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: {
+          barbershopId: true,
+          customer: {
+            select: {
+              id: true,
+              pushDevices: { select: { expoPushToken: true } },
+            },
+          },
+        },
+      });
+      if (!appointment) return;
+      const title = accepted
+        ? 'Gelinmedi itirazın kabul edildi'
+        : reviewed
+          ? 'Gelinmedi itirazın sonuçlandı'
+          : 'Gelinmedi kaydı kesinleşti';
+      const body = accepted
+        ? 'Gelinmedi kaydı geri alındı. Bu kayıt ceza hesabına alınmayacak.'
+        : reviewed
+          ? 'İtirazın reddedildi. Gelinmedi kaydı kesinleşti; varsa randevu kısıtını yeni rezervasyon sırasında görebilirsin.'
+          : '48 saatlik itiraz süresi dolduğu için gelinmedi kaydı kesinleşti. İlk kayıt uyarıdır; tekrarında randevu kısıtı uygulanabilir.';
+      await this.prisma.appNotification.create({
+        data: {
+          userId: appointment.customer.id,
+          barbershopId: appointment.barbershopId,
+          appointmentId,
+          type: 'APPOINTMENT_NO_SHOW',
+          title,
+          body,
+        },
+      });
+      await this.sendExpoPush(
+        appointment.customer.pushDevices.map((device) => device.expoPushToken),
+        {
+          appointmentId,
+          barbershopId: appointment.barbershopId,
+          type: 'APPOINTMENT_NO_SHOW',
+        },
+        title,
+        body,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Gelinmedi kararı bildirilemedi: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}`,
+      );
+    }
+  }
+
   private async sendExpoPush(
     tokens: string[],
     data: { appointmentId: string; barbershopId: string; type: string },

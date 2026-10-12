@@ -64,6 +64,20 @@ export class ApiError extends Error {
   }
 }
 
+async function fetchApi(url: URL, options: RequestInit) {
+  try {
+    return await fetch(url, options);
+  } catch {
+    throw new ApiError(
+      "Bağlantı sorunu: Trimly sunucusuna ulaşılamıyor. İnternet bağlantını kontrol edip tekrar dene. Sorun devam ederse sunucu geçici olarak erişilemiyor olabilir.",
+      0,
+      "NETWORK_ERROR",
+      undefined,
+      url.toString(),
+    );
+  }
+}
+
 async function parseResponse<T>(response: Response) {
   if (!response.ok) {
     const payload = (await response
@@ -118,7 +132,7 @@ export async function apiGet<T>(
   });
 
   if (options?.fresh) {
-    const response = await fetch(url, {
+    const response = await fetchApi(url, {
       cache: "no-store",
       headers: accessToken
         ? { Authorization: `Bearer ${accessToken}` }
@@ -135,7 +149,7 @@ export async function apiGet<T>(
   if (pending) return pending as Promise<T>;
 
   const requestGeneration = cacheGeneration;
-  const request = fetch(url, {
+  const request = fetchApi(url, {
     headers: accessToken
       ? { Authorization: `Bearer ${accessToken}` }
       : undefined,
@@ -171,7 +185,7 @@ export async function apiPost<T>(
   body: unknown,
   accessToken?: string,
 ) {
-  const response = await fetch(new URL(path, API_URL), {
+  const response = await fetchApi(new URL(path, API_URL), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -188,7 +202,7 @@ export async function apiUpload<T>(
   body: FormData,
   accessToken?: string,
 ) {
-  const response = await fetch(new URL(path, API_URL), {
+  const response = await fetchApi(new URL(path, API_URL), {
     method: "POST",
     headers: accessToken
       ? { Authorization: `Bearer ${accessToken}` }
@@ -205,7 +219,7 @@ export async function apiPatch<T>(
   accessToken?: string,
 ) {
   const hasBody = body !== undefined;
-  const response = await fetch(new URL(path, API_URL), {
+  const response = await fetchApi(new URL(path, API_URL), {
     method: "PATCH",
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
@@ -223,7 +237,7 @@ export async function apiPut<T>(
   accessToken?: string,
 ) {
   const hasBody = body !== undefined;
-  const response = await fetch(new URL(path, API_URL), {
+  const response = await fetchApi(new URL(path, API_URL), {
     method: "PUT",
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
@@ -241,7 +255,7 @@ export async function apiDelete<T>(
   body?: unknown,
 ) {
   const hasBody = body !== undefined;
-  const response = await fetch(new URL(path, API_URL), {
+  const response = await fetchApi(new URL(path, API_URL), {
     method: "DELETE",
     headers: {
       ...(hasBody ? { "Content-Type": "application/json" } : {}),

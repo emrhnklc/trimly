@@ -71,6 +71,10 @@ export function BusinessBookingStatusSheet({
           <AppText color="textMuted" style={styles.description} variant="body">
             {isOpen
               ? 'Müşteriler uygun saatlerinden yeni randevu alabilir.'
+              : readiness.bookingSuspendedUntil
+                ? `Güvenilirlik kısıtı nedeniyle ${new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(readiness.bookingSuspendedUntil))} tarihine kadar yeni randevu alınamaz. Mevcut randevular korunur.`
+                : readiness.staffAvailabilityBlocked
+                  ? 'Çalışan programı işletme sahibi tarafından doğrulanana kadar yeni randevu alınamaz.'
               : readiness.missingRequirements.length
                 ? 'Aşağıdaki eksikleri tamamlayınca randevu alımı yeniden açılabilir.'
                 : 'İşletmen keşfette görünür; mevcut randevular etkilenmez.'}

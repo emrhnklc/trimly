@@ -22,6 +22,8 @@ describe('BarbershopReadinessService', () => {
 
     await expect(service.getReadiness('business-1')).resolves.toEqual({
       acceptsBookings: true,
+      bookingSuspendedUntil: null,
+      staffAvailabilityBlocked: false,
       checks: {
         activeService: true,
         bookableMember: true,
@@ -164,11 +166,40 @@ describe('BarbershopReadinessService', () => {
       ConflictException,
     );
   });
+
+  it('keeps existing setup readiness but closes new bookings during a reliability suspension', async () => {
+    const business = readyBusiness();
+    business.reliabilityActions = [
+      { endsAt: new Date(Date.now() + 86_400_000) },
+    ];
+    findUnique.mockResolvedValue(business);
+
+    const readiness = await service.getReadiness('business-1');
+
+    expect(readiness.isReadyToPublish).toBe(true);
+    expect(readiness.isBookingOpen).toBe(false);
+    expect(readiness.bookingSuspendedUntil).toEqual(
+      business.reliabilityActions[0].endsAt,
+    );
+  });
+
+  it('blocks new bookings while the only available member awaits owner review', async () => {
+    const business = readyBusiness();
+    business.members[0].reliabilityActions = [{ id: 'hold-1' }];
+    findUnique.mockResolvedValue(business);
+
+    const readiness = await service.getReadiness('business-1');
+
+    expect(readiness.isReadyToPublish).toBe(true);
+    expect(readiness.staffAvailabilityBlocked).toBe(true);
+    expect(readiness.isBookingOpen).toBe(false);
+  });
 });
 
 function readyBusiness() {
   return {
     acceptsBookings: true,
+    reliabilityActions: [] as { endsAt: Date }[],
     isDiscoverable: true,
     latitude: 38.4237 as number | null,
     longitude: 27.1428 as number | null,
@@ -180,6 +211,7 @@ function readyBusiness() {
     workingHours: [{ weekday: 'MONDAY', startTime: '09:00', endTime: '19:00' }],
     members: [
       {
+        reliabilityActions: [] as { id: string }[],
         workingHours: [
           { weekday: 'MONDAY', startTime: '10:00', endTime: '18:00' },
         ],

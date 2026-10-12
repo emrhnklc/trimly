@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { AppState, FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { AppButton } from '@/components/ui/AppButton';
+import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
 import { BrandedPageHeader } from '@/components/ui/BrandedPageHeader';
 import { Screen } from '@/components/ui/Screen';
@@ -44,6 +46,11 @@ export default function BarbershopDiscoveryScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationAction, setLocationAction] = useState<'permission' | 'settings' | 'retry'>('retry');
+  const nearbyLocation = useRef<{ latitude: number; longitude: number } | undefined>(undefined);
+  const locationRequest = useRef(0);
+  const waitingForSettings = useRef(false);
+  const initializedFilter = useRef<string | null>(null);
 
   const loadBarbershops = useCallback(async (search?: string, refresh = false, location?: { latitude: number; longitude: number }) => {
     if (refresh) setIsRefreshing(true);
@@ -63,39 +70,98 @@ export default function BarbershopDiscoveryScreen() {
   function submitSearch() {
     const search = searchText.trim();
     setSubmittedSearch(search);
-    void loadBarbershops(search);
+    if (activeFilter === 'nearby' && !nearbyLocation.current) {
+      void changeFilter('nearby', search);
+    } else {
+      void loadBarbershops(search, false, activeFilter === 'nearby' ? nearbyLocation.current : undefined);
+    }
   }
 
-  const changeFilter = useCallback(async (nextFilter: DiscoveryFilter) => {
+  const changeFilter = useCallback(async (nextFilter: DiscoveryFilter, search = submittedSearch) => {
+    const request = ++locationRequest.current;
     setActiveFilter(nextFilter);
     setLocationError(null);
+    nearbyLocation.current = undefined;
     if (nextFilter !== 'nearby') {
-      await loadBarbershops(submittedSearch);
+      await loadBarbershops(search);
       return;
     }
+    setIsLoading(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted && permission.canAskAgain) {
+        permission = await Location.requestForegroundPermissionsAsync();
+      }
+      if (request !== locationRequest.current) return;
       if (!permission.granted) {
-        setLocationError('Yakındaki işletmeleri gösterebilmemiz için konum izni vermelisin.');
+        setLocationAction(permission.canAskAgain ? 'permission' : 'settings');
+        setLocationError(permission.canAskAgain
+          ? 'Sana yakın işletmeleri sıralamak için konum iznine ihtiyacımız var. İzin vermeden diğer filtrelerle keşfetmeye devam edebilirsin.'
+          : 'Konum izni kapalı. Ayarlar’dan Trimly için konum erişimini açarak sana yakın işletmeleri görebilirsin.');
+        setBarbershops([]);
+        return;
+      }
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (request !== locationRequest.current) return;
+      if (!servicesEnabled) {
+        setLocationAction('settings');
+        setLocationError('Cihazının konum hizmetleri kapalı. Telefon ayarlarından konum hizmetlerini açıp tekrar dene.');
+        setBarbershops([]);
         return;
       }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      await loadBarbershops(submittedSearch, false, {
+      if (request !== locationRequest.current) return;
+      nearbyLocation.current = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-      });
+      };
+      await loadBarbershops(search, false, nearbyLocation.current);
     } catch {
+      if (request !== locationRequest.current) return;
+      setLocationAction('retry');
+      setBarbershops([]);
       setLocationError('Konum alınamadı. Cihazının konum ayarlarını kontrol edip tekrar dene.');
+    } finally {
+      if (request === locationRequest.current) setIsLoading(false);
     }
   }, [loadBarbershops, submittedSearch]);
 
   useEffect(() => {
+    const routeFilter = filter ?? 'featured';
+    if (initializedFilter.current === routeFilter) return;
     const requestId = setTimeout(
-      () => void (filter === 'nearby' ? changeFilter('nearby') : loadBarbershops()),
+      () => {
+        initializedFilter.current = routeFilter;
+        void (filter === 'nearby' ? changeFilter('nearby') : loadBarbershops());
+      },
       0,
     );
     return () => clearTimeout(requestId);
   }, [changeFilter, filter, loadBarbershops]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && waitingForSettings.current) {
+        waitingForSettings.current = false;
+        if (activeFilter === 'nearby') void changeFilter('nearby');
+      }
+    });
+    return () => subscription.remove();
+  }, [activeFilter, changeFilter]);
+
+  async function resolveLocation() {
+    if (locationAction !== 'settings') {
+      await changeFilter('nearby');
+      return;
+    }
+    try {
+      waitingForSettings.current = true;
+      await Linking.openSettings();
+    } catch {
+      waitingForSettings.current = false;
+      setLocationError('Ayarlar açılamadı. Telefonunun Ayarlar bölümünden Trimly konum iznini açabilirsin.');
+    }
+  }
 
   useEffect(() => {
     if (!token) return;
@@ -181,7 +247,7 @@ export default function BarbershopDiscoveryScreen() {
         keyboardShouldPersistTaps="handled"
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          isLoading ? null : (
+          isLoading || locationError ? null : (
             <View style={styles.emptyState}>
               <AppText style={styles.emptyTitle} variant="heading">
                 {error ? 'Bir sorun oluştu' : 'İşletme bulunamadı'}
@@ -212,12 +278,21 @@ export default function BarbershopDiscoveryScreen() {
                 <AppText color="primary" variant="bodySmall">{displayedBarbershops.length} sonuç</AppText>
               ) : null}
             </View>
-            {locationError ? <AppText color="danger" style={styles.locationError} variant="bodySmall">{locationError}</AppText> : null}
+            {locationError ? (
+              <AppCard style={styles.locationCard}>
+                <AppText variant="heading">Yakınındaki işletmeleri keşfet</AppText>
+                <AppText color="textMuted" variant="bodySmall">{locationError}</AppText>
+                <AppButton disabled={isLoading} onPress={() => void resolveLocation()}>
+                  {locationAction === 'settings' ? 'Ayarları Aç' : locationAction === 'permission' ? 'Konuma İzin Ver' : 'Tekrar Dene'}
+                </AppButton>
+                <AppButton variant="ghost" onPress={() => void changeFilter('featured')}>Konumsuz Devam Et</AppButton>
+              </AppCard>
+            ) : null}
           </View>
         }
         refreshControl={
           <RefreshControl
-            onRefresh={() => void loadBarbershops(submittedSearch, true)}
+            onRefresh={() => void (activeFilter === 'nearby' ? changeFilter('nearby') : loadBarbershops(submittedSearch, true))}
             refreshing={isRefreshing}
             tintColor={colors.primary}
           />
@@ -260,7 +335,7 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.xxl },
   emptyTitle: { textAlign: 'center' },
   emptyDescription: { marginTop: spacing.xs, textAlign: 'center' },
-  locationError: { marginBottom: spacing.sm, textAlign: 'center' },
+  locationCard: { gap: spacing.sm, marginBottom: spacing.md },
 });
 
 function getDistrict(address: string | null) {

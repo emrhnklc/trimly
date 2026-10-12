@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DependentRelationship } from '@prisma/client';
 import type { PrismaService } from '../../database/prisma.service';
 import { DependentsService } from './dependents.service';
@@ -7,7 +11,7 @@ describe('DependentsService', () => {
   const findFirst = jest.fn();
   const countDependents = jest.fn();
   const create = jest.fn();
-  const update = jest.fn<(input: unknown) => Promise<unknown>>();
+  const update = jest.fn();
   const remove = jest.fn();
   const countAppointments = jest.fn();
   const prisma = {
@@ -55,6 +59,41 @@ describe('DependentsService', () => {
       }),
     ).rejects.toThrow(ConflictException);
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it('requires a custom label when the relationship is other', async () => {
+    countDependents.mockResolvedValue(0);
+
+    await expect(
+      service.create('owner-1', {
+        birthDate: '2018-04-12',
+        firstName: 'Ali',
+        lastName: 'Kaya',
+        relationship: DependentRelationship.DEPENDENT,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('stores the custom relationship label for other relatives', async () => {
+    countDependents.mockResolvedValue(0);
+    create.mockResolvedValue({ id: 'dependent-1' });
+
+    await service.create('owner-1', {
+      birthDate: '2018-04-12',
+      firstName: 'Ali',
+      lastName: 'Kaya',
+      relationship: DependentRelationship.DEPENDENT,
+      relationshipLabel: 'Kuzenim',
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          relationshipLabel: 'Kuzenim',
+        }) as object,
+      }),
+    );
   });
 
   it('archives a profile with preserved appointment history', async () => {

@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +10,8 @@ import { AppButton } from '@/components/ui/AppButton';
 import { AppText } from '@/components/ui/AppText';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { getBusinessAppointment } from '@/features/appointments/api';
+import type { BusinessAppointmentDetail } from '@/features/appointments/types';
 import { useBusiness } from '@/features/business/BusinessProvider';
 import { BusinessDetailHeader } from '@/features/business/components/BusinessDetailHeader';
 import { uploadBusinessHaircutPhoto } from '@/features/haircut-history/api';
@@ -31,6 +33,8 @@ export default function BusinessHaircutCameraScreen() {
   const { activeMembership } = useBusiness();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
+  const [appointment, setAppointment] = useState<BusinessAppointmentDetail | null>(null);
+  const [isLoadingAppointment, setLoadingAppointment] = useState(true);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
@@ -46,8 +50,40 @@ export default function BusinessHaircutCameraScreen() {
   const [uploadSucceeded, setUploadSucceeded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const loadAppointment = useCallback(async () => {
+    if (!appointmentId || !activeMembership || !token) {
+      setError('Randevu bilgileri alınamadı.');
+      setLoadingAppointment(false);
+      return;
+    }
+    setLoadingAppointment(true);
+    try {
+      setAppointment(await getBusinessAppointment(
+        activeMembership.barbershop.id,
+        appointmentId,
+        token,
+        true,
+      ));
+      setError(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Randevu bilgileri alınamadı.');
+    } finally {
+      setLoadingAppointment(false);
+    }
+  }, [activeMembership, appointmentId, token]);
+
+  useEffect(() => {
+    const requestId = setTimeout(() => void loadAppointment(), 0);
+    return () => clearTimeout(requestId);
+  }, [loadAppointment]);
+
   async function openCamera() {
-    if (!consentConfirmed || uploadedCount >= MAX_HAIRCUT_PHOTOS) return;
+    if (
+      !appointment ||
+      !consentConfirmed ||
+      uploadedCount >= MAX_HAIRCUT_PHOTOS ||
+      (appointment.requiresGuardianPhotoConsent && !appointment.guardianPrivatePhotoConsentAt)
+    ) return;
 
     setError(null);
     const result = permission?.granted ? permission : await requestPermission();
@@ -184,6 +220,25 @@ export default function BusinessHaircutCameraScreen() {
       <View style={styles.header}>
         <BusinessDetailHeader onBack={() => router.back()} title="Tıraş Fotoğrafı" />
       </View>
+      {isLoadingAppointment ? (
+        <ActivityIndicator color={themeColors.primary} style={styles.appointmentLoader} />
+      ) : !appointment || (appointment.requiresGuardianPhotoConsent && !appointment.guardianPrivatePhotoConsentAt) ? (
+        <View style={styles.consentContent}>
+          <AppText style={styles.consentTitle} variant="heading">
+            {appointment ? 'Veli izni bekleniyor' : 'Randevu yüklenemedi'}
+          </AppText>
+          <AppText color="textMuted" style={styles.consentDescription}>
+            {appointment
+              ? 'Çocuğun fotoğrafı için rezervasyonu yapan kişinin randevu detayından özel fotoğraf izni vermesi gerekiyor. İzin olmadan fotoğraf çekilemez.'
+              : error ?? 'Lütfen tekrar dene.'}
+          </AppText>
+          <View style={styles.openButton}>
+            <AppButton onPress={() => void loadAppointment()} variant="secondary">
+              İzni Kontrol Et
+            </AppButton>
+          </View>
+        </View>
+      ) : (
       <View style={styles.consentContent}>
         <View style={[styles.consentIcon, { backgroundColor: themeColors.surfaceMuted }]}>
           <SymbolView
@@ -218,7 +273,9 @@ export default function BusinessHaircutCameraScreen() {
               ) : null}
             </View>
             <AppText style={styles.consentLabel} variant="label">
-              Müşteriden fotoğraf çekme ve Trimly’ye yükleme izni aldım.
+              {appointment.requiresGuardianPhotoConsent
+                ? 'Velinin uygulamadan verdiği izni gördüm; fotoğrafı yalnız özel tıraş geçmişi için çekeceğim.'
+                : 'Müşteriden fotoğraf çekme ve Trimly’ye yükleme izni aldım.'}
             </AppText>
           </Pressable>
         ) : null}
@@ -254,12 +311,14 @@ export default function BusinessHaircutCameraScreen() {
           Galeriden yükleme kapalıdır; yalnız şimdi çekilen fotoğraf kabul edilir.
         </AppText>
       </View>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.md },
+  appointmentLoader: { marginTop: spacing.xxxl },
   consentContent: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.xxl },
   consentIcon: {
     alignItems: 'center', borderRadius: radius.pill,

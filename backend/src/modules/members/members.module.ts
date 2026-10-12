@@ -4,6 +4,7 @@ import { InvitationAcceptanceController } from './invitation-acceptance.controll
 import { MembersController } from './members.controller';
 import { MembersService } from './members.service';
 import { PublicBarbersController } from './public-barbers.controller';
+import { MemberProfileService } from './member-profile.service';
 
 @Module({
   controllers: [
@@ -12,6 +13,6 @@ import { PublicBarbersController } from './public-barbers.controller';
     BusinessMembersController,
     PublicBarbersController,
   ],
-  providers: [MembersService],
+  providers: [MembersService, MemberProfileService],
 })
 export class MembersModule {}

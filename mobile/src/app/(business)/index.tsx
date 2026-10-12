@@ -20,7 +20,10 @@ import {
   markBusinessAppointmentArrived,
   undoBusinessAppointmentArrival,
 } from "@/features/appointments/api";
-import type { BusinessAppointment } from "@/features/appointments/types";
+import type {
+  BusinessAppointment,
+  BusinessCancellationResult,
+} from "@/features/appointments/types";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
   AppointmentPeriodTabs,
@@ -30,6 +33,7 @@ import { BusinessAppointmentCard } from "@/features/business-appointments/compon
 import { BusinessActiveAppointmentCard } from "@/features/business-appointments/components/BusinessActiveAppointmentCard";
 import { BusinessAppointmentState } from "@/features/business-appointments/components/BusinessAppointmentState";
 import { BusinessAppointmentCancellationSheet } from "@/features/business-appointments/components/BusinessAppointmentCancellationSheet";
+import { BusinessCancellationResultSheet } from "@/features/business-appointments/components/BusinessCancellationResultSheet";
 import {
   formatBusinessDate,
   formatBusinessTime,
@@ -71,6 +75,8 @@ function BusinessAppointmentsScreen() {
   );
   const [cancellationAppointment, setCancellationAppointment] =
     useState<BusinessAppointment | null>(null);
+  const [cancellationResult, setCancellationResult] =
+    useState<BusinessCancellationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loadedBusinessId = useRef<string | null>(null);
 
@@ -172,7 +178,7 @@ function BusinessAppointmentsScreen() {
   }, [groupedAppointments.today, referenceTime]);
 
   const summary = useMemo(() => {
-    const nextAppointment = appointments
+    const nextAppointment = groupedAppointments.today
       .filter(
         (appointment) =>
           (appointment.status === "CONFIRMED" ||
@@ -192,7 +198,7 @@ function BusinessAppointmentsScreen() {
         (appointment) => appointment.status !== "CANCELLED",
       ).length,
     };
-  }, [appointments, groupedAppointments.today, referenceTime]);
+  }, [groupedAppointments.today, referenceTime]);
 
   const pendingHaircutRecords = useMemo(
     () =>
@@ -292,12 +298,13 @@ function BusinessAppointmentsScreen() {
           token,
         );
       } else {
-        await cancelBusinessAppointment(
+        const result = await cancelBusinessAppointment(
           activeMembership.barbershop.id,
           appointment.id,
           token,
           cancellationReason ?? "",
         );
+        setCancellationResult(result);
       }
       if (action === "cancel") setCancellationAppointment(null);
       await loadAppointments(false, true);
@@ -557,6 +564,8 @@ function BusinessAppointmentsScreen() {
       </ScrollView>
       {cancellationAppointment ? (
         <BusinessAppointmentCancellationSheet
+          appointmentStartsAt={cancellationAppointment.startsAt}
+          appointmentStatus={cancellationAppointment.status}
           customerName={cancellationAppointment.attendeeNameSnapshot}
           isSubmitting={actionAppointmentId === cancellationAppointment.id}
           onClose={() => setCancellationAppointment(null)}
@@ -568,6 +577,16 @@ function BusinessAppointmentsScreen() {
             )
           }
           visible
+        />
+      ) : null}
+      {cancellationResult ? (
+        <BusinessCancellationResultSheet
+          onClose={() => setCancellationResult(null)}
+          onOpenReliability={() => {
+            setCancellationResult(null);
+            router.push("/(business)/management/reliability");
+          }}
+          result={cancellationResult}
         />
       ) : null}
     </Screen>

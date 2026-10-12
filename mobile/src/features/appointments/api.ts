@@ -1,14 +1,32 @@
-import { apiGet, apiPatch, apiPost } from '@/lib/api/client';
+import { apiGet, apiPatch, apiPost } from "@/lib/api/client";
 import type {
   CreateAppointmentInput,
   CreatedAppointment,
   CustomerAppointment,
+  CustomerNoShowStatus,
   BusinessAppointment,
   BusinessAppointmentDetail,
   AppointmentChangeProposal,
-} from './types';
+  BusinessCancellationRecoveryOptions,
+  BusinessCancellationResult,
+} from "./types";
 
-export function getBusinessAppointments(barbershopId: string, accessToken: string) {
+export function getBusinessCancellationRecoveryOptions(
+  appointmentId: string,
+  accessToken: string,
+) {
+  return apiGet<BusinessCancellationRecoveryOptions>(
+    `/appointments/${encodeURIComponent(appointmentId)}/recovery-options`,
+    undefined,
+    accessToken,
+    { fresh: true },
+  );
+}
+
+export function getBusinessAppointments(
+  barbershopId: string,
+  accessToken: string,
+) {
   return apiGet<BusinessAppointment[]>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments`,
     undefined,
@@ -16,7 +34,10 @@ export function getBusinessAppointments(barbershopId: string, accessToken: strin
   );
 }
 
-export function getMyBusinessAppointments(barbershopId: string, accessToken: string) {
+export function getMyBusinessAppointments(
+  barbershopId: string,
+  accessToken: string,
+) {
   return apiGet<BusinessAppointment[]>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/mine`,
     undefined,
@@ -28,11 +49,13 @@ export function getBusinessAppointment(
   barbershopId: string,
   appointmentId: string,
   accessToken: string,
+  fresh = false,
 ) {
   return apiGet<BusinessAppointmentDetail>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}`,
     undefined,
     accessToken,
+    { fresh },
   );
 }
 
@@ -66,7 +89,7 @@ export function cancelBusinessAppointment(
   accessToken: string,
   reason: string,
 ) {
-  return apiPatch<CreatedAppointment>(
+  return apiPatch<BusinessCancellationResult>(
     `/barbershops/${encodeURIComponent(barbershopId)}/appointments/${encodeURIComponent(appointmentId)}/cancel`,
     { reason },
     accessToken,
@@ -127,10 +150,10 @@ export function cancelBusinessAppointmentChangeProposal(
 
 export function respondToAppointmentChangeProposal(
   appointmentId: string,
-  response: 'accept' | 'reject',
+  response: "accept" | "reject",
   accessToken: string,
 ) {
-  return apiPatch<{ success: true; status: 'ACCEPTED' | 'REJECTED' }>(
+  return apiPatch<{ success: true; status: "ACCEPTED" | "REJECTED" }>(
     `/appointments/${encodeURIComponent(appointmentId)}/change-proposal/${response}`,
     undefined,
     accessToken,
@@ -150,7 +173,20 @@ export function createAppointment(
 }
 
 export function getMyAppointments(accessToken: string) {
-  return apiGet<CustomerAppointment[]>('/appointments/me', undefined, accessToken);
+  return apiGet<CustomerAppointment[]>(
+    "/appointments/me",
+    undefined,
+    accessToken,
+  );
+}
+
+export function getMyNoShowStatus(accessToken: string) {
+  return apiGet<CustomerNoShowStatus>(
+    "/appointments/no-show/status",
+    undefined,
+    accessToken,
+    { fresh: true },
+  );
 }
 
 export function getMyAppointment(appointmentId: string, accessToken: string) {
@@ -161,10 +197,25 @@ export function getMyAppointment(appointmentId: string, accessToken: string) {
   );
 }
 
-export function cancelMyAppointment(appointmentId: string, accessToken: string) {
+export function cancelMyAppointment(
+  appointmentId: string,
+  accessToken: string,
+) {
   return apiPatch<CreatedAppointment>(
     `/appointments/${encodeURIComponent(appointmentId)}/cancel`,
     undefined,
+    accessToken,
+  );
+}
+
+export function disputeMyAppointmentNoShow(
+  appointmentId: string,
+  reason: string,
+  accessToken: string,
+) {
+  return apiPatch<{ success: true }>(
+    `/appointments/${encodeURIComponent(appointmentId)}/no-show/dispute`,
+    { reason },
     accessToken,
   );
 }
