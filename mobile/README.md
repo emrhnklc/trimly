@@ -1,56 +1,44 @@
-# Welcome to your Expo app 👋
+# Trimly Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The customer and business mobile workspaces for Trimly, built with React Native, TypeScript, Expo and Expo Router.
 
-## Get started
+For the product overview, architecture, backend setup and full local development guide, see the [main README](../README.md).
 
-1. Install dependencies
+## Quick start
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Start the backend first, then run from this directory:
 
 ```bash
-npm run reset-project
+npm ci
+cp .env.example .env
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Set `EXPO_PUBLIC_API_URL` in `.env` to an API address reachable by your device:
 
-### Other setup steps
+- iOS Simulator: `http://localhost:3000`
+- Android Studio emulator: `http://10.0.2.2:3000`
+- Physical phone: `http://<your-computer-LAN-IP>:3000`
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npx expo start --go --lan
+```
 
-## Learn more
+Use a compatible Expo Go version. Native development builds can be started with `npm run ios` or `npm run android` when the corresponding native tooling is installed. Restart Expo after changing environment variables.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Source layout
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- `src/app/` — file-based routes and customer/business navigation.
+- `src/features/` — feature-specific screens, state and API integration.
+- `src/components/` — shared UI components.
+- `src/lib/` — API client and navigation utilities.
+- `src/theme/` — shared theme configuration.
+- `assets/` — bundled images and branding.
 
-## Join the community
+## Checks
 
-Join our community of developers creating universal apps.
+```bash
+npx tsc --noEmit
+npm run lint
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Never place secrets in `EXPO_PUBLIC_*` environment variables; these values are included in the client bundle.
